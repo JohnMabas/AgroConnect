@@ -16,6 +16,10 @@ build/
 .env.*.local
 !.env.example
 
+# TLS certificates
+backend/certs/*.pem
+!backend/certs/.gitkeep
+
 # Logs
 logs/
 *.log

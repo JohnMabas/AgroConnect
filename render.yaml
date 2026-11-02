@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: agroconnect-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SSL_CA_PATH
+        sync: false
+      - key: DB_SSL_VERIFY
+        value: "true"
+      - key: FRONTEND_URL
+        sync: false
+
+  - type: web
+    name: agroconnect-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

@@ -1003,7 +1003,9 @@ Testing must cover:
 
 ### 5.10 Deployment
 
-Railway is the initial deployment direction.
+Aiven PostgreSQL is the approved database host. Render is the approved application hosting platform, using two separate Render Web Services: one for the backend and one for the frontend.
+
+Do not use Railway, Neon, Supabase or Render PostgreSQL. Do not introduce Docker, Kubernetes or microservices.
 
 The deployment setup must support:
 - Separate development and production environments.
@@ -1036,6 +1038,8 @@ AgroConnect should use a clean monorepo structure.
 The structure below is the target architecture. Create directories gradually as the relevant development phases begin.
 
 Do not create large numbers of empty folders just to match this example.
+
+**Current approved structure:** the project uses separate `backend/` and `frontend/` applications at the repository root, as established in Phase 1. The `apps/` layout below is a future target only. Do not convert the project into a monorepo, npm workspace or shared-package setup unless the project owner explicitly approves it.
 
 ### 6.1 Target Repository Structure
 
@@ -1955,7 +1959,7 @@ Tasks:
 - Production configuration.
 - Environment separation.
 - Database migrations.
-- Railway deployment.
+- Render deployment for the frontend and backend, with Aiven PostgreSQL.
 - Secure secrets management.
 - Health checks.
 - Logging and monitoring.
@@ -3010,3 +3014,81 @@ Phase 1 is complete when:
 - Git status and changes have been reviewed.
 
 Do not start Phase 2 until explicit approval is received.
+---
+
+# 17. Phase 2 — Database Foundation Conventions
+
+Phase 2 establishes the PostgreSQL foundation. These conventions are now part of the project and must be followed in later phases.
+
+## 17.1 Approved Infrastructure
+
+- Database host: Aiven PostgreSQL only.
+- Application host: Render, with separate backend and frontend Web Services.
+- Do not use Railway, Neon, Supabase or Render PostgreSQL.
+- Do not introduce Docker, Kubernetes, Redis or microservices.
+
+## 17.2 Backend Database Structure
+
+- Shared Sequelize instance: `backend/src/database/sequelize.ts`.
+- Connection and TLS resolution: `backend/src/database/config.ts`.
+- Connection health and shutdown helpers: `backend/src/database/connection.ts`.
+- Models: `backend/src/database/models/`.
+- Migrations: `backend/src/database/migrations/`.
+- Seeders: `backend/src/database/seeders/`.
+- Migration runner: Umzug via `backend/src/database/migrator.ts`.
+- Seeder runner: Umzug via `backend/src/database/seeder.ts`.
+
+Do not create a second Sequelize instance. Do not use `sequelize.sync()` for schema changes. Use migrations for every schema change.
+
+## 17.3 Database and Security Rules
+
+- Connect with `DATABASE_URL` by default. Individual `DB_*` variables are for local development only.
+- Never hardcode or commit database credentials.
+- Aiven connections must use TLS.
+- Prefer certificate verification with the Aiven CA certificate via `DB_SSL_CA_PATH`.
+- `DB_SSL_VERIFY` defaults to true. Never silently use `rejectUnauthorized: false`; disabling verification must be explicit and is not recommended for production.
+- `sslmode=require` encrypts but does not provide the same verification as `verify-ca` or `verify-full`.
+- Never log passwords, connection strings or certificate contents.
+- Database health must be real. `/api/health` returns 200 only when the database is reachable, otherwise 503.
+- The backend tests the database connection during startup and closes the pool during SIGINT/SIGTERM shutdown.
+
+## 17.4 Phase 2 Schema
+
+Only these tables exist in Phase 2:
+
+- `users`
+- `roles`
+- `user_roles`
+
+Users may register with a phone number only, an email address only, or both. At least one contact method is enforced by application validation and a database check constraint. Phone numbers are normalized to E.164; emails are trimmed and lowercased. Nullable contact columns are unique when present.
+
+Initial roles: `farmer`, `buyer`, `cooperative`, `transporter`, `admin`. The role seeder is idempotent and must not create users or administrators.
+
+## 17.5 Database Commands
+
+```bash
+npm run db:migrate
+npm run db:migrate:undo
+npm run db:migrate:undo:all
+npm run db:migrate:status
+npm run db:seed
+npm run db:seed:undo
+npm run db:seed:undo:all
+npm run db:seed:status
+```
+
+These commands build the backend first and then execute the compiled runner.
+
+## 17.6 Testing Rules
+
+- Use an isolated PostgreSQL test database.
+- `TEST_DATABASE_URL` is required and its database name must include `test`.
+- Never run destructive tests against Aiven production data.
+- Run `npm test`, `npm run typecheck`, `npm run lint` and `npm run build` before reporting completion.
+- Do not claim live Aiven or Render verification unless it was actually performed.
+
+## 17.7 Phase 2 Non-Goals
+
+Phase 2 does not include registration endpoints, OTP, login/logout, authentication, JWT/sessions, RBAC middleware, profiles, listings, buyer requests, messaging, offers, orders, inventory, transport, payments, Redis, AI or USSD/SMS/IVR workflows. Those belong to later approved phases.
+
+Do not start Phase 3 until explicit approval is received.
