@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Logo } from "@/components/logo";
 
 const navigation = [
@@ -15,14 +16,14 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-deep-navy/10 bg-soft-bg/90 backdrop-blur-md">
       <div className="mx-auto flex h-18 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
-        <a
-          href="#main"
+        <Link
+          href="/"
           className="rounded-lg"
           aria-label="AgroConnect home"
           onClick={() => setIsOpen(false)}
         >
           <Logo />
-        </a>
+        </Link>
 
         <nav aria-label="Main navigation" className="hidden md:block">
           <ul className="flex items-center gap-8">
@@ -39,13 +40,19 @@ export function SiteHeader() {
           </ul>
         </nav>
 
-        <div className="hidden md:block">
-          <a
-            href="#join"
+        <div className="hidden items-center gap-3 md:flex">
+          <Link
+            href="/login"
+            className="text-sm font-semibold text-deep-navy/70 transition-colors hover:text-agro-green"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/register"
             className="inline-flex items-center justify-center rounded-full bg-agro-green px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-deep-navy"
           >
-            Join the network
-          </a>
+            Get started
+          </Link>
         </div>
 
         <button
@@ -92,14 +99,23 @@ export function SiteHeader() {
                 </a>
               </li>
             ))}
-            <li className="pt-2">
-              <a
-                href="#join"
+            <li className="pt-2 border-t border-deep-navy/10 mt-2">
+              <Link
+                href="/login"
+                className="block rounded-lg px-3 py-3 text-base font-semibold text-deep-navy/80 transition-colors hover:bg-white hover:text-agro-green"
+                onClick={() => setIsOpen(false)}
+              >
+                Sign in
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/register"
                 className="flex items-center justify-center rounded-full bg-agro-green px-5 py-3 text-base font-semibold text-white"
                 onClick={() => setIsOpen(false)}
               >
-                Join the network
-              </a>
+                Get started
+              </Link>
             </li>
           </ul>
         </nav>

@@ -13,6 +13,10 @@ export interface DatabaseConfigSource {
   DB_SSL: boolean;
   DB_SSL_CA_PATH?: string | undefined;
   DB_SSL_VERIFY?: boolean | undefined;
+  /** Original hostname when the connection host has been replaced with a
+   *  resolved IPv4 address. Used as the TLS SNI servername so certificate
+   *  verification still works against the hostname in the certificate. */
+  DB_SSL_SERVERNAME?: string | undefined;
   DB_HOST?: string | undefined;
   DB_PORT: number;
   DB_NAME?: string | undefined;
@@ -151,7 +155,10 @@ function resolveSsl(
     ssl: {
       ca,
       rejectUnauthorized: true,
-      servername: host,
+      // Use DB_SSL_SERVERNAME when the connection host has been replaced with a
+      // pre-resolved IPv4 address (to avoid IPv6 Happy Eyeballs timeouts). Fall
+      // back to the connection host if no override is set.
+      servername: source.DB_SSL_SERVERNAME ?? host,
     },
     insecureSsl: false,
   };
