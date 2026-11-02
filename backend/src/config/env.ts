@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 function parsePort(value: string | undefined): number {
   if (value === undefined || value.trim() === "") {

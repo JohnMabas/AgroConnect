@@ -56,9 +56,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-10 flex flex-col gap-2 border-t border-deep-navy/10 pt-6 text-xs text-deep-navy/50 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            &copy; {new Date().getFullYear()} AgroConnect. All rights reserved.
-          </p>
+          <p>&copy; AgroConnect. All rights reserved.</p>
           <p>Connecting Agriculture. Empowering Markets.</p>
         </div>
       </div>
