@@ -1,6 +1,19 @@
 import { Router } from "express";
-import { healthRouter } from "./health.routes.js";
+import {
+  createHealthRouter,
+  type DatabaseHealthCheck,
+} from "./health.routes.js";
 
-export const apiRouter = Router();
+export interface ApiRouterDependencies {
+  checkDatabaseHealth: DatabaseHealthCheck;
+}
 
-apiRouter.use("/health", healthRouter);
+export function createApiRouter({
+  checkDatabaseHealth,
+}: ApiRouterDependencies): Router {
+  const apiRouter = Router();
+
+  apiRouter.use("/health", createHealthRouter(checkDatabaseHealth));
+
+  return apiRouter;
+}
