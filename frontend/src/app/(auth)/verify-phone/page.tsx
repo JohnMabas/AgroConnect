@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { Suspense, useState, useEffect, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
 
 const COOLDOWN_SECONDS = 60;
 
-export default function VerifyPhonePage() {
+function VerifyPhoneForm() {
   const router = useRouter();
   const params = useSearchParams();
   const userId = params.get("user_id") ?? "";
@@ -18,7 +18,6 @@ export default function VerifyPhonePage() {
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  // Cooldown countdown.
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
@@ -46,7 +45,6 @@ export default function VerifyPhonePage() {
       setError("Please enter the 6-digit code.");
       return;
     }
-
     setSubmitting(true);
     try {
       await authApi.verifyPhone(userId, otp);
@@ -67,9 +65,7 @@ export default function VerifyPhonePage() {
       setCooldown(COOLDOWN_SECONDS);
     } catch (err) {
       const apiErr = err as ApiError;
-      if (apiErr.status === 429) {
-        setCooldown(COOLDOWN_SECONDS);
-      }
+      if (apiErr.status === 429) setCooldown(COOLDOWN_SECONDS);
       setError(apiErr.message);
     } finally {
       setResending(false);
@@ -120,7 +116,6 @@ export default function VerifyPhonePage() {
               {error}
             </div>
           )}
-
           <div>
             <label
               htmlFor="otp"
@@ -145,7 +140,6 @@ export default function VerifyPhonePage() {
               className="w-full rounded-xl border border-deep-navy/20 bg-white px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-deep-navy placeholder:text-deep-navy/30 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/30"
             />
           </div>
-
           <button
             type="submit"
             disabled={submitting || otp.length !== 6}
@@ -161,9 +155,7 @@ export default function VerifyPhonePage() {
           {cooldown > 0 ? (
             <p className="text-deep-navy/50">
               Resend available in{" "}
-              <span className="font-semibold text-deep-navy">
-                {cooldown}s
-              </span>
+              <span className="font-semibold text-deep-navy">{cooldown}s</span>
             </p>
           ) : (
             <button
@@ -178,5 +170,19 @@ export default function VerifyPhonePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VerifyPhonePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-deep-navy/10 bg-white p-8 shadow-sm">
+          <p className="text-center text-sm text-deep-navy/50">Loading…</p>
+        </div>
+      }
+    >
+      <VerifyPhoneForm />
+    </Suspense>
   );
 }

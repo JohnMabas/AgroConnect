@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { Suspense, useState, useEffect, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
 
 const COOLDOWN_SECONDS = 60;
 
-export default function VerifyEmailPage() {
+function VerifyEmailForm() {
   const router = useRouter();
   const params = useSearchParams();
-  // token may come from the link in the email
   const tokenFromUrl = params.get("token") ?? "";
   const userId = params.get("user_id") ?? "";
 
@@ -19,13 +18,25 @@ export default function VerifyEmailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
 
-  // Auto-submit if token was provided in the URL.
   useEffect(() => {
-    if (tokenFromUrl && !success) {
-      void handleVerify(tokenFromUrl);
+    if (tokenFromUrl && !success && !autoSubmitted) {
+      setAutoSubmitted(true);
+      void (async () => {
+        setSubmitting(true);
+        try {
+          await authApi.verifyEmail(tokenFromUrl);
+          setSuccess(true);
+          setTimeout(() => router.push("/login?verified=email"), 2000);
+        } catch (err) {
+          setError((err as ApiError).message);
+        } finally {
+          setSubmitting(false);
+        }
+      })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -34,11 +45,16 @@ export default function VerifyEmailPage() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  async function handleVerify(rawToken: string) {
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!token.trim()) {
+      setError("Please enter the verification code.");
+      return;
+    }
     setError("");
     setSubmitting(true);
     try {
-      await authApi.verifyEmail(rawToken);
+      await authApi.verifyEmail(token.trim());
       setSuccess(true);
       setTimeout(() => router.push("/login?verified=email"), 2000);
     } catch (err) {
@@ -46,15 +62,6 @@ export default function VerifyEmailPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!token.trim()) {
-      setError("Please enter the verification code.");
-      return;
-    }
-    await handleVerify(token.trim());
   }
 
   async function handleResend() {
@@ -120,7 +127,6 @@ export default function VerifyEmailPage() {
               {error}
             </div>
           )}
-
           <div>
             <label
               htmlFor="token"
@@ -141,7 +147,6 @@ export default function VerifyEmailPage() {
               className="w-full rounded-xl border border-deep-navy/20 bg-white px-4 py-3 font-mono text-sm text-deep-navy placeholder:font-sans placeholder:text-deep-navy/40 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/30"
             />
           </div>
-
           <button
             type="submit"
             disabled={submitting || !token.trim()}
@@ -172,5 +177,19 @@ export default function VerifyEmailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-deep-navy/10 bg-white p-8 shadow-sm">
+          <p className="text-center text-sm text-deep-navy/50">Loading…</p>
+        </div>
+      }
+    >
+      <VerifyEmailForm />
+    </Suspense>
   );
 }
