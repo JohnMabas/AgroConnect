@@ -1,0 +1,861 @@
+{
+  "info": {
+    "name": "AgroConnect API",
+    "description": "Complete collection for testing all AgroConnect Phase 2 + Phase 3 API endpoints.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api",
+      "description": "Backend API base URL. Change to your Render URL for production testing."
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "description": "Set automatically by Register requests via the test script."
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "description": "Set automatically by Login and Refresh requests."
+    },
+    {
+      "key": "otp",
+      "value": "000000",
+      "description": "Copy the OTP from the server console (DEV SMS log) and paste it here."
+    },
+    {
+      "key": "email_token",
+      "value": "",
+      "description": "Copy the verification token from the server console (DEV EMAIL log) and paste it here."
+    },
+    {
+      "key": "email_user_id",
+      "value": "",
+      "description": "Set automatically when registering with email only."
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Server and database health checks.",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Returns HTTP 200 with database status when everything is healthy. Returns 503 if the database is unreachable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Health check returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has success: true', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.true;",
+                  "    pm.expect(body.data.status).to.equal('ok');",
+                  "    pm.expect(body.data.database.status).to.equal('up');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK — healthy",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"status\": \"ok\",\n    \"service\": \"agroconnect-api\",\n    \"timestamp\": \"2026-11-02T22:00:00.000Z\",\n    \"uptime\": 120,\n    \"api\": \"up\",\n    \"database\": { \"status\": \"up\" }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth — Registration",
+      "description": "Create new user accounts. At least one contact method (phone_number or email) is required.",
+      "item": [
+        {
+          "name": "Register — phone only",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone_number\": \"+2348031234567\",\n  \"password\": \"SecurePass1!\",\n  \"password_confirm\": \"SecurePass1!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register with a Nigerian phone number only. The OTP will be logged to the server console (dev adapter). Copy it and set the `otp` collection variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Registration returns 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response has user and OTP pending flag', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.true;",
+                  "    pm.expect(body.data.user.id).to.be.a('string');",
+                  "    pm.expect(body.data.phone_otp_pending).to.be.true;",
+                  "    // Save user_id for follow-up requests",
+                  "    pm.collectionVariables.set('user_id', body.data.user.id);",
+                  "    console.log('user_id saved:', body.data.user.id);",
+                  "    console.log('>>> Check server console for the OTP, then set the otp variable.');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Registration successful.\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"<uuid>\",\n      \"display_name\": null,\n      \"phone_number\": \"+2348031234567\",\n      \"email\": null,\n      \"status\": \"pending\",\n      \"phone_verified\": false,\n      \"email_verified\": false,\n      \"roles\": [\"farmer\"],\n      \"created_at\": \"2026-11-02T22:00:00.000Z\"\n    },\n    \"phone_otp_pending\": true\n  }\n}"
+            },
+            {
+              "name": "409 Conflict — duplicate phone",
+              "status": "Conflict",
+              "code": 409,
+              "body": "{\n  \"success\": false,\n  \"error\": { \"message\": \"An account with this phone number or email already exists.\" }\n}"
+            },
+            {
+              "name": "422 Validation error",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed.\",\n  \"errors\": [\n    { \"field\": \"password_confirm\", \"message\": \"Passwords do not match.\" }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Register — email only",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Aminu Musa\",\n  \"email\": \"aminu@example.com\",\n  \"password\": \"SecurePass1!\",\n  \"password_confirm\": \"SecurePass1!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register with email only. A verification link will be logged to the server console. Copy the 64-character hex token and set the `email_token` variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Registration returns 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response has email verification pending', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.true;",
+                  "    pm.expect(body.data.email_verification_pending).to.be.true;",
+                  "    pm.collectionVariables.set('email_user_id', body.data.user.id);",
+                  "    console.log('email_user_id saved:', body.data.user.id);",
+                  "    console.log('>>> Check server console for the verification token/link.');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register — phone AND email",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Fatima Abubakar\",\n  \"phone_number\": \"+2348050000001\",\n  \"email\": \"fatima@example.com\",\n  \"password\": \"SecurePass1!\",\n  \"password_confirm\": \"SecurePass1!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register with both phone and email. Both OTP (SMS) and verification email will be logged to the server console."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Registration returns 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.user) {",
+                  "    pm.collectionVariables.set('user_id', body.data.user.id);",
+                  "    console.log('user_id saved:', body.data.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register — validation errors (example)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"short\",\n  \"password_confirm\": \"different\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Demonstrates validation failure: no contact method, short password, mismatched confirm. Expects 422."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 422 Validation Failed', () => {",
+                  "    pm.response.to.have.status(422);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.false;",
+                  "    pm.expect(body.errors).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth — Phone Verification",
+      "description": "Verify phone numbers using the 6-digit OTP. Check the server console for the OTP (dev adapter).",
+      "item": [
+        {
+          "name": "Verify phone — valid OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"otp\": \"{{otp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-phone",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify-phone"]
+            },
+            "description": "Submit the 6-digit OTP from the server console. Uses `user_id` captured from registration.\n\n**Before running:** Set the `otp` variable to the value printed in the server console."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Verification returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Phone is now verified', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.true;",
+                  "    pm.expect(body.data.user.phone_verified).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK — verified",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Phone number verified.\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"<uuid>\",\n      \"phone_verified\": true,\n      \"status\": \"active\"\n    }\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — wrong OTP",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"error\": { \"message\": \"Incorrect OTP. Please check and try again.\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Verify phone — invalid OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"otp\": \"000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-phone",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify-phone"]
+            },
+            "description": "Demonstrates rejection of a wrong OTP. Expects 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 400 for wrong OTP', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend phone OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/resend-phone-otp",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "resend-phone-otp"]
+            },
+            "description": "Resend the OTP to the user's phone. Subject to a 60-second cooldown — returns 429 if called too soon."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Resend returns 200 or 429', () => {",
+                  "    pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "if (status === 429) {",
+                  "    console.log('Cooldown active — wait before resending.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth — Email Verification",
+      "description": "Verify email addresses using the token from the verification email. Check the server console for the full token.",
+      "item": [
+        {
+          "name": "Verify email — valid token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{email_token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-email",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify-email"]
+            },
+            "description": "Submit the 64-character hex token from the server console.\n\n**Before running:** Set the `email_token` variable to the token printed in the [DEV EMAIL] log."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Verification returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Email is now verified', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.true;",
+                  "    pm.expect(body.data.user.email_verified).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify email — invalid token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"thisisnotavalidtoken\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-email",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify-email"]
+            },
+            "description": "Demonstrates rejection of an invalid token. Expects 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 400 for invalid token', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend verification email",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{email_user_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/resend-email-verification",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "resend-email-verification"]
+            },
+            "description": "Resend the verification email. Subject to the same 60-second cooldown as OTP resend."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Resend returns 200 or 429', () => {",
+                  "    pm.expect([200, 429]).to.include(status);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth — Login & Session",
+      "description": "Log in with a verified contact method. The access token is captured automatically. The refresh token arrives as an HttpOnly cookie.",
+      "item": [
+        {
+          "name": "Login — phone number",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"+2348031234567\",\n  \"password\": \"SecurePass1!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Log in using a verified phone number. The `access_token` is saved automatically to the collection variable.\n\nThe refresh token is sent as an `HttpOnly` cookie (`refresh_token`). Postman stores it in the cookie jar automatically."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Access token received', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.true;",
+                  "    pm.expect(body.data.access_token).to.be.a('string').that.is.not.empty;",
+                  "    pm.collectionVariables.set('access_token', body.data.access_token);",
+                  "    console.log('access_token saved.');",
+                  "});",
+                  "pm.test('Refresh token cookie is set', () => {",
+                  "    const cookies = pm.cookies.toObject();",
+                  "    // Cookie may not appear here in all Postman versions;",
+                  "    // check the Cookies tab in the response.",
+                  "    console.log('Cookies:', JSON.stringify(cookies));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful.\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"<uuid>\",\n      \"phone_verified\": true,\n      \"roles\": [\"farmer\"],\n      \"status\": \"active\"\n    },\n    \"access_token\": \"eyJ...\"\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — wrong password",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"success\": false,\n  \"error\": { \"message\": \"Invalid credentials.\" }\n}"
+            },
+            {
+              "name": "401 Unauthorized — not verified",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"success\": false,\n  \"error\": { \"message\": \"Phone number is not verified. Please verify your phone before logging in.\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login — email address",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"aminu@example.com\",\n  \"password\": \"SecurePass1!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Log in using a verified email address."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', body.data.access_token);",
+                  "    console.log('access_token saved.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login — wrong password (error demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"+2348031234567\",\n  \"password\": \"WrongPassword!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Demonstrates invalid credentials rejection. Expects 401."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 401 for wrong password', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Rotate the refresh token. The `refresh_token` HttpOnly cookie must be present (set by Login).\n\nReturns a new access token and rotates the cookie. The old refresh token is invalidated."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Refresh returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('New access token returned', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data.access_token).to.be.a('string').that.is.not.empty;",
+                  "    pm.collectionVariables.set('access_token', body.data.access_token);",
+                  "    console.log('access_token refreshed.');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (current session)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Revoke the current refresh token cookie. Clears the cookie. The access token (JWT) remains valid until it expires naturally."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Logout returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout all sessions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout-all",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout-all"]
+            },
+            "description": "Revoke ALL refresh tokens for the authenticated user (logs out from every device). Requires a valid Bearer token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Logout all returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "    pm.collectionVariables.set('access_token', '');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth — Protected Routes",
+      "description": "Endpoints that require a valid JWT Bearer token. Use the access_token captured by Login.",
+      "item": [
+        {
+          "name": "GET /me — current user",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Return the currently authenticated user's profile, verified contact info, and roles.\n\nRequires: `Authorization: Bearer <access_token>`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 200 with user data', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.be.true;",
+                  "    pm.expect(body.data.user.id).to.be.a('string');",
+                  "    pm.expect(body.data.user.roles).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"<uuid>\",\n      \"display_name\": \"Aminu Musa\",\n      \"phone_number\": \"+2348031234567\",\n      \"email\": null,\n      \"status\": \"active\",\n      \"phone_verified\": true,\n      \"email_verified\": false,\n      \"roles\": [\"farmer\"],\n      \"created_at\": \"2026-11-02T22:00:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — no token",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"success\": false,\n  \"error\": { \"message\": \"Authentication required. Provide a Bearer token.\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET /me — no token (error demo)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Demonstrates 401 rejection when no Bearer token is provided."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 401 without token', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /me — expired/invalid token (error demo)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxfQ.INVALIDSIGNATURE"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Demonstrates 401 rejection when the token signature is invalid."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 401 for invalid token', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
