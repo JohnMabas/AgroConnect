@@ -23,6 +23,8 @@
     "db:seed:status": "npm run build && node dist/database/run-seeders.js status"
   },
   "dependencies": {
+    "@getbrevo/brevo": "6.2.0",
+    "africastalking": "0.8.4",
     "argon2": "0.43.0",
     "cookie-parser": "1.4.7",
     "cors": "2.8.5",
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/africastalking": "0.8.0",
     "@types/cookie-parser": "1.4.8",
     "@types/cors": "2.8.17",
     "@types/express": "^5.0.6",
