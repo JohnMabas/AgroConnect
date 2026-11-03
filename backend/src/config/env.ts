@@ -191,18 +191,52 @@ export const env = Object.freeze({
   ),
 
   // ─── SMS provider ────────────────────────────────────────────────────────────
+  // Supported values: "dev" (console log), "africastalking".
+  // "dev" is the default and must not be used in production.
   SMS_PROVIDER: optionalString(process.env.SMS_PROVIDER) ?? "dev",
+
+  // Legacy generic key — kept for backward compatibility with existing code.
   SMS_API_KEY: optionalString(process.env.SMS_API_KEY),
   SMS_SENDER_ID: optionalString(process.env.SMS_SENDER_ID) ?? "AgroConnect",
 
+  // ─── Africa's Talking credentials ────────────────────────────────────────────
+  // Required when SMS_PROVIDER=africastalking.
+  // Use AFRICASTALKING_USERNAME="sandbox" and the sandbox API key for testing.
+  // Left empty in development — the app warns on first send attempt rather
+  // than crashing at startup, so local development is not blocked.
+  AFRICASTALKING_USERNAME: optionalString(process.env.AFRICASTALKING_USERNAME),
+  AFRICASTALKING_API_KEY: optionalString(process.env.AFRICASTALKING_API_KEY),
+  // Registered alphanumeric sender ID. Optional — omit for the shared shortcode.
+  AFRICASTALKING_SENDER_ID: optionalString(process.env.AFRICASTALKING_SENDER_ID),
+
   // ─── Email provider ──────────────────────────────────────────────────────────
+  // Supported values: "dev" (console log), "brevo", "smtp".
+  // "dev" is the default and must not be used in production.
   EMAIL_PROVIDER: optionalString(process.env.EMAIL_PROVIDER) ?? "dev",
+  EMAIL_FROM:
+    optionalString(process.env.EMAIL_FROM) ?? "noreply@agroconnect.app",
+
+  // ─── Brevo (transactional email) credentials ─────────────────────────────────
+  // Required when EMAIL_PROVIDER=brevo.
+  // API key: https://app.brevo.com/settings/keys/api
+  // BREVO_SENDER_EMAIL must be a verified sender in your Brevo account.
+  // Left empty in development — the app warns on first send attempt rather
+  // than crashing at startup, so local development is not blocked.
+  BREVO_API_KEY: optionalString(process.env.BREVO_API_KEY),
+  BREVO_SENDER_EMAIL: optionalString(process.env.BREVO_SENDER_EMAIL),
+  BREVO_SENDER_NAME:
+    optionalString(process.env.BREVO_SENDER_NAME) ?? "AgroConnect",
+
+  // ─── SMTP credentials (alternative email provider) ───────────────────────────
+  // Used when EMAIL_PROVIDER=smtp.
   EMAIL_HOST: optionalString(process.env.EMAIL_HOST),
   EMAIL_PORT: parsePort(process.env.EMAIL_PORT, 587),
   EMAIL_USER: optionalString(process.env.EMAIL_USER),
   EMAIL_PASSWORD: optionalString(process.env.EMAIL_PASSWORD),
-  EMAIL_FROM:
-    optionalString(process.env.EMAIL_FROM) ?? "noreply@agroconnect.app",
+
+  // ─── OTP configuration ───────────────────────────────────────────────────────
+  // OTP_LENGTH: number of digits in the generated OTP. Default: 6.
+  OTP_LENGTH: parsePositiveInt("OTP_LENGTH", process.env.OTP_LENGTH, 6),
 });
 
 export type Environment = typeof env;
