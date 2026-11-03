@@ -9,8 +9,8 @@ export default defineConfig({
     sequence: {
       concurrent: false,
     },
-    testTimeout: 30_000,
-    hookTimeout: 60_000,
+    testTimeout: 90_000,  // generous timeout for Aiven cold connections
+    hookTimeout: 120_000,
     // Vitest automatically sets VITEST=true in all worker threads before any
     // module is evaluated. env.ts checks for this flag and skips dotenv, so the
     // backend/.env file (which has DB_SSL=true and a DB_SSL_CA_PATH for Aiven)
