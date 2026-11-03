@@ -30,9 +30,7 @@ export default function AuthLayout({
       </main>
 
       <footer className="border-t border-deep-navy/10 py-6 text-center text-sm text-deep-navy/50">
-        <span suppressHydrationWarning>
-          &copy; {new Date().getFullYear()} AgroConnect. All rights reserved.
-        </span>
+        &copy; 2026 AgroConnect. All rights reserved.
       </footer>
     </div>
   );
