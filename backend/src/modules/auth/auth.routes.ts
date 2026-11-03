@@ -1,5 +1,7 @@
+import type { RequestHandler } from "express";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
+import { env } from "../../config/env.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import {
   register,
@@ -14,43 +16,45 @@ import {
   me,
 } from "./auth.controller.js";
 
-// Rate limits — applied per IP address.
+// Rate limits — applied per IP address in non-test environments.
+// In test mode the limiters are replaced with pass-through middleware so that
+// automated tests can make many requests without hitting rate limits.
 
-// Strict limit for registration and login to prevent abuse.
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 10,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: { message: "Too many requests. Please try again later." },
-  },
-});
+function makeLimiter(
+  windowMs: number,
+  limit: number,
+  message: object,
+): RequestHandler {
+  if (env.NODE_ENV === "test") {
+    // Pass-through — no rate limiting during tests.
+    return (_req, _res, next) => next();
+  }
+  return rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message,
+  }) as unknown as RequestHandler;
+}
 
-// Even stricter for OTP operations.
-const otpLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 5,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: { message: "Too many OTP requests. Please try again later." },
-  },
-});
+const authLimiter = makeLimiter(
+  15 * 60 * 1000,
+  10,
+  { success: false, error: { message: "Too many requests. Please try again later." } },
+);
 
-// Moderate limit for token refresh.
-const refreshLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  limit: 20,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: { message: "Too many refresh requests. Please try again later." },
-  },
-});
+const otpLimiter = makeLimiter(
+  15 * 60 * 1000,
+  5,
+  { success: false, error: { message: "Too many OTP requests. Please try again later." } },
+);
+
+const refreshLimiter = makeLimiter(
+  5 * 60 * 1000,
+  20,
+  { success: false, error: { message: "Too many refresh requests. Please try again later." } },
+);
 
 export function createAuthRouter(): Router {
   const router = Router();
