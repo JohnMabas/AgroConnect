@@ -7,6 +7,7 @@ export const INITIAL_ROLES = [
   "cooperative",
   "transporter",
   "admin",
+  "cooperative_agent",
 ] as const;
 
 export async function up({
