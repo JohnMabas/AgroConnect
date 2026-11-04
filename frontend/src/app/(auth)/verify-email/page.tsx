@@ -22,8 +22,8 @@ function VerifyEmailForm() {
 
   useEffect(() => {
     if (tokenFromUrl && !success && !autoSubmitted) {
-      setAutoSubmitted(true);
       void (async () => {
+        setAutoSubmitted(true);
         setSubmitting(true);
         try {
           await authApi.verifyEmail(tokenFromUrl);

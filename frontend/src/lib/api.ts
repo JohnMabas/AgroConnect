@@ -146,3 +146,117 @@ export const authApi = {
     });
   },
 };
+
+// ─── Phase 4 API additions ────────────────────────────────────────────────────
+
+export interface UserProfileData {
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  country: string | null;
+  state_or_region: string | null;
+  local_government_area: string | null;
+  city_or_community: string | null;
+  preferred_language: string;
+}
+
+export const profileApi = {
+  getMe: (token: string) =>
+    request<{ success: boolean; data: { profile: UserProfileData } }>(
+      "/profiles/me",
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  updateMe: (token: string, data: Partial<UserProfileData>) =>
+    request<{ success: boolean; data: { profile: UserProfileData } }>(
+      "/profiles/me",
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+};
+
+export const farmerApi = {
+  create: (token: string, data: object) =>
+    request("/farmers/profile", {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getMe: (token: string) =>
+    request("/farmers/profile/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateMe: (token: string, data: object) =>
+    request("/farmers/profile/me", {
+      method: "PUT",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};
+
+export const cooperativeApi = {
+  create: (token: string, data: object) =>
+    request("/cooperatives", {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getMe: (token: string) =>
+    request("/cooperatives/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getApproved: (token: string) =>
+    request("/cooperatives/approved", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getMyMemberships: (token: string) =>
+    request("/cooperatives/memberships/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  requestMembership: (token: string, coopId: string) =>
+    request(`/cooperatives/${coopId}/memberships`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  leaveMembership: (token: string, coopId: string, membershipId: string) =>
+    request(`/cooperatives/${coopId}/memberships/${membershipId}/leave`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getMembers: (token: string, coopId: string) =>
+    request(`/cooperatives/${coopId}/memberships`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getAgents: (token: string, coopId: string) =>
+    request(`/cooperatives/${coopId}/agents`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  adminList: (token: string) =>
+    request("/cooperatives/admin/review", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  adminApprove: (token: string, id: string) =>
+    request(`/cooperatives/admin/${id}/approve`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  adminReject: (token: string, id: string, notes: string) =>
+    request(`/cooperatives/admin/${id}/reject`, {
+      method: "PATCH",
+      body: JSON.stringify({ notes }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};
+
+export const agentApi = {
+  getAssignments: (token: string) =>
+    request("/agents/me/assignments", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getActivities: (token: string) =>
+    request("/agents/me/activities", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};

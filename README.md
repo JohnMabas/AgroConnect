@@ -4,7 +4,7 @@
 
 AgroConnect is a digital agricultural marketplace and supply-chain coordination platform for farmers, buyers, cooperatives, transporters and platform administrators. The initial pilot focuses on Plateau State, Nigeria, with a long-term vision of expanding to other regions and countries.
 
-The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system.
+The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log.
 
 ## Technology Stack
 
@@ -52,7 +52,7 @@ AgroConnect/
 │   ├── src/
 │   │   ├── config/                 # Environment configuration
 │   │   ├── database/
-│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 + Phase 3)
+│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 + Phase 3 + Phase 4)
 │   │   │   ├── models/             # Sequelize models
 │   │   │   ├── seeders/            # Idempotent development seeders
 │   │   │   ├── config.ts           # Connection and TLS configuration
@@ -65,9 +65,13 @@ AgroConnect/
 │   │   │   └── email/              # Email provider interface + dev adapter
 │   │   ├── middleware/             # Error handling, auth middleware
 │   │   ├── modules/
-│   │   │   └── auth/               # Auth routes, controller, service, validation
+│   │   │   ├── auth/               # Auth routes, controller, service, validation
+│   │   │   ├── profiles/           # User profile CRUD
+│   │   │   ├── farmers/            # Farmer profile CRUD
+│   │   │   ├── cooperatives/       # Cooperative registration, approval, membership, agents
+│   │   │   └── agents/             # Agent assignments and activity log
 │   │   ├── routes/                 # Health and other API routes
-│   │   ├── services/               # Password, OTP, email-verification, token services
+│   │   ├── services/               # Password, OTP, email-verification, token, activity-log services
 │   │   ├── utils/                  # Contact normalization helpers
 │   │   ├── app.ts                  # Express application
 │   │   └── server.ts               # Startup, DB check and graceful shutdown
@@ -81,10 +85,17 @@ AgroConnect/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── (auth)/             # Auth pages: register, login, verify-phone, verify-email
+│   │   │   ├── (dashboard)/        # Phase 4 dashboard pages
+│   │   │   │   ├── profile/        # /profile — general user profile
+│   │   │   │   ├── farmer/         # /farmer/profile — farmer profile
+│   │   │   │   ├── cooperatives/   # /cooperatives/register, /dashboard, /membership
+│   │   │   │   ├── agent/          # /agent/dashboard — agent page (role-gated)
+│   │   │   │   └── admin/          # /admin/cooperatives — admin review (role-gated)
 │   │   │   ├── account/            # Protected account page
 │   │   │   └── page.tsx            # Phase 1 homepage (preserved)
 │   │   ├── components/             # Shared components (Logo, SiteHeader, SiteFooter)
 │   │   ├── features/landing/       # Phase 1 landing sections (preserved)
+│   │   ├── hooks/                  # useDashboardAuth — shared auth hook
 │   │   └── lib/api.ts              # Backend API client
 │   ├── .env.example
 │   └── package.json
@@ -259,11 +270,13 @@ Real email delivery has not been tested. Configure `EMAIL_PROVIDER` and SMTP set
 
 ### RBAC
 
-Five roles exist from Phase 2: `farmer`, `buyer`, `cooperative`, `transporter`, `admin`.
+Six roles exist: `farmer`, `buyer`, `cooperative`, `transporter`, `admin`, `cooperative_agent`.
 
-The `authenticate` middleware verifies the JWT access token. The `requireRoles` middleware checks that the authenticated user has at least one of the required roles.
+The `authenticate` middleware verifies the JWT access token and always fetches the user's current roles from the database, so role assignments take effect immediately without requiring a new login.
 
-Users cannot assign themselves admin privileges. Role changes must be performed directly in the database by a platform administrator.
+The `requireRoles` middleware checks that the authenticated user has at least one of the required roles.
+
+Users cannot assign themselves admin or agent privileges. Role changes must be performed directly in the database by a platform administrator.
 
 ## API Endpoints
 
@@ -294,6 +307,124 @@ All auth endpoints are under `/api/auth`.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Database and API health check |
+
+### Phase 4 — User Profiles
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/profiles/me` | Bearer | Get or create my user profile |
+| `PUT` | `/api/profiles/me` | Bearer | Update my user profile |
+
+### Phase 4 — Farmer Profiles
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/farmers/profile` | Bearer | Create farmer profile |
+| `GET` | `/api/farmers/profile/me` | Bearer | Get my farmer profile (with memberships) |
+| `PUT` | `/api/farmers/profile/me` | Bearer | Update my farmer profile |
+
+### Phase 4 — Cooperatives
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/cooperatives` | Bearer | Register a new cooperative (starts pending) |
+| `GET` | `/api/cooperatives/me` | Bearer | Get my cooperative |
+| `PUT` | `/api/cooperatives/me/:id` | Bearer | Update my cooperative |
+| `GET` | `/api/cooperatives/approved` | — | List all approved cooperatives |
+| `GET` | `/api/cooperatives/:id` | — | Get a cooperative by ID |
+
+### Phase 4 — Cooperative Membership
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/cooperatives/:id/memberships` | Bearer | Request to join a cooperative |
+| `GET` | `/api/cooperatives/:id/memberships` | Bearer (rep/admin) | List cooperative memberships |
+| `GET` | `/api/cooperatives/memberships/me` | Bearer | Get my memberships |
+| `PATCH` | `/api/cooperatives/:id/memberships/:membershipId` | Bearer | Approve/reject/suspend membership |
+| `POST` | `/api/cooperatives/:id/memberships/:membershipId/leave` | Bearer | Leave a cooperative |
+
+### Phase 4 — Cooperative Agents
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/cooperatives/:id/agents` | Bearer (cooperative role) | Assign an agent |
+| `GET` | `/api/cooperatives/:id/agents` | Bearer (rep/admin) | List agents |
+| `PATCH` | `/api/cooperatives/:id/agents/:agentId` | Bearer (cooperative role) | Deactivate an agent |
+
+### Phase 4 — Administrative Cooperative Review
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/cooperatives/admin/review` | Bearer (admin) | List cooperatives (filterable by status) |
+| `PATCH` | `/api/cooperatives/admin/:id/approve` | Bearer (admin) | Approve a cooperative |
+| `PATCH` | `/api/cooperatives/admin/:id/reject` | Bearer (admin) | Reject a cooperative (notes required) |
+| `PATCH` | `/api/cooperatives/admin/:id/suspend` | Bearer (admin) | Suspend a cooperative (notes required) |
+
+### Phase 4 — Agent Activity
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/agents/me/assignments` | Bearer (cooperative_agent) | Get my active assignments |
+| `GET` | `/api/agents/me/activities` | Bearer (cooperative_agent) | Get my activity log (paginated) |
+
+### Phase 4 — User Profiles
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/profiles/me` | Bearer | Get or create my user profile |
+| `PUT` | `/api/profiles/me` | Bearer | Update my user profile |
+
+### Phase 4 — Farmer Profiles
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/farmers/profile` | Bearer | Create farmer profile |
+| `GET` | `/api/farmers/profile/me` | Bearer | Get my farmer profile (with memberships) |
+| `PUT` | `/api/farmers/profile/me` | Bearer | Update my farmer profile |
+
+### Phase 4 — Cooperatives
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/cooperatives` | Bearer | Register a new cooperative (starts pending) |
+| `GET` | `/api/cooperatives/me` | Bearer | Get my cooperative |
+| `PUT` | `/api/cooperatives/me/:id` | Bearer | Update my cooperative |
+| `GET` | `/api/cooperatives/approved` | — | List all approved cooperatives |
+| `GET` | `/api/cooperatives/:id` | — | Get a cooperative by ID |
+
+### Phase 4 — Cooperative Membership
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/cooperatives/:id/memberships` | Bearer | Request to join a cooperative |
+| `GET` | `/api/cooperatives/:id/memberships` | Bearer (rep/admin) | List cooperative memberships |
+| `GET` | `/api/cooperatives/memberships/me` | Bearer | Get my memberships |
+| `PATCH` | `/api/cooperatives/:id/memberships/:membershipId` | Bearer | Approve/reject/suspend membership |
+| `POST` | `/api/cooperatives/:id/memberships/:membershipId/leave` | Bearer | Leave a cooperative |
+
+### Phase 4 — Cooperative Agents
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/cooperatives/:id/agents` | Bearer (cooperative role) | Assign an agent |
+| `GET` | `/api/cooperatives/:id/agents` | Bearer (rep/admin) | List agents |
+| `PATCH` | `/api/cooperatives/:id/agents/:agentId` | Bearer (cooperative role) | Deactivate an agent |
+
+### Phase 4 — Administrative Cooperative Review
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/cooperatives/admin/review` | Bearer (admin) | List cooperatives (filterable by status) |
+| `PATCH` | `/api/cooperatives/admin/:id/approve` | Bearer (admin) | Approve a cooperative |
+| `PATCH` | `/api/cooperatives/admin/:id/reject` | Bearer (admin) | Reject a cooperative (notes required) |
+| `PATCH` | `/api/cooperatives/admin/:id/suspend` | Bearer (admin) | Suspend a cooperative (notes required) |
+
+### Phase 4 — Agent Activity
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/agents/me/assignments` | Bearer (cooperative_agent) | Get my active assignments |
+| `GET` | `/api/agents/me/activities` | Bearer (cooperative_agent) | Get my activity log (paginated) |
 
 ### Response format
 
@@ -362,6 +493,69 @@ Validation error:
 - `token_hash` — SHA-256 hex digest of the raw refresh token (64 chars, unique)
 - `expires_at`, `revoked`, `user_agent`
 
+### Phase 4 tables
+
+#### `user_profiles`
+
+- UUID primary key
+- `user_id` foreign key to `users.id` (CASCADE delete, unique)
+- `first_name`, `last_name`, `display_name`, `profile_image_url`
+- `country`, `state_or_region`, `local_government_area`, `city_or_community`
+- `preferred_language` (default `en`)
+- `created_at`, `updated_at`
+
+#### `farmer_profiles`
+
+- UUID primary key
+- `user_id` foreign key to `users.id` (CASCADE delete, unique)
+- `farm_name`, `farm_location`, `farm_size`, `farm_size_unit`
+- `farming_experience_years`, `farming_description`
+- `primary_produce_interests` (text array)
+- `verification_status` ENUM: `unverified` | `pending` | `verified` | `rejected` (default `unverified`)
+- `created_at`, `updated_at`
+
+#### `cooperative_profiles`
+
+- UUID primary key
+- `registered_by_user_id` foreign key to `users.id`
+- `cooperative_name`, `registration_number`, `description`
+- `country`, `state_or_region`, `local_government_area`, `community`, `address`
+- `contact_phone`, `contact_email`, `logo_url`
+- `verification_status` ENUM: `pending` | `approved` | `rejected` | `suspended` (default `pending`)
+- `approval_notes`, `approved_by_user_id`, `approved_at`
+- `created_at`, `updated_at`
+
+#### `cooperative_memberships`
+
+- UUID primary key
+- `cooperative_id` foreign key to `cooperative_profiles.id` (CASCADE delete)
+- `farmer_user_id` foreign key to `users.id` (CASCADE delete)
+- `membership_number`, `membership_role` ENUM: `member` | `coordinator` (default `member`)
+- `status` ENUM: `pending` | `active` | `rejected` | `suspended` | `left` (default `pending`)
+- `joined_at`, `approved_by_user_id`
+- `created_at`, `updated_at`
+
+#### `cooperative_agent_assignments`
+
+- UUID primary key
+- `cooperative_id` foreign key to `cooperative_profiles.id` (CASCADE delete)
+- `agent_user_id` foreign key to `users.id` (CASCADE delete)
+- `assigned_by_user_id` foreign key to `users.id`
+- `status` ENUM: `active` | `deactivated` (default `active`)
+- `assigned_at`, `created_at`, `updated_at`
+
+#### `agent_activity_logs`
+
+Immutable audit log — no `updated_at`.
+
+- UUID primary key
+- `agent_user_id` foreign key to `users.id`
+- `farmer_user_id` foreign key to `users.id`
+- `cooperative_id` foreign key to `cooperative_profiles.id` (nullable, SET NULL)
+- `action` (max 100 chars), `description` (text)
+- `metadata` (JSONB) — never stores passwords, OTPs, or secrets
+- `created_at`
+
 ## Migrations and Seeders
 
 Schema changes use migrations only. `sequelize.sync()` is not used.
@@ -411,9 +605,9 @@ The test suite covers:
 **Phase 2 (27 tests):**
 - Database configuration and TLS
 - Database connectivity
-- Migrations (apply, rollback, re-apply)
+- Migrations (apply, rollback, re-apply) — all 13 migrations
 - User/role/user_role models and constraints
-- Role seeder idempotency
+- Role seeder idempotency — all 6 roles
 - Health endpoint
 
 **Phase 3 (26 tests):**
@@ -429,6 +623,20 @@ The test suite covers:
 - Logout
 - Protected route access without/with invalid tokens
 - Resend OTP with invalid user
+
+**Phase 4 (54 tests):**
+- User profile creation (idempotent GET, PUT updates fields, isolation per user)
+- Farmer profile creation, duplicate rejection, 404 on missing, update
+- Cooperative registration (pending status, name validation)
+- Cooperative retrieval (by ID, by owner, approved list)
+- Admin approve/reject/suspend with and without notes
+- Non-admin blocked from admin routes
+- Membership request, duplicate rejection, pending-coop rejection
+- Cooperative rep approval of memberships
+- Farmer leaving a cooperative
+- Agent role-gating (401 without token, 403 without role, 200 with role)
+- Self-assignment prevention
+- All protected Phase 4 routes return 401 without token
 
 Other available commands:
 
@@ -550,9 +758,10 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Email delivery:** The dev email adapter logs emails to the server console. Real SMTP delivery has not been configured or tested. Configure `EMAIL_PROVIDER` and SMTP settings for real delivery.
 - **Render deployment:** `render.yaml` and deployment instructions are prepared but not live-tested.
 - **Aiven connectivity:** Verified against Aiven PostgreSQL 18.6. The backend uses DNS pre-resolution to work around IPv6 Happy Eyeballs timeout issues on this network.
-- **Cooperative agent, farmer profiles, marketplace features:** Not implemented — belong to Phase 4 and beyond.
-- **Account recovery / password reset:** Not implemented in Phase 3.
-- **Admin dashboard:** Not implemented in Phase 3.
+- **Marketplace features:** Produce listings, buyer requests, offers, orders, payments and transporter management belong to Phase 5 and beyond.
+- **Account recovery / password reset:** Not implemented. Belongs to a future phase.
+- **File uploads:** Profile image and cooperative logo upload (`profile_image_url`, `logo_url`) fields exist in the schema but file storage is not yet implemented. These fields accept a URL manually supplied by the client.
+- **Agent-assisted farmer operations:** The `agent_activity_logs` table and `logAgentActivity` service are implemented. Dedicated agent-assisted profile update endpoints (where an agent edits a farmer's data on their behalf) are not yet implemented — that workflow belongs to a future phase.
 
 ## Coding Rules for AI Agents
 
