@@ -15,7 +15,15 @@ const PHASE_3_TABLES = [
   "refresh_tokens",
   "user_passwords",
 ];
-const ALL_TABLES = [...PHASE_2_TABLES, ...PHASE_3_TABLES].sort();
+const PHASE_4_TABLES = [
+  "agent_activity_logs",
+  "cooperative_agent_assignments",
+  "cooperative_memberships",
+  "cooperative_profiles",
+  "farmer_profiles",
+  "user_profiles",
+];
+const ALL_TABLES = [...PHASE_2_TABLES, ...PHASE_3_TABLES, ...PHASE_4_TABLES].sort();
 
 const ALL_MIGRATION_NAMES = [
   "20261102000001-create-roles",
@@ -25,6 +33,12 @@ const ALL_MIGRATION_NAMES = [
   "20261102000005-create-phone-otps",
   "20261102000006-create-email-verification-tokens",
   "20261102000007-create-refresh-tokens",
+  "20261103000001-create-user-profiles",
+  "20261103000002-create-farmer-profiles",
+  "20261103000003-create-cooperative-profiles",
+  "20261103000004-create-cooperative-memberships",
+  "20261103000005-create-cooperative-agent-assignments",
+  "20261103000006-create-agent-activity-logs",
 ];
 
 async function getPublicTables(): Promise<string[]> {

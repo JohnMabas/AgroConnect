@@ -89,13 +89,14 @@ describe("users, roles and user_roles", () => {
     ).rejects.toBeInstanceOf(UniqueConstraintError);
   });
 
-  it("seeds exactly the five initial roles", async () => {
+  it("seeds exactly the six initial roles", async () => {
     const roles = await Role.findAll({ order: [["name", "ASC"]] });
 
     expect(roles.map((role) => role.name)).toEqual([
       "admin",
       "buyer",
       "cooperative",
+      "cooperative_agent",
       "farmer",
       "transporter",
     ]);

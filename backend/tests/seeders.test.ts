@@ -13,19 +13,19 @@ describe("role seeder", () => {
     await migrateTestDatabase();
   });
 
-  it("creates the five roles and is safe to run more than once", async () => {
+  it("creates the six roles and is safe to run more than once", async () => {
     await runSeedersUp();
-    await expect(Role.count()).resolves.toBe(5);
+    await expect(Role.count()).resolves.toBe(6);
 
     const secondRun = await runSeedersUp();
     expect(secondRun).toEqual([]);
-    await expect(Role.count()).resolves.toBe(5);
+    await expect(Role.count()).resolves.toBe(6);
 
     await initialRolesSeeder.up({
       context: sequelize.getQueryInterface(),
       name: "manual-idempotency-check",
     });
-    await expect(Role.count()).resolves.toBe(5);
+    await expect(Role.count()).resolves.toBe(6);
 
     const status = await getSeederStatus();
     expect(status.pending).toEqual([]);
