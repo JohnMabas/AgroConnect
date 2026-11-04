@@ -6,6 +6,10 @@ import { checkDatabaseHealth } from "./database/connection.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
+import { createProfilesRouter } from "./modules/profiles/profiles.routes.js";
+import { createFarmersRouter } from "./modules/farmers/farmers.routes.js";
+import { createCooperativesRouter } from "./modules/cooperatives/cooperatives.routes.js";
+import { createAgentsRouter } from "./modules/agents/agents.routes.js";
 import {
   createApiRouter,
   type ApiRouterDependencies,
@@ -52,6 +56,12 @@ export function createApp(
 
   // Auth routes
   app.use("/api/auth", createAuthRouter());
+
+  // Phase 4 feature routes
+  app.use("/api/profiles", createProfilesRouter());
+  app.use("/api/farmers", createFarmersRouter());
+  app.use("/api/cooperatives", createCooperativesRouter());
+  app.use("/api/agents", createAgentsRouter());
 
   // Health and other API routes
   app.use(
