@@ -89,6 +89,36 @@ export async function authenticate(
 }
 
 /**
+ * optionalAuthenticate — attaches `req.user` when a valid Bearer token is
+ * supplied, but allows anonymous requests to continue. Invalid or expired
+ * tokens are treated as anonymous rather than failing the request.
+ */
+export async function optionalAuthenticate(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    next();
+    return;
+  }
+
+  const token = authHeader.slice(7).trim();
+
+  try {
+    const payload = verifyAccessToken(token);
+    const liveRoles = await fetchUserRoles(payload.sub);
+    req.user = { ...payload, roles: liveRoles };
+  } catch {
+    // Anonymous access for public endpoints.
+  }
+
+  next();
+}
+
+/**
  * requireRoles — authorization middleware.
  *
  * Must be used after `authenticate`. Returns 403 if the authenticated user
