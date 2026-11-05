@@ -1,6 +1,7 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import path from "node:path";
 import { env } from "./config/env.js";
 import { checkDatabaseHealth } from "./database/connection.js";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -10,6 +11,8 @@ import { createProfilesRouter } from "./modules/profiles/profiles.routes.js";
 import { createFarmersRouter } from "./modules/farmers/farmers.routes.js";
 import { createCooperativesRouter } from "./modules/cooperatives/cooperatives.routes.js";
 import { createAgentsRouter } from "./modules/agents/agents.routes.js";
+import { createProduceRouter } from "./modules/produce/produce.routes.js";
+import { createListingsRouter } from "./modules/listings/listings.routes.js";
 import {
   createApiRouter,
   type ApiRouterDependencies,
@@ -54,6 +57,20 @@ export function createApp(
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
   app.use(cookieParser());
 
+  // Local development image storage. Production should use the object-storage
+  // adapter instead; Render's filesystem is ephemeral.
+  app.use(
+    env.UPLOAD_PUBLIC_PREFIX,
+    express.static(path.resolve(env.UPLOAD_STORAGE_PATH), {
+      index: false,
+      dotfiles: "deny",
+      fallthrough: true,
+      setHeaders: (res) => {
+        res.setHeader("X-Content-Type-Options", "nosniff");
+      },
+    }),
+  );
+
   // Auth routes
   app.use("/api/auth", createAuthRouter());
 
@@ -62,6 +79,10 @@ export function createApp(
   app.use("/api/farmers", createFarmersRouter());
   app.use("/api/cooperatives", createCooperativesRouter());
   app.use("/api/agents", createAgentsRouter());
+
+  // Phase 5 feature routes
+  app.use("/api/produce", createProduceRouter());
+  app.use("/api/listings", createListingsRouter());
 
   // Health and other API routes
   app.use(
