@@ -4,7 +4,12 @@ import { CooperativeMembership } from "./cooperative-membership.model.js";
 import { CooperativeProfile } from "./cooperative-profile.model.js";
 import { EmailVerificationToken } from "./email-verification-token.model.js";
 import { FarmerProfile } from "./farmer-profile.model.js";
+import { InventoryAdjustment } from "./inventory-adjustment.model.js";
 import { PhoneOtp } from "./phone-otp.model.js";
+import { ProduceCategory } from "./produce-category.model.js";
+import { ProduceListing } from "./produce-listing.model.js";
+import { ProduceListingImage } from "./produce-listing-image.model.js";
+import { ProduceType } from "./produce-type.model.js";
 import { RefreshToken } from "./refresh-token.model.js";
 import { Role } from "./role.model.js";
 import { UserPassword } from "./user-password.model.js";
@@ -182,6 +187,55 @@ AgentActivityLog.belongsTo(User, {
   as: "farmer",
 });
 
+// Phase 5 associations
+ProduceCategory.hasMany(ProduceType, {
+  foreignKey: "category_id",
+  as: "produce_types",
+  onDelete: "CASCADE",
+});
+
+ProduceType.belongsTo(ProduceCategory, {
+  foreignKey: "category_id",
+  as: "category",
+});
+
+ProduceListing.belongsTo(User, {
+  foreignKey: "farmer_user_id",
+  as: "farmer",
+});
+
+ProduceListing.belongsTo(ProduceType, {
+  foreignKey: "produce_type_id",
+  as: "produce_type",
+});
+
+User.hasMany(ProduceListing, {
+  foreignKey: "farmer_user_id",
+  as: "listings",
+});
+
+ProduceListing.hasMany(ProduceListingImage, {
+  foreignKey: "listing_id",
+  as: "images",
+  onDelete: "CASCADE",
+});
+
+ProduceListingImage.belongsTo(ProduceListing, {
+  foreignKey: "listing_id",
+  as: "listing",
+});
+
+ProduceListing.hasMany(InventoryAdjustment, {
+  foreignKey: "listing_id",
+  as: "inventory_adjustments",
+  onDelete: "CASCADE",
+});
+
+InventoryAdjustment.belongsTo(ProduceListing, {
+  foreignKey: "listing_id",
+  as: "listing",
+});
+
 export {
   AgentActivityLog,
   CooperativeAgentAssignment,
@@ -189,7 +243,12 @@ export {
   CooperativeProfile,
   EmailVerificationToken,
   FarmerProfile,
+  InventoryAdjustment,
   PhoneOtp,
+  ProduceCategory,
+  ProduceListing,
+  ProduceListingImage,
+  ProduceType,
   RefreshToken,
   Role,
   User,
