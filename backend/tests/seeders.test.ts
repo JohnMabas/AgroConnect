@@ -34,7 +34,10 @@ describe("role seeder", () => {
   it("rolls back the role seeder", async () => {
     const reverted = await runSeedersDownAll();
 
-    expect(reverted).toEqual(["20261102000001-initial-roles"]);
+    expect(reverted).toEqual([
+      "20261104000001-produce-catalogue",
+      "20261102000001-initial-roles",
+    ]);
     await expect(Role.count()).resolves.toBe(0);
   });
 });
