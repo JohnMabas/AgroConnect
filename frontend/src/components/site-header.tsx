@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 
 const navigation = [
+  { label: "Produce", href: "/produce" },
   { label: "Why AgroConnect", href: "#why" },
   { label: "Who it's for", href: "#audience" },
   { label: "How it works", href: "#how-it-works" },

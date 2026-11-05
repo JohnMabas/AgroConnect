@@ -4,7 +4,7 @@
 
 AgroConnect is a digital agricultural marketplace and supply-chain coordination platform for farmers, buyers, cooperatives, transporters and platform administrators. The initial pilot focuses on Plateau State, Nigeria, with a long-term vision of expanding to other regions and countries.
 
-The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log.
+The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail.
 
 ## Technology Stack
 
@@ -29,6 +29,7 @@ The project is developed in approved phases. **Phase 1** delivered the frontend 
 - argon2 (password hashing)
 - jsonwebtoken (JWT access tokens)
 - zod (input validation)
+- multer (multipart image uploads)
 - cors, cookie-parser, express-rate-limit
 - dotenv
 - ESLint
@@ -52,9 +53,9 @@ AgroConnect/
 │   ├── src/
 │   │   ├── config/                 # Environment configuration
 │   │   ├── database/
-│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 + Phase 3 + Phase 4)
+│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 5)
 │   │   │   ├── models/             # Sequelize models
-│   │   │   ├── seeders/            # Idempotent development seeders
+│   │   │   ├── seeders/            # Idempotent development seeders (includes produce catalogue)
 │   │   │   ├── config.ts           # Connection and TLS configuration
 │   │   │   ├── connection.ts       # Connection test and health helpers
 │   │   │   ├── migrator.ts         # Umzug migration runner
@@ -69,7 +70,9 @@ AgroConnect/
 │   │   │   ├── profiles/           # User profile CRUD
 │   │   │   ├── farmers/            # Farmer profile CRUD
 │   │   │   ├── cooperatives/       # Cooperative registration, approval, membership, agents
-│   │   │   └── agents/             # Agent assignments and activity log
+│   │   │   ├── agents/             # Agent assignments and activity log
+│   │   │   ├── produce/            # Produce categories and types catalogue
+│   │   │   └── listings/           # Listings, images and inventory adjustments
 │   │   ├── routes/                 # Health and other API routes
 │   │   ├── services/               # Password, OTP, email-verification, token, activity-log services
 │   │   ├── utils/                  # Contact normalization helpers
@@ -87,18 +90,24 @@ AgroConnect/
 │   │   │   ├── (auth)/             # Auth pages: register, login, verify-phone, verify-email
 │   │   │   ├── (dashboard)/        # Phase 4 dashboard pages
 │   │   │   │   ├── profile/        # /profile — general user profile
-│   │   │   │   ├── farmer/         # /farmer/profile — farmer profile
+│   │   │   │   ├── farmer/         # farmer profile, listings, listing create/edit, inventory
 │   │   │   │   ├── cooperatives/   # /cooperatives/register, /dashboard, /membership
 │   │   │   │   ├── agent/          # /agent/dashboard — agent page (role-gated)
 │   │   │   │   └── admin/          # /admin/cooperatives — admin review (role-gated)
 │   │   │   ├── account/            # Protected account page
 │   │   │   └── page.tsx            # Phase 1 homepage (preserved)
 │   │   ├── components/             # Shared components (Logo, SiteHeader, SiteFooter)
+│   │   │   └── listings/           # Reusable listing card, status badge, quantity display
+│   │   ├── app/produce/            # Public produce catalogue and listing details
 │   │   ├── features/landing/       # Phase 1 landing sections (preserved)
 │   │   ├── hooks/                  # useDashboardAuth — shared auth hook
-│   │   └── lib/api.ts              # Backend API client
+│   │   ├── lib/
+│   │   │   ├── api.ts              # Backend API client
+│   │   │   └── listing-form.ts     # Shared listing form validation and payload helpers
+│   │   └── test/setup.ts           # Vitest + Testing Library setup
 │   ├── .env.example
-│   └── package.json
+│   ├── package.json
+│   └── vitest.config.mts
 ├── render.yaml
 ├── .gitignore
 ├── README.md
@@ -183,6 +192,10 @@ Never commit `.env` files or real credentials.
 | `TEST_DATABASE_URL` | Tests only | Isolated test database (name must include `test`). |
 | `TEST_DB_SSL` | Tests only | `true` if the test database requires TLS. |
 | `TEST_DB_SSL_VERIFY` | Tests only | `false` to skip certificate verification for tests. |
+| `UPLOAD_STORAGE_PATH` | No | Directory for locally stored listing images. Defaults to `uploads`. |
+| `UPLOAD_PUBLIC_PREFIX` | No | Public URL prefix for locally stored images. Defaults to `/uploads`. |
+| `UPLOAD_MAX_FILE_SIZE_BYTES` | No | Maximum image upload size. Defaults to 5 MiB. |
+| `UPLOAD_MAX_IMAGES_PER_LISTING` | No | Maximum images per listing. Defaults to `5`. |
 
 ### Frontend
 
@@ -367,64 +380,43 @@ All auth endpoints are under `/api/auth`.
 | `GET` | `/api/agents/me/assignments` | Bearer (cooperative_agent) | Get my active assignments |
 | `GET` | `/api/agents/me/activities` | Bearer (cooperative_agent) | Get my activity log (paginated) |
 
-### Phase 4 — User Profiles
+### Phase 5 — Produce Catalogue
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
-| `GET` | `/api/profiles/me` | Bearer | Get or create my user profile |
-| `PUT` | `/api/profiles/me` | Bearer | Update my user profile |
+| `GET` | `/api/produce/categories` | — | List active produce categories |
+| `GET` | `/api/produce/types` | — | List produce types (optional `category_slug` or `category_id`) |
+| `GET` | `/api/produce/types/:id` | — | Get a produce type by ID |
 
-### Phase 4 — Farmer Profiles
-
-| Method | Path | Auth | Description |
-| --- | --- | --- | --- |
-| `POST` | `/api/farmers/profile` | Bearer | Create farmer profile |
-| `GET` | `/api/farmers/profile/me` | Bearer | Get my farmer profile (with memberships) |
-| `PUT` | `/api/farmers/profile/me` | Bearer | Update my farmer profile |
-
-### Phase 4 — Cooperatives
+### Phase 5 — Listings
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
-| `POST` | `/api/cooperatives` | Bearer | Register a new cooperative (starts pending) |
-| `GET` | `/api/cooperatives/me` | Bearer | Get my cooperative |
-| `PUT` | `/api/cooperatives/me/:id` | Bearer | Update my cooperative |
-| `GET` | `/api/cooperatives/approved` | — | List all approved cooperatives |
-| `GET` | `/api/cooperatives/:id` | — | Get a cooperative by ID |
+| `POST` | `/api/listings` | Bearer + farmer profile | Create a draft listing |
+| `GET` | `/api/listings/me` | Bearer | List my listings (paginated) |
+| `GET` | `/api/listings/:id` | Optional Bearer | Get a listing; drafts are owner/admin only |
+| `PUT` | `/api/listings/:id` | Bearer (owner) | Update a draft or paused listing |
+| `PATCH` | `/api/listings/:id/publish` | Bearer (owner) | Publish a draft or paused listing |
+| `PATCH` | `/api/listings/:id/pause` | Bearer (owner) | Pause a published listing |
+| `PATCH` | `/api/listings/:id/resume` | Bearer (owner) | Resume a paused listing |
+| `PATCH` | `/api/listings/:id/close` | Bearer (owner) | Close a listing |
+| `DELETE` | `/api/listings/:id` | Bearer (owner) | Delete a draft with no inventory history |
 
-### Phase 4 — Cooperative Membership
-
-| Method | Path | Auth | Description |
-| --- | --- | --- | --- |
-| `POST` | `/api/cooperatives/:id/memberships` | Bearer | Request to join a cooperative |
-| `GET` | `/api/cooperatives/:id/memberships` | Bearer (rep/admin) | List cooperative memberships |
-| `GET` | `/api/cooperatives/memberships/me` | Bearer | Get my memberships |
-| `PATCH` | `/api/cooperatives/:id/memberships/:membershipId` | Bearer | Approve/reject/suspend membership |
-| `POST` | `/api/cooperatives/:id/memberships/:membershipId/leave` | Bearer | Leave a cooperative |
-
-### Phase 4 — Cooperative Agents
+### Phase 5 — Listing Images
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
-| `POST` | `/api/cooperatives/:id/agents` | Bearer (cooperative role) | Assign an agent |
-| `GET` | `/api/cooperatives/:id/agents` | Bearer (rep/admin) | List agents |
-| `PATCH` | `/api/cooperatives/:id/agents/:agentId` | Bearer (cooperative role) | Deactivate an agent |
+| `POST` | `/api/listings/:id/images` | Bearer (owner) | Upload an image file, or add an image URL (development fallback) |
+| `DELETE` | `/api/listings/:id/images/:imageId` | Bearer (owner) | Delete an image; promotes the next primary image |
+| `PATCH` | `/api/listings/:id/images/:imageId/primary` | Bearer (owner) | Set the primary image |
 
-### Phase 4 — Administrative Cooperative Review
-
-| Method | Path | Auth | Description |
-| --- | --- | --- | --- |
-| `GET` | `/api/cooperatives/admin/review` | Bearer (admin) | List cooperatives (filterable by status) |
-| `PATCH` | `/api/cooperatives/admin/:id/approve` | Bearer (admin) | Approve a cooperative |
-| `PATCH` | `/api/cooperatives/admin/:id/reject` | Bearer (admin) | Reject a cooperative (notes required) |
-| `PATCH` | `/api/cooperatives/admin/:id/suspend` | Bearer (admin) | Suspend a cooperative (notes required) |
-
-### Phase 4 — Agent Activity
+### Phase 5 — Inventory
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
-| `GET` | `/api/agents/me/assignments` | Bearer (cooperative_agent) | Get my active assignments |
-| `GET` | `/api/agents/me/activities` | Bearer (cooperative_agent) | Get my activity log (paginated) |
+| `GET` | `/api/listings/:id/inventory` | Bearer (owner) | Get available/reserved/sold quantities |
+| `POST` | `/api/listings/:id/inventory/adjustments` | Bearer (owner) | Add stock, remove stock, or correct available quantity |
+| `GET` | `/api/listings/:id/inventory/adjustments` | Bearer (owner) | Get paginated adjustment history |
 
 ### Response format
 
@@ -556,6 +548,59 @@ Immutable audit log — no `updated_at`.
 - `metadata` (JSONB) — never stores passwords, OTPs, or secrets
 - `created_at`
 
+### Phase 5 tables
+
+#### `produce_categories`
+
+- UUID primary key
+- `name` (unique), `slug` (unique), `description`, `is_active`
+- `created_at`, `updated_at`
+
+#### `produce_types`
+
+- UUID primary key
+- `category_id` foreign key to `produce_categories.id`
+- `name`, `slug` (unique), `description`, `image_url`, `is_active`
+- Unique `(category_id, name)`
+- `created_at`, `updated_at`
+
+#### `produce_listings`
+
+- UUID primary key
+- `farmer_user_id` foreign key to `users.id`
+- `produce_type_id` foreign key to `produce_types.id`
+- `title`, `description`, `variety`, `grade`, `packaging_description`
+- `quantity`, `available_quantity`, `reserved_quantity`, `sold_quantity` — PostgreSQL `NUMERIC(14,3)`
+- `unit`, `price_per_unit`, `currency`
+- `country`, `state_or_region`, `local_government_area`, `community`, `collection_location`
+- `harvest_date`, `available_from`, `expiry_date`
+- `status` ENUM: `draft` | `published` | `paused` | `sold_out` | `closed` | `expired`
+- Database check constraints keep quantities non-negative and preserve
+  `quantity = available_quantity + reserved_quantity + sold_quantity`
+- Index on `(status, expiry_date)`
+- `created_at`, `updated_at`
+
+#### `produce_listing_images`
+
+- UUID primary key
+- `listing_id` foreign key to `produce_listings.id` (CASCADE delete)
+- `image_url` — public/served URL; local files are stored outside PostgreSQL
+- `storage_key` — internal storage reference, never returned by the API
+- `is_primary`, `display_order`
+- `created_at` only (images are replaced/deleted rather than updated in place)
+
+#### `inventory_adjustments`
+
+Immutable audit log.
+
+- UUID primary key
+- `listing_id` foreign key to `produce_listings.id`
+- `farmer_user_id` foreign key to `users.id`
+- `adjustment_type` ENUM: `stock_added` | `stock_removed` | `correction`
+- `quantity_change`, `previous_available_quantity`, `new_available_quantity` — `NUMERIC(14,3)`
+- `reason` (nullable)
+- `created_at`
+
 ## Migrations and Seeders
 
 Schema changes use migrations only. `sequelize.sync()` is not used.
@@ -605,7 +650,7 @@ The test suite covers:
 **Phase 2 (27 tests):**
 - Database configuration and TLS
 - Database connectivity
-- Migrations (apply, rollback, re-apply) — all 13 migrations
+- Migrations (apply, rollback, re-apply) — all 19 migrations
 - User/role/user_role models and constraints
 - Role seeder idempotency — all 6 roles
 - Health endpoint
@@ -638,7 +683,42 @@ The test suite covers:
 - Self-assignment prevention
 - All protected Phase 4 routes return 401 without token
 
-Other available commands:
+**Phase 5 (79 tests):**
+- Produce categories/types endpoints, category filtering and 404 handling
+- Listing creation requires a farmer profile; draft creation and validation
+- Owner-only listing access; public drafts return 404; published listings are public
+- Decimal quantity validation and the quantity invariant
+- Publish/pause/resume/close lifecycle and expired-listing handling
+- Draft deletion guard when inventory history exists
+- Reserved/sold quantities cannot be set directly by clients
+- Image URL fallback, primary-image promotion and deletion
+- Real multipart image uploads with magic-byte validation, MIME checks, size limits and per-listing limits
+- Inventory summary, stock add/remove/correction, signed history and pagination
+- Concurrent inventory adjustments are serialized without corrupting stock
+- IDOR protection and authentication checks on all Phase 5 routes
+
+
+### Frontend tests
+
+Phase 5 UI helpers and reusable listing components are covered by 20 Vitest
+tests using Testing Library (jsdom). The frontend suite does not require the
+backend or a database.
+
+```bash
+cd frontend
+npm test
+```
+
+Other available frontend commands:
+
+```bash
+npm run test:watch
+npm run typecheck
+npm run lint
+npm run build
+```
+
+Other available backend commands:
 
 ```bash
 npm run test:watch
@@ -758,9 +838,10 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Email delivery:** The dev email adapter logs emails to the server console. Real SMTP delivery has not been configured or tested. Configure `EMAIL_PROVIDER` and SMTP settings for real delivery.
 - **Render deployment:** `render.yaml` and deployment instructions are prepared but not live-tested.
 - **Aiven connectivity:** Verified against Aiven PostgreSQL 18.6. The backend uses DNS pre-resolution to work around IPv6 Happy Eyeballs timeout issues on this network.
-- **Marketplace features:** Produce listings, buyer requests, offers, orders, payments and transporter management belong to Phase 5 and beyond.
+- **Marketplace features:** Buyer requests, offers, orders, payments and transporter management belong to Phase 6 and beyond.
 - **Account recovery / password reset:** Not implemented. Belongs to a future phase.
-- **File uploads:** Profile image and cooperative logo upload (`profile_image_url`, `logo_url`) fields exist in the schema but file storage is not yet implemented. These fields accept a URL manually supplied by the client.
+- **File uploads:** Produce listing images support secure multipart uploads to a local development adapter. Profile image and cooperative logo uploads (`profile_image_url`, `logo_url`) are not implemented and still accept a manually supplied URL. Production object storage (for example S3-compatible storage) is not configured; Render's filesystem is ephemeral, so a durable storage adapter must be added before production use.
+- **Public listing discovery:** Phase 5 exposes produce categories/types publicly and published listing details by ID. A public search/browse endpoint for listings, buyer offers, orders and payments belongs to Phase 6.
 - **Agent-assisted farmer operations:** The `agent_activity_logs` table and `logAgentActivity` service are implemented. Dedicated agent-assisted profile update endpoints (where an agent edits a farmer's data on their behalf) are not yet implemented — that workflow belongs to a future phase.
 
 ## Coding Rules for AI Agents

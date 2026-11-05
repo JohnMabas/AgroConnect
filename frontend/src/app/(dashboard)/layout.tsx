@@ -1,16 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { authApi } from "@/lib/api";
 
 const NAV_LINKS = [
-  { href: "/profile", label: "Profile" },
+  { href: "/farmer/listings", label: "My Listings" },
+  { href: "/farmer/inventory", label: "Inventory" },
   { href: "/farmer/profile", label: "My Farm" },
+  { href: "/profile", label: "Profile" },
   { href: "/cooperatives/membership", label: "Cooperatives" },
 ];
+
+function DashboardNavItems({ mobile = false }: { mobile?: boolean }) {
+  const pathname = usePathname();
+  return (
+    <>
+      {NAV_LINKS.map(({ href, label }) => {
+        const active = pathname.startsWith(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            className={
+              mobile
+                ? `shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    active
+                      ? "bg-agro-green/10 text-agro-green"
+                      : "text-deep-navy/70 hover:bg-deep-navy/5"
+                  }`
+                : `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    active
+                      ? "bg-agro-green/10 text-agro-green"
+                      : "text-deep-navy/70 hover:bg-deep-navy/5 hover:text-deep-navy"
+                  }`
+            }
+          >
+            {label}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
+function NavFallback({ mobile = false }: { mobile?: boolean }) {
+  return (
+    <>
+      {NAV_LINKS.map(({ href, label }) => (
+        <Link
+          key={href}
+          href={href}
+          className={
+            mobile
+              ? "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-deep-navy/70"
+              : "rounded-full px-4 py-2 text-sm font-semibold text-deep-navy/70"
+          }
+        >
+          {label}
+        </Link>
+      ))}
+    </>
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -18,7 +72,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleSignOut() {
@@ -52,22 +105,9 @@ export default function DashboardLayout({
             aria-label="Dashboard navigation"
             className="hidden items-center gap-1 sm:flex"
           >
-            {NAV_LINKS.map(({ href, label }) => {
-              const active = pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                    active
-                      ? "bg-agro-green/10 text-agro-green"
-                      : "text-deep-navy/70 hover:bg-deep-navy/5 hover:text-deep-navy"
-                  }`}
-                >
-                  {label}
-                </Link>
-              );
-            })}
+            <Suspense fallback={<NavFallback />}>
+              <DashboardNavItems />
+            </Suspense>
           </nav>
 
           {/* Sign out */}
@@ -86,22 +126,9 @@ export default function DashboardLayout({
           aria-label="Mobile dashboard navigation"
           className="flex items-center gap-1 overflow-x-auto px-5 pb-2 sm:hidden"
         >
-          {NAV_LINKS.map(({ href, label }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  active
-                    ? "bg-agro-green/10 text-agro-green"
-                    : "text-deep-navy/70 hover:bg-deep-navy/5"
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
+          <Suspense fallback={<NavFallback mobile />}>
+            <DashboardNavItems mobile />
+          </Suspense>
         </nav>
       </header>
 
