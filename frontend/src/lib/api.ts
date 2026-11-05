@@ -13,6 +13,9 @@ export class ApiError extends Error {
   }
 }
 
+const isFormData = (body: BodyInit | null | undefined): boolean =>
+  typeof FormData !== "undefined" && body instanceof FormData;
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -22,7 +25,8 @@ async function request<T>(
     ...options,
     credentials: "include", // send/receive HttpOnly cookies
     headers: {
-      "Content-Type": "application/json",
+      // Let the browser set the multipart boundary for FormData uploads.
+      ...(isFormData(options.body) ? {} : { "Content-Type": "application/json" }),
       ...(options.headers ?? {}),
     },
   });
@@ -38,6 +42,19 @@ async function request<T>(
   }
 
   return body as T;
+}
+
+/**
+ * Resolve a server-relative media path (for example `/uploads/listings/...`)
+ * to an absolute URL that the browser can render.
+ */
+export function mediaUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) {
+    return path;
+  }
+  const origin = API_BASE.replace(/\/api\/?$/, "");
+  return `${origin}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────
@@ -257,6 +274,271 @@ export const agentApi = {
     }),
   getActivities: (token: string) =>
     request("/agents/me/activities", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};
+
+// ─── Phase 5 API additions ────────────────────────────────────────────────────
+
+export interface ProduceCategoryData {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
+}
+
+export interface ProduceTypeData {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  category?: ProduceCategoryData;
+}
+
+export interface ListingFarmerData {
+  id: string;
+  display_name: string | null;
+}
+
+export interface ListingData {
+  id: string;
+  farmer_user_id: string;
+  produce_type_id: string;
+  title: string;
+  description: string | null;
+  variety: string | null;
+  grade: string | null;
+  quantity: number;
+  available_quantity: number;
+  reserved_quantity: number;
+  sold_quantity: number;
+  unit: string;
+  packaging_description: string | null;
+  price_per_unit: number;
+  currency: string;
+  country: string | null;
+  state_or_region: string | null;
+  status: "draft" | "published" | "paused" | "sold_out" | "closed" | "expired";
+  is_available: boolean;
+  harvest_date: string | null;
+  available_from: string | null;
+  expiry_date: string | null;
+  local_government_area: string | null;
+  community: string | null;
+  collection_location: string | null;
+  produce_type?: ProduceTypeData;
+  farmer?: ListingFarmerData;
+  images?: ListingImageData[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListingImageData {
+  id: string;
+  listing_id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
+}
+
+export interface InventoryAdjustmentData {
+  id: string;
+  listing_id: string;
+  farmer_user_id: string;
+  adjustment_type: "stock_added" | "stock_removed" | "correction";
+  quantity_change: number;
+  previous_available_quantity: number;
+  new_available_quantity: number;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface InventorySummaryData {
+  listing_id: string;
+  title: string;
+  status: ListingData["status"];
+  quantity: number;
+  available_quantity: number;
+  reserved_quantity: number;
+  sold_quantity: number;
+  unit: string;
+  is_balanced: boolean;
+}
+
+export interface PaginationData {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface PaginatedListingsData {
+  listings: ListingData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface PaginatedAdjustmentsData {
+  adjustments: InventoryAdjustmentData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export const produceApi = {
+  getCategories: () =>
+    request<{ success: boolean; data: { categories: ProduceCategoryData[] } }>(
+      "/produce/categories",
+    ),
+  getTypes: (params?: { category_slug?: string; category_id?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.category_slug) query.set("category_slug", params.category_slug);
+    if (params?.category_id) query.set("category_id", params.category_id);
+    const suffix = query.toString();
+    return request<{ success: boolean; data: { types: ProduceTypeData[] } }>(
+      `/produce/types${suffix ? `?${suffix}` : ""}`,
+    );
+  },
+  getType: (id: string) =>
+    request<{ success: boolean; data: { type: ProduceTypeData } }>(
+      `/produce/types/${id}`,
+    ),
+};
+
+export interface ListingResponse {
+  success: boolean;
+  message?: string;
+  data: { listing: ListingData };
+}
+
+export interface ImageResponse {
+  success: boolean;
+  message?: string;
+  data: { image: ListingImageData };
+}
+
+export const listingsApi = {
+  create: (token: string, data: object): Promise<ListingResponse> =>
+    request("/listings", {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getMe: (token: string, page = 1, limit = 20) =>
+    request<{ success: boolean; data: PaginatedListingsData }>(
+      `/listings/me?page=${page}&limit=${limit}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  getById: (id: string, token?: string): Promise<ListingResponse> =>
+    request(
+      `/listings/${id}`,
+      token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    ),
+  update: (token: string, id: string, data: object): Promise<ListingResponse> =>
+    request(`/listings/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  publish: (token: string, id: string): Promise<ListingResponse> =>
+    request(`/listings/${id}/publish`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  pause: (token: string, id: string): Promise<ListingResponse> =>
+    request(`/listings/${id}/pause`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  resume: (token: string, id: string): Promise<ListingResponse> =>
+    request(`/listings/${id}/resume`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  close: (token: string, id: string): Promise<ListingResponse> =>
+    request(`/listings/${id}/close`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  delete: (token: string, id: string) =>
+    request(`/listings/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /**
+   * Upload a local image file, or link an external image URL as a development
+   * fallback when no object storage is configured.
+   */
+  addImage: (
+    token: string,
+    id: string,
+    image: File | string,
+  ): Promise<ImageResponse> => {
+    if (typeof image === "string") {
+      return request(`/listings/${id}/images`, {
+        method: "POST",
+        body: JSON.stringify({ image_url: image }),
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    }
+
+    const form = new FormData();
+    form.append("image", image);
+    return request(`/listings/${id}/images`, {
+      method: "POST",
+      body: form,
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  deleteImage: (token: string, id: string, imageId: string) =>
+    request(`/listings/${id}/images/${imageId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  setPrimaryImage: (
+    token: string,
+    id: string,
+    imageId: string,
+  ): Promise<ImageResponse> =>
+    request(`/listings/${id}/images/${imageId}/primary`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getInventory: (
+    token: string,
+    id: string,
+  ): Promise<{ success: boolean; data: { inventory: InventorySummaryData } }> =>
+    request(`/listings/${id}/inventory`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  createAdjustment: (
+    token: string,
+    id: string,
+    data: {
+      adjustment_type: InventoryAdjustmentData["adjustment_type"];
+      quantity_change: number;
+      reason?: string;
+    },
+  ): Promise<{ success: boolean; data: { adjustment: InventoryAdjustmentData } }> =>
+    request(`/listings/${id}/inventory/adjustments`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getAdjustments: (
+    token: string,
+    id: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ success: boolean; data: PaginatedAdjustmentsData }> =>
+    request(`/listings/${id}/inventory/adjustments?page=${page}&limit=${limit}`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
 };
