@@ -237,6 +237,24 @@ export const env = Object.freeze({
   // ─── OTP configuration ───────────────────────────────────────────────────────
   // OTP_LENGTH: number of digits in the generated OTP. Default: 6.
   OTP_LENGTH: parsePositiveInt("OTP_LENGTH", process.env.OTP_LENGTH, 6),
+
+  // ─── Produce image storage ───────────────────────────────────────────────────
+  // Local filesystem adapter used while no object-storage service is
+  // configured. Production must use an object-storage adapter instead.
+  UPLOAD_STORAGE_PATH:
+    optionalString(process.env.UPLOAD_STORAGE_PATH) ?? "uploads",
+  UPLOAD_PUBLIC_PREFIX:
+    optionalString(process.env.UPLOAD_PUBLIC_PREFIX) ?? "/uploads",
+  UPLOAD_MAX_FILE_SIZE_BYTES: parsePositiveInt(
+    "UPLOAD_MAX_FILE_SIZE_BYTES",
+    process.env.UPLOAD_MAX_FILE_SIZE_BYTES,
+    5 * 1024 * 1024, // 5 MiB
+  ),
+  UPLOAD_MAX_IMAGES_PER_LISTING: parsePositiveInt(
+    "UPLOAD_MAX_IMAGES_PER_LISTING",
+    process.env.UPLOAD_MAX_IMAGES_PER_LISTING,
+    5,
+  ),
 });
 
 export type Environment = typeof env;

@@ -16,6 +16,9 @@ build/
 .env.*.local
 !.env.example
 
+# Uploaded development media
+backend/uploads/
+
 # TLS certificates
 backend/certs/*.pem
 !backend/certs/.gitkeep
