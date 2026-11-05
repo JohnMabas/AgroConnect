@@ -11,6 +11,12 @@ import * as createCooperativeProfiles from "./20261103000003-create-cooperative-
 import * as createCooperativeMemberships from "./20261103000004-create-cooperative-memberships.js";
 import * as createCooperativeAgentAssignments from "./20261103000005-create-cooperative-agent-assignments.js";
 import * as createAgentActivityLogs from "./20261103000006-create-agent-activity-logs.js";
+import * as createProduceCategories from "./20261104000001-create-produce-categories.js";
+import * as createProduceTypes from "./20261104000002-create-produce-types.js";
+import * as createProduceListings from "./20261104000003-create-produce-listings.js";
+import * as createProduceListingImages from "./20261104000004-create-produce-listing-images.js";
+import * as createInventoryAdjustments from "./20261104000005-create-inventory-adjustments.js";
+import * as produceCatalogueHardening from "./20261104000006-produce-catalogue-hardening.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -40,5 +46,29 @@ export const migrations = [
   {
     name: "20261103000006-create-agent-activity-logs",
     ...createAgentActivityLogs,
+  },
+  {
+    name: "20261104000001-create-produce-categories",
+    ...createProduceCategories,
+  },
+  {
+    name: "20261104000002-create-produce-types",
+    ...createProduceTypes,
+  },
+  {
+    name: "20261104000003-create-produce-listings",
+    ...createProduceListings,
+  },
+  {
+    name: "20261104000004-create-produce-listing-images",
+    ...createProduceListingImages,
+  },
+  {
+    name: "20261104000005-create-inventory-adjustments",
+    ...createInventoryAdjustments,
+  },
+  {
+    name: "20261104000006-produce-catalogue-hardening",
+    ...produceCatalogueHardening,
   },
 ];

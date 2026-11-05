@@ -23,7 +23,14 @@ const PHASE_4_TABLES = [
   "farmer_profiles",
   "user_profiles",
 ];
-const ALL_TABLES = [...PHASE_2_TABLES, ...PHASE_3_TABLES, ...PHASE_4_TABLES].sort();
+const PHASE_5_TABLES = [
+  "inventory_adjustments",
+  "produce_categories",
+  "produce_listing_images",
+  "produce_listings",
+  "produce_types",
+];
+const ALL_TABLES = [...PHASE_2_TABLES, ...PHASE_3_TABLES, ...PHASE_4_TABLES, ...PHASE_5_TABLES].sort();
 
 const ALL_MIGRATION_NAMES = [
   "20261102000001-create-roles",
@@ -39,6 +46,12 @@ const ALL_MIGRATION_NAMES = [
   "20261103000004-create-cooperative-memberships",
   "20261103000005-create-cooperative-agent-assignments",
   "20261103000006-create-agent-activity-logs",
+  "20261104000001-create-produce-categories",
+  "20261104000002-create-produce-types",
+  "20261104000003-create-produce-listings",
+  "20261104000004-create-produce-listing-images",
+  "20261104000005-create-inventory-adjustments",
+  "20261104000006-produce-catalogue-hardening",
 ];
 
 async function getPublicTables(): Promise<string[]> {
