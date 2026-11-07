@@ -26,6 +26,7 @@ import {
   getAdjustmentsHandler,
 } from "./listings.inventory.controller.js";
 import { uploadSingleImage } from "./listings.upload.middleware.js";
+import { listListingOffersHandler } from "../offers/offers.controller.js";
 
 export function createListingsRouter(): Router {
   const router = Router();
@@ -83,6 +84,9 @@ export function createListingsRouter(): Router {
 
   // GET /api/listings/:id/inventory/adjustments
   router.get("/:id/inventory/adjustments", authenticate, getAdjustmentsHandler);
+
+  // GET /api/listings/:id/offers — owner-only offer list
+  router.get("/:id/offers", authenticate, listListingOffersHandler);
 
   return router;
 }
