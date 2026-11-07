@@ -1,10 +1,23 @@
 import { AgentActivityLog } from "./agent-activity-log.model.js";
+import { BuyerRequest } from "./buyer-request.model.js";
+import { Conversation } from "./conversation.model.js";
+import { ConversationParticipant } from "./conversation-participant.model.js";
 import { CooperativeAgentAssignment } from "./cooperative-agent-assignment.model.js";
 import { CooperativeMembership } from "./cooperative-membership.model.js";
 import { CooperativeProfile } from "./cooperative-profile.model.js";
 import { EmailVerificationToken } from "./email-verification-token.model.js";
 import { FarmerProfile } from "./farmer-profile.model.js";
 import { InventoryAdjustment } from "./inventory-adjustment.model.js";
+import { InventoryReservation } from "./inventory-reservation.model.js";
+import { Message } from "./message.model.js";
+import { Offer } from "./offer.model.js";
+import { OfferEvent } from "./offer-event.model.js";
+import { Order } from "./order.model.js";
+import { OrderEvent } from "./order-event.model.js";
+import { OrderItem } from "./order-item.model.js";
+import { Payment } from "./payment.model.js";
+import { PaymentWebhookEvent } from "./payment-webhook-event.model.js";
+import { Refund } from "./refund.model.js";
 import { PhoneOtp } from "./phone-otp.model.js";
 import { ProduceCategory } from "./produce-category.model.js";
 import { ProduceListing } from "./produce-listing.model.js";
@@ -236,14 +249,370 @@ InventoryAdjustment.belongsTo(ProduceListing, {
   as: "listing",
 });
 
+// Phase 6 associations
+BuyerRequest.belongsTo(User, {
+  foreignKey: "buyer_user_id",
+  as: "buyer",
+});
+
+User.hasMany(BuyerRequest, {
+  foreignKey: "buyer_user_id",
+  as: "buyer_requests",
+  onDelete: "CASCADE",
+});
+
+BuyerRequest.belongsTo(ProduceType, {
+  foreignKey: "produce_type_id",
+  as: "produce_type",
+});
+
+ProduceType.hasMany(BuyerRequest, {
+  foreignKey: "produce_type_id",
+  as: "buyer_requests",
+});
+
+BuyerRequest.belongsTo(ProduceCategory, {
+  foreignKey: "produce_category_id",
+  as: "produce_category",
+});
+
+ProduceCategory.hasMany(BuyerRequest, {
+  foreignKey: "produce_category_id",
+  as: "buyer_requests",
+});
+
+// Phase 7 associations
+Conversation.belongsTo(User, {
+  foreignKey: "created_by_user_id",
+  as: "created_by",
+});
+
+User.hasMany(Conversation, {
+  foreignKey: "created_by_user_id",
+  as: "created_conversations",
+  onDelete: "CASCADE",
+});
+
+Conversation.belongsTo(ProduceListing, {
+  foreignKey: "listing_id",
+  as: "listing",
+});
+
+ProduceListing.hasMany(Conversation, {
+  foreignKey: "listing_id",
+  as: "conversations",
+});
+
+Conversation.belongsTo(BuyerRequest, {
+  foreignKey: "buyer_request_id",
+  as: "buyer_request",
+});
+
+BuyerRequest.hasMany(Conversation, {
+  foreignKey: "buyer_request_id",
+  as: "conversations",
+});
+
+Conversation.belongsToMany(User, {
+  through: ConversationParticipant,
+  foreignKey: "conversation_id",
+  otherKey: "user_id",
+  as: "participants",
+  timestamps: true,
+});
+
+User.belongsToMany(Conversation, {
+  through: ConversationParticipant,
+  foreignKey: "user_id",
+  otherKey: "conversation_id",
+  as: "conversations",
+  timestamps: true,
+});
+
+Conversation.hasMany(ConversationParticipant, {
+  foreignKey: "conversation_id",
+  as: "participant_records",
+  onDelete: "CASCADE",
+});
+
+ConversationParticipant.belongsTo(Conversation, {
+  foreignKey: "conversation_id",
+  as: "conversation",
+});
+
+ConversationParticipant.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(ConversationParticipant, {
+  foreignKey: "user_id",
+  as: "conversation_participations",
+  onDelete: "CASCADE",
+});
+
+Conversation.hasMany(Message, {
+  foreignKey: "conversation_id",
+  as: "messages",
+  onDelete: "CASCADE",
+});
+
+Message.belongsTo(Conversation, {
+  foreignKey: "conversation_id",
+  as: "conversation",
+});
+
+Message.belongsTo(User, {
+  foreignKey: "sender_user_id",
+  as: "sender",
+});
+
+User.hasMany(Message, {
+  foreignKey: "sender_user_id",
+  as: "sent_messages",
+  onDelete: "CASCADE",
+});
+
+// Phase 8 associations
+Offer.belongsTo(ProduceListing, {
+  foreignKey: "listing_id",
+  as: "listing",
+});
+
+ProduceListing.hasMany(Offer, {
+  foreignKey: "listing_id",
+  as: "offers",
+});
+
+Offer.belongsTo(BuyerRequest, {
+  foreignKey: "buyer_request_id",
+  as: "buyer_request",
+});
+
+BuyerRequest.hasMany(Offer, {
+  foreignKey: "buyer_request_id",
+  as: "offers",
+});
+
+Offer.belongsTo(Conversation, {
+  foreignKey: "conversation_id",
+  as: "conversation",
+});
+
+Conversation.hasMany(Offer, {
+  foreignKey: "conversation_id",
+  as: "offers",
+});
+
+Offer.belongsTo(User, {
+  foreignKey: "buyer_id",
+  as: "buyer",
+});
+
+User.hasMany(Offer, {
+  foreignKey: "buyer_id",
+  as: "buyer_offers",
+});
+
+Offer.belongsTo(User, {
+  foreignKey: "farmer_id",
+  as: "farmer",
+});
+
+User.hasMany(Offer, {
+  foreignKey: "farmer_id",
+  as: "farmer_offers",
+});
+
+Offer.belongsTo(User, {
+  foreignKey: "created_by",
+  as: "creator",
+});
+
+Offer.belongsTo(Offer, {
+  foreignKey: "parent_offer_id",
+  as: "parent_offer",
+});
+
+Offer.hasMany(Offer, {
+  foreignKey: "parent_offer_id",
+  as: "counteroffers",
+});
+
+Offer.belongsTo(Offer, {
+  foreignKey: "root_offer_id",
+  as: "root_offer",
+});
+
+Offer.hasMany(OfferEvent, {
+  foreignKey: "offer_id",
+  as: "events",
+  onDelete: "CASCADE",
+});
+
+OfferEvent.belongsTo(Offer, {
+  foreignKey: "offer_id",
+  as: "offer",
+});
+
+OfferEvent.belongsTo(User, {
+  foreignKey: "actor_user_id",
+  as: "actor",
+});
+
+// Phase 9 associations
+Order.belongsTo(Offer, {
+  foreignKey: "offer_id",
+  as: "offer",
+});
+
+Offer.hasOne(Order, {
+  foreignKey: "offer_id",
+  as: "order",
+});
+
+Order.belongsTo(ProduceListing, {
+  foreignKey: "listing_id",
+  as: "listing",
+});
+
+ProduceListing.hasMany(Order, {
+  foreignKey: "listing_id",
+  as: "orders",
+});
+
+Order.belongsTo(User, {
+  foreignKey: "buyer_id",
+  as: "buyer",
+});
+
+User.hasMany(Order, {
+  foreignKey: "buyer_id",
+  as: "buyer_orders",
+});
+
+Order.belongsTo(User, {
+  foreignKey: "farmer_id",
+  as: "farmer",
+});
+
+User.hasMany(Order, {
+  foreignKey: "farmer_id",
+  as: "farmer_orders",
+});
+
+Order.hasOne(OrderItem, {
+  foreignKey: "order_id",
+  as: "item",
+  onDelete: "CASCADE",
+});
+
+OrderItem.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+OrderItem.belongsTo(ProduceListing, {
+  foreignKey: "listing_id",
+  as: "listing",
+});
+
+Order.hasMany(OrderEvent, {
+  foreignKey: "order_id",
+  as: "events",
+  onDelete: "CASCADE",
+});
+
+OrderEvent.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+OrderEvent.belongsTo(User, {
+  foreignKey: "actor_user_id",
+  as: "actor",
+});
+
+Order.hasOne(InventoryReservation, {
+  foreignKey: "order_id",
+  as: "reservation",
+  onDelete: "CASCADE",
+});
+
+InventoryReservation.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+InventoryReservation.belongsTo(ProduceListing, {
+  foreignKey: "listing_id",
+  as: "listing",
+});
+
+ProduceListing.hasMany(InventoryReservation, {
+  foreignKey: "listing_id",
+  as: "reservations",
+});
+
+Order.hasMany(Payment, {
+  foreignKey: "order_id",
+  as: "payments",
+  onDelete: "CASCADE",
+});
+
+Payment.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+Order.hasMany(Refund, {
+  foreignKey: "order_id",
+  as: "refunds",
+  onDelete: "CASCADE",
+});
+
+Refund.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+Payment.hasMany(Refund, {
+  foreignKey: "payment_id",
+  as: "refunds",
+  onDelete: "RESTRICT",
+});
+
+Refund.belongsTo(Payment, {
+  foreignKey: "payment_id",
+  as: "payment",
+});
+
+Refund.belongsTo(User, {
+  foreignKey: "requested_by_user_id",
+  as: "requested_by",
+});
+
 export {
   AgentActivityLog,
+  BuyerRequest,
+  Conversation,
+  ConversationParticipant,
   CooperativeAgentAssignment,
   CooperativeMembership,
   CooperativeProfile,
   EmailVerificationToken,
   FarmerProfile,
   InventoryAdjustment,
+  InventoryReservation,
+  Message,
+  Offer,
+  OfferEvent,
+  Order,
+  OrderEvent,
+  OrderItem,
+  Payment,
+  PaymentWebhookEvent,
+  Refund,
   PhoneOtp,
   ProduceCategory,
   ProduceListing,
