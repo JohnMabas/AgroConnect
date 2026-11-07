@@ -17,6 +17,14 @@ import * as createProduceListings from "./20261104000003-create-produce-listings
 import * as createProduceListingImages from "./20261104000004-create-produce-listing-images.js";
 import * as createInventoryAdjustments from "./20261104000005-create-inventory-adjustments.js";
 import * as produceCatalogueHardening from "./20261104000006-produce-catalogue-hardening.js";
+import * as createBuyerRequests from "./20261105000001-create-buyer-requests.js";
+import * as createConversations from "./20261106000001-create-conversations.js";
+import * as createConversationParticipants from "./20261106000002-create-conversation-participants.js";
+import * as createMessages from "./20261106000003-create-messages.js";
+import * as createOffers from "./20261107000001-create-offers.js";
+import * as createOrders from "./20261108000001-create-orders.js";
+import * as createInventoryReservations from "./20261108000002-create-inventory-reservations.js";
+import * as createPayments from "./20261108000003-create-payments.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -70,5 +78,37 @@ export const migrations = [
   {
     name: "20261104000006-produce-catalogue-hardening",
     ...produceCatalogueHardening,
+  },
+  {
+    name: "20261105000001-create-buyer-requests",
+    ...createBuyerRequests,
+  },
+  {
+    name: "20261106000001-create-conversations",
+    ...createConversations,
+  },
+  {
+    name: "20261106000002-create-conversation-participants",
+    ...createConversationParticipants,
+  },
+  {
+    name: "20261106000003-create-messages",
+    ...createMessages,
+  },
+  {
+    name: "20261107000001-create-offers",
+    ...createOffers,
+  },
+  {
+    name: "20261108000001-create-orders",
+    ...createOrders,
+  },
+  {
+    name: "20261108000002-create-inventory-reservations",
+    ...createInventoryReservations,
+  },
+  {
+    name: "20261108000003-create-payments",
+    ...createPayments,
   },
 ];
