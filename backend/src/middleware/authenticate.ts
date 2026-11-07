@@ -4,33 +4,12 @@ import {
   verifyAccessToken,
   type AccessTokenPayload,
 } from "../services/token.service.js";
-import { User, Role } from "../database/models/index.js";
+import { fetchUserRoles } from "../services/user-roles.service.js";
 
 // Augment the Express Request type to carry the authenticated user payload.
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AccessTokenPayload;
-    }
-  }
-}
-
-/**
- * Fetch the current role names for a user from the database.
- * Falls back to an empty array on error so the request is not crashed.
- */
-async function fetchUserRoles(userId: string): Promise<string[]> {
-  try {
-    const user = await User.findByPk(userId, {
-      include: [{ model: Role, as: "roles", attributes: ["name"] }],
-    });
-    if (!user) return [];
-    // Sequelize populates the association as `user.roles` (array of Role instances).
-    const rolesAny = (user as unknown as { roles?: Array<{ name: string }> }).roles;
-    if (!Array.isArray(rolesAny)) return [];
-    return rolesAny.map((r) => r.name);
-  } catch {
-    return [];
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: AccessTokenPayload;
   }
 }
 
