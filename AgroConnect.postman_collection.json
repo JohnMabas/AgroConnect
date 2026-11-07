@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "AgroConnect API",
-    "description": "Complete collection for testing all AgroConnect Phase 2 + Phase 3 API endpoints.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)",
+    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, and Phase 9 orders/payments.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -34,6 +34,63 @@
       "key": "email_user_id",
       "value": "",
       "description": "Set automatically when registering with email only."
+    },
+    {
+      "key": "participant_user_id",
+      "value": "",
+      "description": "UUID of the user to message. Set manually before creating a conversation."
+    },
+    {
+      "key": "conversation_id",
+      "value": "",
+      "description": "Set automatically by the Create conversation request."
+    },
+    {
+      "key": "message_id",
+      "value": "",
+      "description": "Set automatically by the Send message request."
+    },
+    {
+      "key": "listing_id",
+      "value": "",
+      "description": "Published listing UUID to make offers on. Set manually before creating a listing offer."
+    },
+    {
+      "key": "buyer_request_id",
+      "value": "",
+      "description": "Open buyer request UUID to make offers against. Set manually before creating a buyer-request offer."
+    },
+    {
+      "key": "offer_id",
+      "value": "",
+      "description": "Set automatically by Create offer (listing). Used by offer detail, history, and lifecycle requests."
+    },
+    {
+      "key": "buyer_request_offer_id",
+      "value": "",
+      "description": "Set automatically by Create offer (buyer request)."
+    },
+    {
+      "key": "counter_offer_id",
+      "value": "",
+      "description": "Set automatically by Counter offer."
+    },
+    {
+      "key": "offer_recipient_token",
+      "value": "",
+      "description": "Access token for the offer recipient. Required for accept, reject, and counter when the current access_token belongs to the creator."
+    },
+    {
+      "key": "order_id",
+      "value": ""
+    },
+    {
+      "key": "payment_reference",
+      "value": ""
+    },
+    {
+      "key": "refund_id",
+      "value": ""
     }
   ],
   "item": [
@@ -48,8 +105,12 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/health",
-              "host": ["{{base_url}}"],
-              "path": ["health"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
             },
             "description": "Returns HTTP 200 with database status when everything is healthy. Returns 503 if the database is unreachable."
           },
@@ -92,17 +153,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"phone_number\": \"+2348031234567\",\n  \"password\": \"SecurePass1!\",\n  \"password_confirm\": \"SecurePass1!\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "description": "Register with a Nigerian phone number only. The OTP will be logged to the server console (dev adapter). Copy it and set the `otp` collection variable."
           },
@@ -155,17 +228,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"display_name\": \"Aminu Musa\",\n  \"email\": \"aminu@example.com\",\n  \"password\": \"SecurePass1!\",\n  \"password_confirm\": \"SecurePass1!\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "description": "Register with email only. A verification link will be logged to the server console. Copy the 64-character hex token and set the `email_token` variable."
           },
@@ -196,17 +281,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"display_name\": \"Fatima Abubakar\",\n  \"phone_number\": \"+2348050000001\",\n  \"email\": \"fatima@example.com\",\n  \"password\": \"SecurePass1!\",\n  \"password_confirm\": \"SecurePass1!\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "description": "Register with both phone and email. Both OTP (SMS) and verification email will be logged to the server console."
           },
@@ -234,17 +331,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"password\": \"short\",\n  \"password_confirm\": \"different\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "description": "Demonstrates validation failure: no contact method, short password, mismatched confirm. Expects 422."
           },
@@ -276,17 +385,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"otp\": \"{{otp}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/verify-phone",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "verify-phone"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-phone"
+              ]
             },
             "description": "Submit the 6-digit OTP from the server console. Uses `user_id` captured from registration.\n\n**Before running:** Set the `otp` variable to the value printed in the server console."
           },
@@ -328,17 +449,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"otp\": \"000000\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/verify-phone",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "verify-phone"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-phone"
+              ]
             },
             "description": "Demonstrates rejection of a wrong OTP. Expects 400."
           },
@@ -362,17 +495,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/resend-phone-otp",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "resend-phone-otp"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "resend-phone-otp"
+              ]
             },
             "description": "Resend the OTP to the user's phone. Subject to a 60-second cooldown — returns 429 if called too soon."
           },
@@ -405,17 +550,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"token\": \"{{email_token}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/verify-email",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "verify-email"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-email"
+              ]
             },
             "description": "Submit the 64-character hex token from the server console.\n\n**Before running:** Set the `email_token` variable to the token printed in the [DEV EMAIL] log."
           },
@@ -443,17 +600,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"token\": \"thisisnotavalidtoken\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/verify-email",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "verify-email"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-email"
+              ]
             },
             "description": "Demonstrates rejection of an invalid token. Expects 400."
           },
@@ -477,17 +646,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user_id\": \"{{email_user_id}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/resend-email-verification",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "resend-email-verification"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "resend-email-verification"
+              ]
             },
             "description": "Resend the verification email. Subject to the same 60-second cooldown as OTP resend."
           },
@@ -517,17 +698,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"identifier\": \"+2348031234567\",\n  \"password\": \"SecurePass1!\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Log in using a verified phone number. The `access_token` is saved automatically to the collection variable.\n\nThe refresh token is sent as an `HttpOnly` cookie (`refresh_token`). Postman stores it in the cookie jar automatically."
           },
@@ -583,17 +776,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"identifier\": \"aminu@example.com\",\n  \"password\": \"SecurePass1!\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Log in using a verified email address."
           },
@@ -621,17 +826,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"identifier\": \"+2348031234567\",\n  \"password\": \"WrongPassword!\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Demonstrates invalid credentials rejection. Expects 401."
           },
@@ -657,8 +874,13 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/auth/refresh",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             },
             "description": "Rotate the refresh token. The `refresh_token` HttpOnly cookie must be present (set by Login).\n\nReturns a new access token and rotates the cookie. The old refresh token is invalidated."
           },
@@ -689,8 +911,13 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/auth/logout",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "logout"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
             },
             "description": "Revoke the current refresh token cookie. Clears the cookie. The access token (JWT) remains valid until it expires naturally."
           },
@@ -721,8 +948,13 @@
             ],
             "url": {
               "raw": "{{base_url}}/auth/logout-all",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "logout-all"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout-all"
+              ]
             },
             "description": "Revoke ALL refresh tokens for the authenticated user (logs out from every device). Requires a valid Bearer token."
           },
@@ -760,8 +992,13 @@
             ],
             "url": {
               "raw": "{{base_url}}/auth/me",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Return the currently authenticated user's profile, verified contact info, and roles.\n\nRequires: `Authorization: Bearer <access_token>`"
           },
@@ -804,8 +1041,13 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/auth/me",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Demonstrates 401 rejection when no Bearer token is provided."
           },
@@ -836,8 +1078,13 @@
             ],
             "url": {
               "raw": "{{base_url}}/auth/me",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Demonstrates 401 rejection when the token signature is invalid."
           },
@@ -849,6 +1096,1580 @@
                   "pm.test('Returns 401 for invalid token', () => {",
                   "    pm.response.to.have.status(401);",
                   "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 7 — Messaging",
+      "description": "One-to-one conversations, persistent messages, unread counts and read receipts. Set `participant_user_id` to the other user's ID before creating a conversation. Realtime Socket.IO events are separate from these REST calls: connect with `auth: { token: <access_token> }`, then emit `conversation:join`, `message:send`, `message:delivered` and `message:read`. The REST API remains the authoritative history.",
+      "item": [
+        {
+          "name": "Create conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations"
+              ]
+            },
+            "description": "Create a one-to-one conversation. The participant pair and optional marketplace context are deduplicated. Use a participant/context you have not already used to receive 201; duplicates return 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participant_user_id\": \"{{participant_user_id}}\",\n  \"listing_id\": null,\n  \"buyer_request_id\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation created or duplicate reported', () => {",
+                  "    pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.conversation) {",
+                  "    pm.collectionVariables.set('conversation_id', body.data.conversation.id);",
+                  "    console.log('conversation_id saved:', body.data.conversation.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations"
+              ]
+            },
+            "description": "List conversations where the authenticated user is a participant. Supports `status=active|archived|blocked|all`, `page` and `limit`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversations returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get conversation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}"
+              ]
+            },
+            "description": "Read conversation metadata, participants, last message and the current user's unread count. Non-participants receive 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}/messages",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}",
+                "messages"
+              ]
+            },
+            "description": "Send a text message to an active conversation. The sender is always derived from the access token; clients cannot impersonate another user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hello, is this produce still available?\",\n  \"message_type\": \"text\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Message sent', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('message_id', body.data.message.id);",
+                  "pm.test('Message starts as sent', () => {",
+                  "    pm.expect(body.data.message.status).to.eql('sent');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}/messages?page=1&limit=20&order=desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}",
+                "messages?page=1&limit=20&order=desc"
+              ]
+            },
+            "description": "Read paginated message history. Supports `before` (ISO 8601), `order=asc|desc`, `page` and `limit`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Message history returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark conversation read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}",
+                "read"
+              ]
+            },
+            "description": "Mark messages read. Omit `message_id` to mark everything up to now, or supply a specific message ID to mark up to that message.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message_id\": \"{{message_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation marked read', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get unread counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/messages/unread-count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "messages",
+                "unread-count"
+              ]
+            },
+            "description": "Return total unread messages and a per-conversation unread breakdown."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unread counts returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Archive conversation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}/archive",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}",
+                "archive"
+              ]
+            },
+            "description": "Archive a conversation. Messaging is blocked while archived."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation archived', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.conversation.status).to.eql('archived');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unarchive conversation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}/unarchive",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}",
+                "unarchive"
+              ]
+            },
+            "description": "Return an archived conversation to active."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation unarchived', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.conversation.status).to.eql('active');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Block conversation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}/block",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}",
+                "block"
+              ]
+            },
+            "description": "Block a conversation. Messaging is blocked while blocked. Unarchive before blocking an archived conversation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation blocked', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.conversation.status).to.eql('blocked');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unblock conversation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations/{{conversation_id}}/unblock",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "conversations",
+                "{{conversation_id}}",
+                "unblock"
+              ]
+            },
+            "description": "Return a blocked conversation to active. Unblock before unarchiving a blocked conversation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation unblocked', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.conversation.status).to.eql('active');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 8 — Offers & Negotiation",
+      "description": "Structured offers on published listings or open buyer requests, with recipient-only accept/reject/counter, creator-only withdraw, negotiation history, expiry, and audit events. Set `listing_id` or `buyer_request_id` manually. Create an offer while authenticated as the buyer for a listing offer, or as the farmer for a buyer-request offer. Set `offer_recipient_token` to the other participant's access token for accept, reject, and counter. Accepting an offer does not reserve inventory or create an order.",
+      "item": [
+        {
+          "name": "Create offer (listing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers"
+              ]
+            },
+            "description": "Create an offer as the buyer on a published listing owned by another user. The listing unit and currency must match the payload. Omit `expires_at` to use the 72-hour default.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_id\": \"{{listing_id}}\",\n  \"buyer_request_id\": null,\n  \"conversation_id\": null,\n  \"quantity\": 10,\n  \"unit\": \"kg\",\n  \"unit_price\": 500,\n  \"currency\": \"NGN\",\n  \"delivery_terms\": \"Buyer collects from the farm gate.\",\n  \"delivery_location\": \"Jos, Plateau State\",\n  \"delivery_date\": null,\n  \"buyer_message\": \"Is this lot still available?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Offer created', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.offer) {",
+                  "    pm.collectionVariables.set('offer_id', body.data.offer.id);",
+                  "    console.log('offer_id saved:', body.data.offer.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create offer (buyer request)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers"
+              ]
+            },
+            "description": "Create an offer as the farmer against an open buyer request owned by another user. The request unit and currency must match the payload.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_id\": null,\n  \"buyer_request_id\": \"{{buyer_request_id}}\",\n  \"conversation_id\": null,\n  \"quantity\": 10,\n  \"unit\": \"kg\",\n  \"unit_price\": 500,\n  \"currency\": \"NGN\",\n  \"delivery_terms\": \"Buyer collects from the farm gate.\",\n  \"delivery_location\": \"Jos, Plateau State\",\n  \"delivery_date\": null,\n  \"buyer_message\": \"Is this lot still available?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Buyer-request offer created', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.offer) {",
+                  "    pm.collectionVariables.set('buyer_request_offer_id', body.data.offer.id);",
+                  "    console.log('buyer_request_offer_id saved:', body.data.offer.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my offers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers?page=1&limit=20&status=pending&sort=newest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers?page=1&limit=20&status=pending&sort=newest"
+              ]
+            },
+            "description": "List offers sent and received by the authenticated user. Supports role, direction, status, listing_id, buyer_request_id, conversation_id, sort, page, and limit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Offers listed', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get offer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers/{{offer_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers",
+                "{{offer_id}}"
+              ]
+            },
+            "description": "Read an offer. Only the buyer and farmer participants can access it; non-participants receive 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Offer returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get offer history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers/{{offer_id}}/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers",
+                "{{offer_id}}",
+                "history"
+              ]
+            },
+            "description": "Return the full negotiation thread (root, counters, and the current offer) plus immutable offer_events audit rows."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Offer history returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{offer_recipient_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers/{{offer_id}}/accept",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers",
+                "{{offer_id}}",
+                "accept"
+              ]
+            },
+            "description": "Accept a pending offer as its recipient. Acceptance re-validates the listing or buyer request and current available quantity. It does not reserve inventory or create an order."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Offer accepted', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{offer_recipient_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers/{{offer_id}}/reject",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers",
+                "{{offer_id}}",
+                "reject"
+              ]
+            },
+            "description": "Reject a pending offer as its recipient. Rejected offers cannot be accepted later."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Offer rejected', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Withdraw offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers/{{offer_id}}/withdraw",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers",
+                "{{offer_id}}",
+                "withdraw"
+              ]
+            },
+            "description": "Withdraw a pending offer as its creator. Only the creator can withdraw."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Offer withdrawn', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Counter offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{offer_recipient_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/offers/{{offer_id}}/counter",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "offers",
+                "{{offer_id}}",
+                "counter"
+              ]
+            },
+            "description": "Counter a pending offer as its recipient. The parent becomes countered and a linked child offer is created. A thread is limited to 20 offers.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 8,\n  \"unit\": \"kg\",\n  \"unit_price\": 550,\n  \"currency\": \"NGN\",\n  \"delivery_terms\": \"Counteroffer: collection within seven days.\",\n  \"delivery_location\": \"Jos, Plateau State\",\n  \"delivery_date\": null,\n  \"buyer_message\": \"Can we agree on this revised quantity and price?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Counteroffer created', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.offer) {",
+                  "    pm.collectionVariables.set('counter_offer_id', body.data.offer.id);",
+                  "    console.log('counter_offer_id saved:', body.data.offer.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List offers for listing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/listings/{{listing_id}}/offers?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "listings",
+                "{{listing_id}}",
+                "offers?page=1&limit=20"
+              ]
+            },
+            "description": "Owner-only: list offers for a listing owned by the authenticated user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Listing offers returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List offers for buyer request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/buyer-requests/{{buyer_request_id}}/offers?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "buyer-requests",
+                "{{buyer_request_id}}",
+                "offers?page=1&limit=20"
+              ]
+            },
+            "description": "Owner-only: list offers against a buyer request owned by the authenticated user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Buyer-request offers returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 9 — Orders, Reservations & Paystack Payments",
+      "description": "Create orders from accepted listing offers, reserve inventory atomically, initialize and verify Paystack hosted checkout, process signed webhooks, and request refunds. Create and accept a Phase 8 listing offer first so `offer_id` is captured. The offer creator is normally the buyer and `offer_recipient_token` is the farmer. Orders cannot be created from buyer-request-only offers because they have no listing inventory. Paystack provider calls require `PAYSTACK_SECRET_KEY`; use test keys and never commit real credentials.",
+      "item": [
+        {
+          "name": "Create order from accepted offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Create an order as the buyer from an accepted listing offer. The server locks the offer and listing, re-validates stock, and atomically reserves inventory. New orders start at pending_payment/pending. The `order_id` is saved for later requests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offer_id\": \"{{offer_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order created', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.order) {",
+                  "    pm.collectionVariables.set('order_id', body.data.order.id);",
+                  "    console.log('order_id saved:', body.data.order.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "newest"
+                }
+              ]
+            },
+            "description": "List orders where the authenticated user is buyer or farmer. Supports role, status, payment_status, listing_id, offer_id, sort, page and limit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Orders listed', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Read one order. Only the buyer and farmer participants can access it; non-participants receive 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order returned', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get order history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "history"
+              ]
+            },
+            "description": "Read the immutable order_events audit trail for the order."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order history returned', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Advance order status (farmer)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{offer_recipient_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "description": "Advance fulfillment as the farmer: paid → processing → ready_for_delivery → in_transit → delivered. Change the body status to the next allowed step. The buyer uses the same endpoint to mark delivered → completed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"processing\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order status updated', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel unpaid order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancel a pending_payment or payment_failed order as a participant. The active reservation is released or removed according to freshness, pending payment attempts are abandoned, and an order event is recorded. Paid orders must be refunded instead.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Buyer no longer needs this order.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order cancelled', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get order reservation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/reservation",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "reservation"
+              ]
+            },
+            "description": "Read the inventory reservation attached to the order, including quantity, status and expiry."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order reservation returned', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my reservations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reservations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reservations"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "List inventory reservations visible to the authenticated buyer or farmer. Supports status, order_id, listing_id, page and limit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reservations listed', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Initialize Paystack payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/paystack/initialize",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "paystack",
+                "initialize"
+              ]
+            },
+            "description": "Initialize or reuse a pending Paystack hosted checkout for the order as the buyer. The server uses the order total in minor units and returns an authorization URL and reference. `payment_reference` is saved. Requires PAYSTACK_SECRET_KEY.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{order_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Payment initialized', () => { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.payment) {",
+                  "    pm.collectionVariables.set('payment_reference', body.data.payment.reference);",
+                  "    console.log('payment_reference saved:', body.data.payment.reference);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Paystack payment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/paystack/verify/{{payment_reference}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "paystack",
+                "verify",
+                "{{payment_reference}}"
+              ]
+            },
+            "description": "Verify the payment with Paystack as the buyer and apply the provider result idempotently. On success the reservation is consumed and the order becomes paid. Requires PAYSTACK_SECRET_KEY."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Payment verified', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List order payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/payments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "payments"
+              ]
+            },
+            "description": "List payment attempts for the order as a participant."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order payments returned', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request full refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/paystack/{{payment_reference}}/refund",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "paystack",
+                "{{payment_reference}}",
+                "refund"
+              ]
+            },
+            "description": "Request a full refund of a successful payment as a participant. Omit amount to refund the remaining balance. Provider acceptance is not treated as processed; the status is reconciled immediately and on later reads. A fully processed refund restores consumed reservation stock when eligible.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_note\": \"Order could not be fulfilled.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Refund requested', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.refund) {",
+                  "    pm.collectionVariables.set('refund_id', body.data.refund.id);",
+                  "    console.log('refund_id saved:', body.data.refund.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request partial refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/paystack/{{payment_reference}}/refund",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "paystack",
+                "{{payment_reference}}",
+                "refund"
+              ]
+            },
+            "description": "Request a partial refund in major currency units. Partial refunds update payment and order refund status without changing inventory.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"customer_note\": \"Partial refund for short delivery.\",\n  \"merchant_note\": \"Approved by seller.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Partial refund requested', () => { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List refunds",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/paystack/{{payment_reference}}/refund",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "paystack",
+                "{{payment_reference}}",
+                "refund"
+              ]
+            },
+            "description": "List refunds for the payment and reconcile pending or processing refunds with Paystack."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Refunds returned', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Paystack webhook (signature reference)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/paystack/webhook",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "paystack",
+                "webhook"
+              ]
+            },
+            "description": "Reference request for the raw-body Paystack webhook endpoint. Paystack calls this URL directly; it is not Bearer-authenticated. Send header `Paystack-Signature: t=<unix-seconds>,v1=<key-id>:<hmac-sha512>` (or legacy `x-paystack-signature`). The signed payload is `t + \".\" + raw_body`. Do not send a JSON Authorization header.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{payment_reference}}\",\n    \"status\": \"success\",\n    \"amount\": 10000,\n    \"currency\": \"NGN\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Webhook handled', () => { pm.expect([200, 401]).to.include(pm.response.code); });"
                 ],
                 "type": "text/javascript"
               }
