@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import path from "node:path";
 import { env } from "./config/env.js";
+import { allowedOrigins } from "./config/cors.js";
 import { checkDatabaseHealth } from "./database/connection.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFoundHandler } from "./middleware/not-found.js";
@@ -13,6 +14,17 @@ import { createCooperativesRouter } from "./modules/cooperatives/cooperatives.ro
 import { createAgentsRouter } from "./modules/agents/agents.routes.js";
 import { createProduceRouter } from "./modules/produce/produce.routes.js";
 import { createListingsRouter } from "./modules/listings/listings.routes.js";
+import { createBuyerRequestsRouter } from "./modules/buyer-requests/buyer-requests.routes.js";
+import { createMarketplaceRouter } from "./modules/marketplace/marketplace.routes.js";
+import { createConversationsRouter } from "./modules/messaging/conversations.routes.js";
+import { createMessagesRouter } from "./modules/messaging/messages.routes.js";
+import { createOffersRouter } from "./modules/offers/offers.routes.js";
+import { createOrdersRouter } from "./modules/orders/orders.routes.js";
+import { createReservationsRouter } from "./modules/orders/reservations.routes.js";
+import {
+  createPaymentsRouter,
+  createPaystackWebhookRouter,
+} from "./modules/payments/payments.routes.js";
 import {
   createApiRouter,
   type ApiRouterDependencies,
@@ -30,12 +42,6 @@ export function createApp(
   app.disable("x-powered-by");
 
   // CORS — allow the configured frontend origin to send credentials.
-  const allowedOrigins = [
-    env.FRONTEND_URL,
-    "http://localhost:3000",
-    "http://localhost:3001",
-  ].filter(Boolean) as string[];
-
   app.use(
     cors({
       origin: (origin, callback) => {
@@ -51,6 +57,13 @@ export function createApp(
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
     }),
+  );
+
+  // Paystack signs the exact raw request bytes. Mount the webhook before the
+  // global JSON parser so the signature verifier receives the untouched body.
+  app.use(
+    "/api/payments/paystack",
+    createPaystackWebhookRouter(),
   );
 
   app.use(express.json({ limit: "1mb" }));
@@ -83,6 +96,22 @@ export function createApp(
   // Phase 5 feature routes
   app.use("/api/produce", createProduceRouter());
   app.use("/api/listings", createListingsRouter());
+
+  // Phase 6 feature routes
+  app.use("/api/buyer-requests", createBuyerRequestsRouter());
+  app.use("/api/marketplace", createMarketplaceRouter());
+
+  // Phase 7 feature routes
+  app.use("/api/conversations", createConversationsRouter());
+  app.use("/api/messages", createMessagesRouter());
+
+  // Phase 8 feature routes
+  app.use("/api/offers", createOffersRouter());
+
+  // Phase 9 feature routes
+  app.use("/api/orders", createOrdersRouter());
+  app.use("/api/reservations", createReservationsRouter());
+  app.use("/api/payments", createPaymentsRouter());
 
   // Health and other API routes
   app.use(
