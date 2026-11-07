@@ -671,14 +671,6 @@ describe("Cooperative agents", () => {
     // Give the owner the cooperative role so the route middleware passes
     await assignRole(ownerId, "cooperative");
 
-    // Refresh token after role assignment
-    const loginRes = await request(app)
-      .post("/api/auth/login")
-      .send({ identifier: "ignored", password: "ignored" });
-    // We need to call login again with the actual phone — but we don't store it.
-    // Instead test the service error directly via a separate user for the role check.
-    // The service throws INVALID_AGENT when assignedByUserId === agentUserId.
-
     const res = await request(app)
       .post(`/api/cooperatives/${coopId}/agents`)
       .set("Authorization", `Bearer ${ownerToken}`)
@@ -702,19 +694,8 @@ describe("Cooperative agents", () => {
   });
 
   it("GET /api/agents/me/assignments returns 200 with cooperative_agent role", async () => {
-    const { userId, token } = await registerAndLogin(nextPhone());
-    await assignRole(userId, "cooperative_agent");
-
-    // Token needs to be refreshed to pick up new role in JWT claim.
-    // Re-login to get a token that carries the cooperative_agent role.
-    const { token: freshToken } = await registerAndLogin(nextPhone());
-    const { userId: agentId } = await registerAndLogin(nextPhone());
-    await assignRole(agentId, "cooperative_agent");
-
-    // We use the original approach: the JWT claims roles at login time.
-    // Since roles are embedded at login, re-login is needed after role assignment.
-    // We just verify that a user who had the role at login time gets 200.
-    // Create a user, assign role, then log them in fresh:
+    // Create a user, assign the role, then log them in fresh so the JWT
+    // includes the cooperative_agent role.
     const agentPhone = nextPhone();
     const { PhoneOtp } = await import("../src/database/models/index.js");
     const { hashOtp } = await import("../src/services/otp.service.js");

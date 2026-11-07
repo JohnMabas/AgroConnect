@@ -30,7 +30,32 @@ const PHASE_5_TABLES = [
   "produce_listings",
   "produce_types",
 ];
-const ALL_TABLES = [...PHASE_2_TABLES, ...PHASE_3_TABLES, ...PHASE_4_TABLES, ...PHASE_5_TABLES].sort();
+const PHASE_6_TABLES = ["buyer_requests"];
+const PHASE_7_TABLES = [
+  "conversation_participants",
+  "conversations",
+  "messages",
+];
+const PHASE_8_TABLES = ["offer_events", "offers"];
+const PHASE_9_TABLES = [
+  "inventory_reservations",
+  "order_events",
+  "order_items",
+  "orders",
+  "payment_webhook_events",
+  "payments",
+  "refunds",
+];
+const ALL_TABLES = [
+  ...PHASE_2_TABLES,
+  ...PHASE_3_TABLES,
+  ...PHASE_4_TABLES,
+  ...PHASE_5_TABLES,
+  ...PHASE_6_TABLES,
+  ...PHASE_7_TABLES,
+  ...PHASE_8_TABLES,
+  ...PHASE_9_TABLES,
+].sort();
 
 const ALL_MIGRATION_NAMES = [
   "20261102000001-create-roles",
@@ -52,6 +77,14 @@ const ALL_MIGRATION_NAMES = [
   "20261104000004-create-produce-listing-images",
   "20261104000005-create-inventory-adjustments",
   "20261104000006-produce-catalogue-hardening",
+  "20261105000001-create-buyer-requests",
+  "20261106000001-create-conversations",
+  "20261106000002-create-conversation-participants",
+  "20261106000003-create-messages",
+  "20261107000001-create-offers",
+  "20261108000001-create-orders",
+  "20261108000002-create-inventory-reservations",
+  "20261108000003-create-payments",
 ];
 
 async function getPublicTables(): Promise<string[]> {
@@ -83,7 +116,7 @@ describe("migrations", () => {
       expect(status.pending).toEqual([]);
       expect(status.executed).toHaveLength(ALL_MIGRATION_NAMES.length);
     },
-    60_000, // allow more time for Aiven cold start
+    480_000, // allow more time for Aiven cold start and 26 sequential migrations
   );
 
   it(
@@ -98,6 +131,6 @@ describe("migrations", () => {
       expect(reapplied).toHaveLength(ALL_MIGRATION_NAMES.length);
       await expect(getPublicTables()).resolves.toEqual(ALL_TABLES);
     },
-    90_000,
+    360_000,
   );
 });

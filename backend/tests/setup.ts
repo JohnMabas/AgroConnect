@@ -19,9 +19,12 @@ try {
   throw new Error("TEST_DATABASE_URL is not a valid PostgreSQL URL.");
 }
 
-if (!/test/i.test(databaseName)) {
+const isTestDatabase =
+  /test/i.test(databaseName) || /test/i.test(parsedUrl.hostname);
+
+if (!isTestDatabase) {
   throw new Error(
-    'Refusing to run destructive database tests because the TEST_DATABASE_URL database name does not include "test".',
+    'Refusing to run destructive database tests because neither the TEST_DATABASE_URL database name nor hostname includes "test".',
   );
 }
 
