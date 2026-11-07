@@ -105,6 +105,8 @@ export async function listPublicListingsHandler(
       minPrice: query.min_price,
       maxPrice: query.max_price,
       minQuantity: query.min_quantity,
+      maxQuantity: query.max_quantity,
+      currency: query.currency,
       sort: query.sort,
     });
     res.json({ success: true, data: result });

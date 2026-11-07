@@ -95,7 +95,16 @@ export const ListListingsQuerySchema = z
     min_price: z.coerce.number().finite().nonnegative().optional(),
     max_price: z.coerce.number().finite().nonnegative().optional(),
     min_quantity: z.coerce.number().finite().positive().optional(),
-    sort: z.enum(["newest", "price_asc", "price_desc"]).default("newest"),
+    max_quantity: z.coerce.number().finite().positive().optional(),
+    currency: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{3}$/, "Currency must be a 3-letter ISO currency code.")
+      .optional(),
+    sort: z
+      .enum(["newest", "price_asc", "price_desc", "quantity_asc", "quantity_desc"])
+      .default("newest"),
   })
   .refine(
     (value) =>
@@ -103,6 +112,16 @@ export const ListListingsQuerySchema = z
       value.max_price === undefined ||
       value.min_price <= value.max_price,
     { message: "min_price cannot be greater than max_price.", path: ["min_price"] },
+  )
+  .refine(
+    (value) =>
+      value.min_quantity === undefined ||
+      value.max_quantity === undefined ||
+      value.min_quantity <= value.max_quantity,
+    {
+      message: "min_quantity cannot be greater than max_quantity.",
+      path: ["min_quantity"],
+    },
   );
 
 export type ListListingsQuery = z.infer<typeof ListListingsQuerySchema>;

@@ -291,7 +291,14 @@ export interface PublicListingFilters {
   minPrice?: number;
   maxPrice?: number;
   minQuantity?: number;
-  sort: "newest" | "price_asc" | "price_desc";
+  maxQuantity?: number;
+  currency?: string;
+  sort:
+    | "newest"
+    | "price_asc"
+    | "price_desc"
+    | "quantity_asc"
+    | "quantity_desc";
 }
 
 function escapeLike(value: string): string {
@@ -372,13 +379,26 @@ export async function listPublishedListings(
       [Op.gte]: filters.minQuantity,
     };
   }
+  if (filters.maxQuantity !== undefined) {
+    where.available_quantity = {
+      ...(where.available_quantity as Record<symbol, number> | undefined),
+      [Op.lte]: filters.maxQuantity,
+    };
+  }
+  if (filters.currency) {
+    where.currency = filters.currency;
+  }
 
   const order: Array<[string, "ASC" | "DESC"]> =
     filters.sort === "price_asc"
       ? [["price_per_unit", "ASC"]]
       : filters.sort === "price_desc"
         ? [["price_per_unit", "DESC"]]
-        : [["created_at", "DESC"]];
+        : filters.sort === "quantity_asc"
+          ? [["available_quantity", "ASC"]]
+          : filters.sort === "quantity_desc"
+            ? [["available_quantity", "DESC"]]
+            : [["created_at", "DESC"]];
 
   const { count, rows } = await ProduceListing.findAndCountAll({
     where,
