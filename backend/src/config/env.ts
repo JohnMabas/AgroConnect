@@ -255,6 +255,42 @@ export const env = Object.freeze({
     process.env.UPLOAD_MAX_IMAGES_PER_LISTING,
     5,
   ),
+
+  // ─── Orders and inventory reservations ──────────────────────────────────────
+  ORDER_RESERVATION_MINUTES: parsePositiveInt(
+    "ORDER_RESERVATION_MINUTES",
+    process.env.ORDER_RESERVATION_MINUTES,
+    30,
+  ),
+  // Interval for the background reservation-expiry sweep. Default: 60 seconds.
+  ORDER_RESERVATION_SWEEP_INTERVAL_SECONDS: parsePositiveInt(
+    "ORDER_RESERVATION_SWEEP_INTERVAL_SECONDS",
+    process.env.ORDER_RESERVATION_SWEEP_INTERVAL_SECONDS,
+    60,
+  ),
+
+  // ─── Paystack ───────────────────────────────────────────────────────────────
+  // Secrets are optional at startup so local development and tests can boot
+  // without provider credentials. Payment endpoints return a configuration
+  // error until a secret key is supplied. Never expose these to the frontend.
+  PAYSTACK_SECRET_KEY: optionalString(process.env.PAYSTACK_SECRET_KEY),
+  PAYSTACK_PUBLIC_KEY: optionalString(process.env.PAYSTACK_PUBLIC_KEY),
+  PAYSTACK_BASE_URL:
+    optionalString(process.env.PAYSTACK_BASE_URL) ?? "https://api.paystack.co",
+  PAYSTACK_CALLBACK_URL: optionalString(process.env.PAYSTACK_CALLBACK_URL),
+  PAYSTACK_WEBHOOK_SIGNING_SECRET: optionalString(
+    process.env.PAYSTACK_WEBHOOK_SIGNING_SECRET,
+  ),
+  PAYSTACK_CURRENCY:
+    optionalString(process.env.PAYSTACK_CURRENCY)?.toUpperCase() ?? "NGN",
+  PAYSTACK_MODE:
+    optionalString(process.env.PAYSTACK_MODE) ??
+    (NODE_ENV === "production" ? "live" : "test"),
+  PAYSTACK_REQUEST_TIMEOUT_MS: parsePositiveInt(
+    "PAYSTACK_REQUEST_TIMEOUT_MS",
+    process.env.PAYSTACK_REQUEST_TIMEOUT_MS,
+    15_000,
+  ),
 });
 
 export type Environment = typeof env;
