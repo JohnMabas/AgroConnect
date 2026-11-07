@@ -5,6 +5,7 @@
 // ETIMEDOUT in the Sequelize pool. Pre-resolving to IPv4 avoids the race.
 import { resolve4 } from "node:dns/promises";
 
+import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { getSafeDatabaseErrorMessage } from "./database/errors.js";
 
@@ -12,6 +13,10 @@ type ConnectionModule = typeof import("./database/connection.js");
 
 let server: Server | undefined;
 let connection: ConnectionModule | undefined;
+let stopExpiryJob: (() => void) | undefined;
+let stopOfferExpiryJob: (() => void) | undefined;
+let stopReservationExpiryJob: (() => void) | undefined;
+let stopRealtime: (() => Promise<void>) | undefined;
 let shuttingDown = false;
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
@@ -29,7 +34,21 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   forceExit.unref();
 
   try {
-    if (server !== undefined) {
+    stopExpiryJob?.();
+    stopExpiryJob = undefined;
+
+    stopOfferExpiryJob?.();
+    stopOfferExpiryJob = undefined;
+
+    stopReservationExpiryJob?.();
+    stopReservationExpiryJob = undefined;
+
+    if (stopRealtime !== undefined) {
+      await stopRealtime();
+      stopRealtime = undefined;
+    }
+
+    if (server?.listening) {
       await new Promise<void>((resolve, reject) => {
         server?.close((error) => {
           if (error) {
@@ -103,11 +122,34 @@ async function start(): Promise<void> {
     const { env } = await import("./config/env.js");
     connection = await import("./database/connection.js");
     const { app } = await import("./app.js");
+    const realtime = await import("./realtime/socket.js");
 
     await connection.testDatabaseConnection();
     console.log(`Database connection established in ${env.NODE_ENV} mode.`);
 
-    server = app.listen(env.PORT, "0.0.0.0", () => {
+    const buyerRequestExpiry = await import(
+      "./modules/buyer-requests/buyer-requests.service.js"
+    );
+    buyerRequestExpiry.startBuyerRequestExpiryJob();
+    stopExpiryJob = buyerRequestExpiry.stopBuyerRequestExpiryJob;
+
+    const offerExpiry = await import(
+      "./modules/offers/offers.service.js"
+    );
+    offerExpiry.startOfferExpiryJob();
+    stopOfferExpiryJob = offerExpiry.stopOfferExpiryJob;
+
+    const reservationExpiry = await import(
+      "./modules/orders/reservations.service.js"
+    );
+    reservationExpiry.startReservationExpiryJob();
+    stopReservationExpiryJob = reservationExpiry.stopReservationExpiryJob;
+
+    server = createServer(app);
+    realtime.createSocketServer(server);
+    stopRealtime = realtime.stopSocketServer;
+
+    server.listen(env.PORT, "0.0.0.0", () => {
       console.log(
         `AgroConnect API listening on port ${env.PORT} in ${env.NODE_ENV} mode.`,
       );
