@@ -67,3 +67,44 @@ export function subtractDecimal(
 ): string {
   return fromScaled(toScaled(left, scale) - toScaled(right, scale), scale);
 }
+
+/**
+ * Multiply two fixed-point decimals and round half-up to the result scale.
+ */
+export function multiplyDecimal(
+  left: number | string,
+  leftScale: number,
+  right: number | string,
+  rightScale: number,
+  resultScale: number,
+): string {
+  const product = toScaled(left, leftScale) * toScaled(right, rightScale);
+  const productScale = leftScale + rightScale;
+
+  if (productScale === resultScale) {
+    return fromScaled(product, resultScale);
+  }
+
+  if (productScale > resultScale) {
+    const divisor = 10n ** BigInt(productScale - resultScale);
+    const rounded = (product + divisor / 2n) / divisor;
+    return fromScaled(rounded, resultScale);
+  }
+
+  return fromScaled(product * 10n ** BigInt(resultScale - productScale), resultScale);
+}
+
+/**
+ * Compare two fixed-point decimals. Returns -1, 0 or 1.
+ */
+export function compareDecimal(
+  left: number | string,
+  right: number | string,
+  scale: number,
+): number {
+  const leftValue = toScaled(left, scale);
+  const rightValue = toScaled(right, scale);
+  if (leftValue < rightValue) return -1;
+  if (leftValue > rightValue) return 1;
+  return 0;
+}
