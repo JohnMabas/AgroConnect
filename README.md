@@ -4,7 +4,7 @@
 
 AgroConnect is a digital agricultural marketplace and supply-chain coordination platform for farmers, buyers, cooperatives, transporters and platform administrators. The initial pilot focuses on Plateau State, Nigeria, with a long-term vision of expanding to other regions and countries.
 
-The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail.
+The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds.
 
 ## Technology Stack
 
@@ -31,6 +31,8 @@ The project is developed in approved phases. **Phase 1** delivered the frontend 
 - zod (input validation)
 - multer (multipart image uploads)
 - cors, cookie-parser, express-rate-limit
+- Socket.IO (authenticated realtime messaging)
+- Paystack hosted checkout and webhooks (payments)
 - dotenv
 - ESLint
 - Vitest and Supertest
@@ -53,7 +55,7 @@ AgroConnect/
 │   ├── src/
 │   │   ├── config/                 # Environment configuration
 │   │   ├── database/
-│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 5)
+│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 9)
 │   │   │   ├── models/             # Sequelize models
 │   │   │   ├── seeders/            # Idempotent development seeders (includes produce catalogue)
 │   │   │   ├── config.ts           # Connection and TLS configuration
@@ -63,7 +65,8 @@ AgroConnect/
 │   │   │   └── sequelize.ts        # Shared Sequelize instance
 │   │   ├── integrations/
 │   │   │   ├── sms/                # SMS provider interface + dev adapter
-│   │   │   └── email/              # Email provider interface + dev adapter
+│   │   │   ├── email/              # Email provider interface + dev adapter
+│   │   │   └── payments/           # Paystack API client and webhook signature verification
 │   │   ├── middleware/             # Error handling, auth middleware
 │   │   ├── modules/
 │   │   │   ├── auth/               # Auth routes, controller, service, validation
@@ -72,10 +75,17 @@ AgroConnect/
 │   │   │   ├── cooperatives/       # Cooperative registration, approval, membership, agents
 │   │   │   ├── agents/             # Agent assignments and activity log
 │   │   │   ├── produce/            # Produce categories and types catalogue
-│   │   │   └── listings/           # Listings, images and inventory adjustments
+│   │   │   ├── listings/           # Listings, images and inventory adjustments
+│   │   │   ├── buyer-requests/     # Buyer request lifecycle, expiry and discovery
+│   │   │   ├── marketplace/        # Authenticated listing and buyer request discovery
+│   │   │   ├── messaging/          # Conversations, messages, receipts and unread counts
+│   │   │   ├── offers/             # Offers, counteroffers, negotiation history and expiry
+│   │   │   ├── orders/             # Orders, inventory reservations and expiry sweep
+│   │   │   └── payments/           # Paystack initialization, webhooks, verification and refunds
+│   │   ├── realtime/               # Authenticated Socket.IO server and room registry
 │   │   ├── routes/                 # Health and other API routes
 │   │   ├── services/               # Password, OTP, email-verification, token, activity-log services
-│   │   ├── utils/                  # Contact normalization helpers
+│   │   ├── utils/                  # Contact normalization, decimal and money helpers
 │   │   ├── app.ts                  # Express application
 │   │   └── server.ts               # Startup, DB check and graceful shutdown
 │   ├── tests/                      # Isolated PostgreSQL automated tests
@@ -189,13 +199,23 @@ Never commit `.env` files or real credentials.
 | `EMAIL_USER` | When SMTP | SMTP username. |
 | `EMAIL_PASSWORD` | When SMTP | SMTP password. |
 | `EMAIL_FROM` | No | Sender address. Defaults to `noreply@agroconnect.app`. |
-| `TEST_DATABASE_URL` | Tests only | Isolated test database (name must include `test`). |
+| `TEST_DATABASE_URL` | Tests only | Isolated test database (database name or hostname must include `test`). |
 | `TEST_DB_SSL` | Tests only | `true` if the test database requires TLS. |
 | `TEST_DB_SSL_VERIFY` | Tests only | `false` to skip certificate verification for tests. |
 | `UPLOAD_STORAGE_PATH` | No | Directory for locally stored listing images. Defaults to `uploads`. |
 | `UPLOAD_PUBLIC_PREFIX` | No | Public URL prefix for locally stored images. Defaults to `/uploads`. |
 | `UPLOAD_MAX_FILE_SIZE_BYTES` | No | Maximum image upload size. Defaults to 5 MiB. |
 | `UPLOAD_MAX_IMAGES_PER_LISTING` | No | Maximum images per listing. Defaults to `5`. |
+| `ORDER_RESERVATION_MINUTES` | No | Minutes an unpaid order keeps inventory reserved. Defaults to `30`. |
+| `ORDER_RESERVATION_SWEEP_INTERVAL_SECONDS` | No | Interval for the in-process reservation-expiry sweep. Defaults to `60`. |
+| `PAYSTACK_SECRET_KEY` | Payments | Paystack secret key used for API calls and legacy webhook signatures. Never expose it to the frontend. |
+| `PAYSTACK_PUBLIC_KEY` | Frontend checkout | Paystack public key, if a client uses inline checkout. |
+| `PAYSTACK_BASE_URL` | No | Paystack API base URL. Defaults to `https://api.paystack.co`. |
+| `PAYSTACK_CALLBACK_URL` | No | URL Paystack redirects the buyer to after hosted checkout. |
+| `PAYSTACK_WEBHOOK_SIGNING_SECRET` | Webhooks | Timestamped webhook signing secret (`whsec_...`) from the Paystack dashboard. |
+| `PAYSTACK_CURRENCY` | No | Default checkout currency. Defaults to `NGN`. |
+| `PAYSTACK_MODE` | No | `test` or `live`. Defaults to `live` in production, otherwise `test`. |
+| `PAYSTACK_REQUEST_TIMEOUT_MS` | No | Timeout for Paystack API requests. Defaults to `15000`. |
 
 ### Frontend
 
@@ -418,6 +438,251 @@ All auth endpoints are under `/api/auth`.
 | `POST` | `/api/listings/:id/inventory/adjustments` | Bearer (owner) | Add stock, remove stock, or correct available quantity |
 | `GET` | `/api/listings/:id/inventory/adjustments` | Bearer (owner) | Get paginated adjustment history |
 
+### Phase 6 — Buyer Requests
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/buyer-requests` | Bearer | Create an open buyer request |
+| `GET` | `/api/buyer-requests` | Optional Bearer | Discover open, unexpired buyer requests |
+| `GET` | `/api/buyer-requests/me` | Bearer | List my buyer requests, including inactive ones |
+| `GET` | `/api/buyer-requests/:id` | Optional Bearer | Read an open request; owners can read any status |
+| `PUT` | `/api/buyer-requests/:id` | Bearer (owner) | Update an owned open or paused request |
+| `PATCH` | `/api/buyer-requests/:id/pause` | Bearer (owner) | Pause an open request |
+| `PATCH` | `/api/buyer-requests/:id/reopen` | Bearer (owner) | Reopen a paused, unexpired request |
+| `PATCH` | `/api/buyer-requests/:id/fulfill` | Bearer (owner) | Mark an open or paused request as fulfilled |
+| `PATCH` | `/api/buyer-requests/:id/cancel` | Bearer (owner) | Cancel an open or paused request |
+
+Buyer request statuses are `open`, `paused`, `fulfilled`, `cancelled` and `expired`.
+Any authenticated user can create a request; ownership is enforced on every
+mutation. At least one of `produce_type_id` or `produce_category_id` is required.
+When a produce type is supplied, the category is derived from it. Produce
+references must be active, and a type/category pair must match.
+
+Discovery filters: `search`, `category_slug`, `produce_type_id`, `location`,
+`min_quantity`, `max_quantity`, `min_target_price`, `max_target_price`,
+`required_delivery_after`, `required_delivery_before`, `sort` (`newest` or
+`delivery_soonest`), `page` and `limit`. Only open, unexpired requests are
+returned. `GET /api/buyer-requests/me` also supports a `status` filter.
+
+Expiry is applied before discovery/read requests and by an in-process sweep
+started with the API server. Requests whose `expiry_date` has passed are marked
+`expired`; the sweep is idempotent and requires no Redis or external worker.
+
+### Phase 6 — Marketplace Discovery
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/marketplace/listings` | Bearer | Discover published, available listings |
+| `GET` | `/api/marketplace/listings/:id` | Bearer | Read a published, available listing |
+| `GET` | `/api/marketplace/requests` | Bearer | Discover open buyer requests |
+| `GET` | `/api/marketplace/requests/:id` | Bearer | Read an open buyer request |
+
+Marketplace listing discovery supports `search`, `category_slug`,
+`produce_type_id`, `location`, `min_price`, `max_price`, `min_quantity`,
+`max_quantity`, `currency`, `sort` (`newest`, `price_asc`, `price_desc`,
+`quantity_asc`, `quantity_desc`), `page` and `limit`. Only published listings
+with available stock are returned. Buyer request discovery uses the same filters
+as `GET /api/buyer-requests`. Buyer request responses expose only the buyer's
+`id` and `display_name`; private contact details are never returned.
+
+### Phase 7 — Messaging
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/conversations` | Bearer | Create or resolve a one-to-one conversation |
+| `GET` | `/api/conversations` | Bearer | List my conversations (optionally by status) |
+| `GET` | `/api/conversations/:id` | Bearer (participant) | Read a conversation, participants and unread count |
+| `POST` | `/api/conversations/:id/messages` | Bearer (participant) | Send a text message |
+| `GET` | `/api/conversations/:id/messages` | Bearer (participant) | Read paginated message history |
+| `PATCH` | `/api/conversations/:id/read` | Bearer (participant) | Mark messages read up to now or a message ID |
+| `PATCH` | `/api/conversations/:id/archive` | Bearer (participant) | Archive a conversation |
+| `PATCH` | `/api/conversations/:id/unarchive` | Bearer (participant) | Return an archived conversation to active |
+| `PATCH` | `/api/conversations/:id/block` | Bearer (participant) | Block further messages |
+| `PATCH` | `/api/conversations/:id/unblock` | Bearer (participant) | Return a blocked conversation to active |
+| `GET` | `/api/messages/unread-count` | Bearer | Get total and per-conversation unread counts |
+
+Conversations are strictly one-to-one. `POST /api/conversations` accepts a
+`participant_user_id` and optional `listing_id` / `buyer_request_id`. The
+participant pair and marketplace context form a deterministic dedupe key; a
+duplicate returns `409`. When a listing or buyer request is supplied, the
+context owner must be one of the two participants. Missing conversations and
+non-participant access both return `404` so private conversation existence is
+not leaked.
+
+Conversation statuses are `active`, `archived` and `blocked`. Messages can only
+be sent to active conversations. Message statuses are `sent`, `delivered` and
+`read`. Delivery is only recorded after the recipient acknowledges it; it is not
+inferred from persistence. Messages are limited to 4,000 characters. Clients
+cannot supply `sender_user_id`; impersonation attempts return `403`. Cooperative
+agents receive no implicit access and must be explicit participants.
+
+Message history supports `page`, `limit`, `before` (ISO 8601 timestamp) and
+`order` (`asc` or `desc`). The REST API is the authoritative history; realtime
+events are hints that should be reconciled with a history fetch after reconnect.
+
+### Phase 7 — Socket.IO Realtime Events
+
+Connect with `auth: { token: "<access token>" }` (or an
+`Authorization: Bearer <token>` handshake header). Unauthenticated or invalid
+connections are rejected. Each socket joins a personal `user:<id>` room.
+Participants may also join `conversation:<id>` after server-side authorization.
+
+| Event | Direction | Payload |
+| --- | --- | --- |
+| `conversation:join` | client → server | `{ conversation_id }` |
+| `conversation:leave` | client → server | `{ conversation_id }` |
+| `message:send` | client → server | `{ conversation_id, content, message_type? }` |
+| `message:delivered` | client → server | `{ conversation_id, message_id }` |
+| `message:read` | client → server | `{ conversation_id, message_id? }` |
+| `message:new` | server → client | `{ message }` |
+| `message:delivered` | server → client | `{ conversation_id, message_id, status, delivered_at }` |
+| `message:read` | server → client | `{ conversation_id, reader_user_id, read_at, message_ids }` |
+| `conversation:created` | server → client | `{ conversation }` |
+| `conversation:updated` | server → client | `{ conversation }` |
+
+Events that mutate state use acknowledgements. The server authenticates the
+socket, verifies conversation participation, validates the payload, persists the
+change, then broadcasts to the conversation room and participant user rooms.
+Socket message sending is limited to 60 messages per minute per connection.
+REST conversation creation, message sending and read acknowledgements are also
+rate limited outside the automated test environment.
+
+### Phase 8 — Offers and Negotiation
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/offers` | Bearer | Create a structured offer on a listing or buyer request |
+| `GET` | `/api/offers` | Bearer | List my sent and received offers with filters |
+| `GET` | `/api/offers/:id` | Bearer (participant) | Read a single offer |
+| `GET` | `/api/offers/:id/history` | Bearer (participant) | Read the full negotiation thread and audit events |
+| `POST` | `/api/offers/:id/accept` | Bearer (recipient) | Accept a pending offer |
+| `POST` | `/api/offers/:id/reject` | Bearer (recipient) | Reject a pending offer |
+| `POST` | `/api/offers/:id/withdraw` | Bearer (creator) | Withdraw a pending offer |
+| `POST` | `/api/offers/:id/counter` | Bearer (recipient) | Counter a pending offer with a linked child offer |
+| `GET` | `/api/listings/:id/offers` | Bearer (owner) | List offers for one of my listings |
+| `GET` | `/api/buyer-requests/:id/offers` | Bearer (owner) | List offers for one of my buyer requests |
+
+An offer requires at least one marketplace context: `listing_id`,
+`buyer_request_id`, or both. For a listing-only offer, the authenticated caller
+becomes the buyer and the listing owner is the farmer. For a buyer-request-only
+offer, the caller becomes the farmer and the request owner is the buyer. When
+both are supplied, the caller must be the listing owner or the buyer request
+owner, and the two owners must be different users. The offer `unit` must match
+the context unit, and `currency` must match the context currency when supplied.
+An optional `conversation_id` must belong to the caller and match the offer
+context.
+
+Offer terms include `quantity`, `unit`, `unit_price`, optional `currency`,
+`delivery_terms`, `delivery_location`, `delivery_date`, `buyer_message`, and
+`expires_at`. `total_amount` is calculated server-side using exact decimal
+arithmetic and is never accepted from the client. The default expiry is 72
+hours. Delivery dates cannot be in the past and `expires_at` must be in the
+future.
+
+Offer statuses are `pending`, `countered`, `accepted`, `rejected`, `withdrawn`
+and `expired`. Only the offer recipient can accept, reject, or counter a
+pending offer; only the creator can withdraw it. Counteroffers create a linked
+child offer, mark the parent `countered`, and preserve the thread through
+`root_offer_id`. A negotiation thread is limited to 20 offers. Terminal,
+countered, and expired offers cannot be acted on again.
+
+Listing offers are validated against a published, currently available listing,
+and buyer-request offers require an open, unexpired request. Acceptance
+re-validates the context and available quantity. Phase 8 does **not** reserve or
+decrement listing inventory and does not create an order or payment; inventory
+is only decremented by the existing Phase 5 inventory adjustments.
+
+Offer listing filters: `role` (`buyer` or `farmer`), `direction` (`sent` or
+`received`), `status`, `listing_id`, `buyer_request_id`, `conversation_id`,
+`sort` (`newest` or `expiring_soon`, the latter only with `status=pending`),
+`page` and `limit`. Non-participants receive `404` for offer reads and history.
+Owner-only listing and buyer-request offer lists return `403` for other users.
+
+Overdue pending offers are expired lazily before offer reads/lists and by an
+in-process sweep started with the API server. Every lifecycle action writes an
+immutable `offer_events` audit row. In-process `offer.*` events are published
+and Socket.IO `offer:updated` events are sent to both participants' user rooms.
+There is no separate offer notification center, email, or SMS delivery in this
+phase.
+
+### Phase 9 — Orders, Inventory Reservations and Paystack Payments
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/orders` | Bearer | Create an order from an accepted offer |
+| `GET` | `/api/orders` | Bearer | List my buyer or farmer orders with filters |
+| `GET` | `/api/orders/:id` | Bearer (participant) | Read an order with items and latest payment summary |
+| `GET` | `/api/orders/:id/history` | Bearer (participant) | Read immutable order events |
+| `PATCH` | `/api/orders/:id/status` | Bearer (actor) | Advance fulfillment status through the allowed transition |
+| `POST` | `/api/orders/:id/cancel` | Bearer (participant) | Cancel an unpaid order and release its reservation |
+| `GET` | `/api/orders/:id/reservation` | Bearer (participant) | Read the order's inventory reservation |
+| `GET` | `/api/orders/:id/payments` | Bearer (participant) | List payment attempts for the order |
+| `GET` | `/api/reservations` | Bearer | List reservations visible to the buyer or farmer |
+| `POST` | `/api/payments/paystack/initialize` | Bearer (buyer) | Initialize or reuse a Paystack hosted checkout |
+| `GET` | `/api/payments/paystack/verify/:reference` | Bearer (buyer) | Verify a payment with Paystack and apply the result |
+| `POST` | `/api/payments/paystack/webhook` | Paystack signature | Receive signed Paystack webhook events |
+| `POST` | `/api/payments/paystack/:reference/refund` | Bearer (participant) | Request a full or partial refund |
+| `GET` | `/api/payments/paystack/:reference/refund` | Bearer (participant) | List refunds and reconcile provider status |
+
+Orders can only be created from an `accepted` offer that has a `listing_id`.
+Buyer-request-only offers have no listing inventory and are rejected for order
+creation. Each offer can produce at most one order through a unique `offer_id`
+constraint. The order preserves the agreed seller, buyer, listing, quantity,
+unit, unit price and currency; totals are recalculated server-side with exact
+decimal arithmetic. Order numbers are unique. New orders start with
+`status=pending_payment` and `payment_status=pending`.
+
+Creating an order locks the offer and listing, re-validates the listing and
+available stock, then moves quantity from `available_quantity` to
+`reserved_quantity` inside one database transaction. Conditional SQL updates and
+`SELECT ... FOR UPDATE` prevent overselling. The reservation records its expiry
+(default 30 minutes) and is unique per order. A background sweep plus lazy checks
+expire unpaid reservations: the order is cancelled, pending payment attempts are
+abandoned, and an order event is recorded. Fresh, active listings return the
+stock to `available_quantity`; stale, expired or otherwise ineligible listings
+remove the stock from `quantity` and never restore it. Paying for an order moves
+the reservation from `reserved_quantity` to `sold_quantity`. A successfully paid
+reservation is consumed rather than expired.
+
+Order statuses are `pending_payment`, `paid`, `processing`,
+`ready_for_delivery`, `in_transit`, `delivered`, `completed`, `cancelled`,
+`payment_failed` and `refunded`. Payment statuses are `pending`, `paid`,
+`failed`, `refunded` and `partially_refunded`. The farmer advances
+`paid → processing → ready_for_delivery → in_transit → delivered`; the buyer
+marks a delivered order `completed`. Only `pending_payment` and
+`payment_failed` orders can be cancelled directly. A paid order must be refunded
+before it can be cancelled. Every order transition writes an immutable
+`order_events` row and emits an in-process `order.*` event; Socket.IO
+`order:updated` events are sent to both participants' user rooms.
+
+Payment initialization is buyer-only and creates a Paystack hosted checkout
+using the order total in integer minor units. Pending checkouts are reused per
+order while valid. Paystack amounts support NGN, GHS, ZAR and USD (exponent 2).
+Phone-only buyers use a stable fallback payment email; a verified email is used
+when present. Payment statuses are `pending`, `success`, `failed`, `abandoned`,
+`refunded` and `partially_refunded`. Verification and webhooks both apply the
+provider result idempotently. A successful payment consumes the reservation and
+moves the order to `paid`; a failed event records `payment_failed` without
+releasing stock before the reservation expires.
+
+Webhook requests use the raw request body and are mounted before JSON parsing.
+The current `Paystack-Signature` header has the form
+`t=<unix-seconds>,v1=<key-id>:<hmac-sha512>`. The signed payload is
+`t + "." + raw_body`, the HMAC key is the full `whsec_...` signing secret, and
+the timestamp tolerance is 300 seconds. Multiple `v1` values are accepted.
+Legacy `x-paystack-signature` headers are still verified with the Paystack
+secret key. A unique provider event identifier deduplicates deliveries, and each
+delivery is stored in `payment_webhook_events` with its processing result.
+
+Refunds accept an optional amount in major currency units and are sent to
+Paystack in minor units. Request acceptance is not treated as a completed
+refund: the provider refund status is reconciled immediately and again when
+refund status is read. Refund statuses are `pending`, `processing`, `processed`,
+`failed` and `needs_attention`. A fully processed refund restores a consumed
+reservation to available stock when the produce is still fresh and the listing
+is active; otherwise the sold stock is removed permanently. A partial refund
+updates payment and order refund status without changing inventory.
+
 ### Response format
 
 Success:
@@ -601,6 +866,172 @@ Immutable audit log.
 - `reason` (nullable)
 - `created_at`
 
+### Phase 7 tables
+
+#### `conversations`
+
+- UUID primary key
+- `created_by_user_id` foreign key to `users.id`
+- `listing_id` foreign key to `produce_listings.id` (nullable)
+- `buyer_request_id` foreign key to `buyer_requests.id` (nullable)
+- `status` ENUM: `active` | `archived` | `blocked` (default `active`)
+- `last_message_at` (nullable)
+- `dedupe_key` (unique) — sorted participant pair plus marketplace context
+- `created_at`, `updated_at`
+
+#### `conversation_participants`
+
+- UUID primary key
+- `conversation_id` foreign key to `conversations.id` (CASCADE delete)
+- `user_id` foreign key to `users.id` (CASCADE delete)
+- `last_read_at` (nullable read cursor)
+- Unique `(conversation_id, user_id)`
+- `created_at`, `updated_at`
+
+#### `messages`
+
+- UUID primary key
+- `conversation_id` foreign key to `conversations.id` (CASCADE delete)
+- `sender_user_id` foreign key to `users.id`
+- `content` text (maximum 4,000 characters enforced by validation)
+- `message_type` ENUM: `text`
+- `status` ENUM: `sent` | `delivered` | `read` (default `sent`)
+- `delivered_at`, `read_at` (nullable)
+- Indexes on `(conversation_id, created_at)` and conversation status
+- `created_at`, `updated_at`
+
+### Phase 8 tables
+
+#### `offers`
+
+- UUID primary key
+- `offer_number` (unique, max 40 chars)
+- `listing_id` foreign key to `produce_listings.id` (nullable, RESTRICT delete)
+- `buyer_request_id` foreign key to `buyer_requests.id` (nullable, RESTRICT delete)
+- Database check constraint requires at least one marketplace context
+- `conversation_id` foreign key to `conversations.id` (nullable, SET NULL)
+- `buyer_id`, `farmer_id`, `created_by` foreign keys to `users.id` (RESTRICT delete)
+- `parent_offer_id`, `root_offer_id` self-references to `offers.id` (nullable, SET NULL)
+- `quantity` — PostgreSQL `NUMERIC(14,3)`
+- `unit` (max 50 chars)
+- `unit_price` — PostgreSQL `NUMERIC(18,2)`
+- `total_amount` — PostgreSQL `NUMERIC(18,2)`, calculated server-side
+- `currency` (default `NGN`)
+- `delivery_terms`, `delivery_location`, `buyer_message` (text, nullable)
+- `delivery_date` (date, nullable)
+- `status` ENUM: `pending` | `countered` | `accepted` | `rejected` | `withdrawn` | `expired` (default `pending`)
+- `expires_at`, `accepted_at`, `rejected_at`, `withdrawn_at`, `expired_at`, `countered_at`
+- Check constraints keep `quantity`, `unit_price`, and `total_amount` positive
+  and require `buyer_id <> farmer_id`
+- Indexes on marketplace contexts, participants, creator, parent/root thread,
+  status, expiry, status/expiry, participant/status, and creation time
+- `created_at`, `updated_at`
+
+#### `offer_events`
+
+Immutable audit log — no `updated_at`.
+
+- UUID primary key
+- `offer_id` foreign key to `offers.id` (CASCADE delete)
+- `actor_user_id` foreign key to `users.id` (nullable, SET NULL)
+- `action` (max 40 chars): `created` | `countered` | `accepted` | `rejected` | `withdrawn` | `expired`
+- `previous_status`, `new_status` (nullable)
+- `metadata` (JSONB) — context and lifecycle details; never stores secrets
+- Indexes on `(offer_id, created_at)`, `actor_user_id`, and `action`
+- `created_at`
+
+### Phase 9 tables
+
+#### `orders`
+
+- UUID primary key
+- `order_number` (unique, max 40 chars)
+- `offer_id` foreign key to `offers.id` (unique, RESTRICT delete)
+- `listing_id` foreign key to `produce_listings.id` (RESTRICT delete)
+- `buyer_id`, `farmer_id` foreign keys to `users.id` (RESTRICT delete)
+- `quantity` — PostgreSQL `NUMERIC(14,3)`
+- `unit`, `unit_price`, `total_amount`, `currency`
+- `status` ENUM (default `pending_payment`)
+- `payment_status` ENUM (default `pending`)
+- `delivery_terms`, `delivery_location`, `delivery_date`, `cancellation_reason` (nullable)
+- `paid_at`, `completed_at`, `cancelled_at`, `refunded_at` (nullable)
+- Check constraints keep quantity and amounts positive and require
+  `buyer_id <> farmer_id`
+- Indexes on buyer, farmer, listing, status, payment status and creation time
+- `created_at`, `updated_at`
+
+#### `order_items`
+
+- UUID primary key
+- `order_id` foreign key to `orders.id` (CASCADE delete)
+- `listing_id` foreign key to `produce_listings.id` (RESTRICT delete)
+- Snapshot fields: `produce_type_id`, `title`, `quantity`, `unit`,
+  `unit_price`, `line_total`, `currency`
+- `created_at`, `updated_at`
+
+#### `order_events`
+
+Immutable audit log — no `updated_at`.
+
+- UUID primary key
+- `order_id` foreign key to `orders.id` (CASCADE delete)
+- `actor_user_id` foreign key to `users.id` (nullable, SET NULL)
+- `event_type` (max 40 chars), `previous_status`, `new_status`
+- `metadata` (JSONB) — lifecycle and provider details; never stores secrets
+- Indexes on `(order_id, created_at)`, actor and event type
+- `created_at`
+
+#### `inventory_reservations`
+
+- UUID primary key
+- `order_id` foreign key to `orders.id` (unique, CASCADE delete)
+- `listing_id` foreign key to `produce_listings.id` (RESTRICT delete)
+- `buyer_id`, `farmer_id` foreign keys to `users.id` (RESTRICT delete)
+- `quantity` — PostgreSQL `NUMERIC(14,3)`
+- `status` ENUM: `active` | `released` | `expired` | `consumed` | `void` (default `active`)
+- `expires_at`, `released_at`, `consumed_at` (nullable)
+- `release_reason` (nullable)
+- Check constraint keeps quantity positive
+- Indexes on listing, buyer, farmer, status, expiry and creation time
+- `created_at`, `updated_at`
+
+#### `payments`
+
+- UUID primary key
+- `order_id` foreign key to `orders.id` (RESTRICT delete)
+- `reference` (unique), `provider` (`paystack`), `provider_transaction_id` (nullable)
+- `amount` in integer minor units, `currency`
+- `status` ENUM: `pending` | `success` | `failed` | `abandoned` | `refunded` | `partially_refunded`
+- `channel`, `gateway_response`, `authorization_url`, `access_code`,
+  `last_error` (nullable)
+- `raw_response` (JSONB), `paid_at`, `verified_at` (nullable)
+- Indexes on order, status, reference and creation time
+- `created_at`, `updated_at`
+
+#### `payment_webhook_events`
+
+Immutable audit log — no `updated_at`.
+
+- UUID primary key
+- `provider`, `provider_event_id` (unique per provider), `event_type`
+- `payment_reference` (nullable)
+- `signature_valid`, `processed`, `processing_error` (nullable)
+- `payload` (JSONB) and `received_at`
+- Indexes on provider event, reference, processed and received time
+- `created_at`
+
+#### `refunds`
+
+- UUID primary key
+- `order_id`, `payment_id` foreign keys (RESTRICT delete)
+- `requested_by_user_id` foreign key to `users.id` (RESTRICT delete)
+- `provider` (`paystack`), `provider_refund_id` (nullable)
+- `transaction_reference`, `amount` in integer minor units, `currency`
+- `status` ENUM: `pending` | `processing` | `processed` | `failed` | `needs_attention`
+- `customer_note`, `merchant_note`, `provider_response` (JSONB), `processed_at`
+- Indexes on order, payment, status, provider refund and creation time
+- `created_at`, `updated_at`
+
 ## Migrations and Seeders
 
 Schema changes use migrations only. `sequelize.sync()` is not used.
@@ -618,7 +1049,7 @@ Schema changes use migrations only. `sequelize.sync()` is not used.
 
 ## Automated Tests
 
-Tests use an isolated PostgreSQL database. The database name **must include** `test`.
+Tests use an isolated PostgreSQL database. The database name **or hostname** must include `test`.
 
 Create a test database:
 
@@ -650,7 +1081,7 @@ The test suite covers:
 **Phase 2 (27 tests):**
 - Database configuration and TLS
 - Database connectivity
-- Migrations (apply, rollback, re-apply) — all 19 migrations
+- Migrations (apply, rollback, re-apply) — all 26 migrations
 - User/role/user_role models and constraints
 - Role seeder idempotency — all 6 roles
 - Health endpoint
@@ -696,6 +1127,57 @@ The test suite covers:
 - Inventory summary, stock add/remove/correction, signed history and pagination
 - Concurrent inventory adjustments are serialized without corrupting stock
 - IDOR protection and authentication checks on all Phase 5 routes
+
+**Phase 6 (49 tests):**
+- Buyer request creation with produce type or category, category derivation and currency defaults
+- Validation for quantity, target price, dates, produce references, active catalogue entries and type/category mismatches
+- Open-request discovery with search, category/type, location, quantity, price and delivery-date filters
+- Sorting, pagination and my-requests status filtering
+- Owner-only updates, lifecycle transitions, invalid transition rejection and IDOR protection
+- Expiry sweeps for open and paused requests, inactive visibility rules and idempotency
+- Marketplace authentication, listing discovery filters/sorting and published-only detail access
+- Buyer request privacy: only buyer `id` and `display_name` are exposed
+
+**Phase 7 (27 tests):**
+- Conversation creation, deterministic duplicate prevention and marketplace-context ownership rules
+- Self-conversation, invalid recipient, missing context and duplicate-context validation
+- Participant-only conversation list, detail, history and message sending (IDOR returns 404)
+- Message trimming, blank/empty/over-length validation and sender impersonation rejection
+- Paginated history with sender details and ascending/descending order
+- Unread counts for recipients and zero unread for the sender
+- Read receipts, message status transitions, archive/block/unblock rules and messaging restrictions
+- Socket.IO authentication, participant-only room joins, realtime message/delivery/read events
+- REST and socket rate-limit enforcement
+- Phase 7 migrations, tables and indexes
+
+**Phase 8 (15 tests):**
+- Authenticated offer creation on listings and buyer requests with derived buyer/farmer participants
+- Offer term validation, context requirement, self-offer rejection and available-quantity checks
+- Participant-only offer reads and history; non-participant access returns 404
+- Offer list filters for role, direction, status and marketplace context
+- Owner-only listing and buyer-request offer lists
+- Recipient-only acceptance/rejection and creator-only withdrawal
+- Acceptance re-validates inventory without reserving or decrementing it
+- Counteroffers, thread history, parent `countered` status and latest-offer acceptance
+- Expiry sweep behavior and rejection of overdue offers
+- Acceptance failure after listing availability drops below the offered quantity
+- Dual listing/buyer-request context offers and participant authorization
+- Phase 8 migrations, tables, constraints and indexes
+
+**Phase 9 (11 tests):**
+- Order creation from accepted listing offers with participant derivation and authorization
+- Accepted-offer validation, listing requirement, duplicate order prevention and stock reservation
+- Order listing filters, participant-only detail access and immutable order history
+- Cancellation releasing reserved stock back to available inventory
+- Concurrent order creation race preventing overselling
+- Payment initialization and pending checkout reuse
+- Paystack verification applying payment success and order status transitions
+- Signed webhook processing, deduplication and invalid-signature rejection
+- Full refund restoring consumed reservation stock
+- Reservation expiry cancelling unpaid orders and restoring stock
+- Phase 9 migrations, tables and indexes
+
+The full backend suite currently contains **288 tests** across Phases 2–9.
 
 
 ### Frontend tests
@@ -838,10 +1320,22 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Email delivery:** The dev email adapter logs emails to the server console. Real SMTP delivery has not been configured or tested. Configure `EMAIL_PROVIDER` and SMTP settings for real delivery.
 - **Render deployment:** `render.yaml` and deployment instructions are prepared but not live-tested.
 - **Aiven connectivity:** Verified against Aiven PostgreSQL 18.6. The backend uses DNS pre-resolution to work around IPv6 Happy Eyeballs timeout issues on this network.
-- **Marketplace features:** Buyer requests, offers, orders, payments and transporter management belong to Phase 6 and beyond.
+- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Transporter management belongs to a future phase.
+- **Messaging notifications:** Phase 7 persists messages and emits realtime events, but does not send email or SMS notifications for new messages. An in-process `message.created` event bus is ready for the future notifications phase.
 - **Account recovery / password reset:** Not implemented. Belongs to a future phase.
 - **File uploads:** Produce listing images support secure multipart uploads to a local development adapter. Profile image and cooperative logo uploads (`profile_image_url`, `logo_url`) are not implemented and still accept a manually supplied URL. Production object storage (for example S3-compatible storage) is not configured; Render's filesystem is ephemeral, so a durable storage adapter must be added before production use.
-- **Public listing discovery:** Phase 5 exposes produce categories/types publicly and published listing details by ID. A public search/browse endpoint for listings, buyer offers, orders and payments belongs to Phase 6.
+- **Public listing discovery:** Phase 5 exposes produce categories/types publicly and published listing details by ID. Phase 6 adds authenticated marketplace discovery for listings and buyer requests. Full marketplace and buyer-request frontend screens are not yet implemented.
+- **Messaging frontend:** Phase 7 provides the REST API and Socket.IO backend only. Conversation, chat and unread-count frontend screens are not yet implemented.
+- **Offers frontend:** Phase 8 provides the REST API and realtime backend only. Offer creation, negotiation history and offer-management screens are not yet implemented.
+- **Offer inventory and fulfillment:** Accepting an offer still does not reserve inventory or create an order. The buyer must explicitly create a Phase 9 order from the accepted offer; order creation re-checks stock and atomically reserves it.
+- **Offer notifications:** Phase 8 emits in-process `offer.*` events and Socket.IO `offer:updated` events to participants. It does not send email/SMS or persist offer notifications in a notification center.
+- **Agent-assisted offers:** Cooperative agents receive no implicit access to offers. Only the actual buyer and farmer participants can read or act on an offer in Phase 8.
+- **Payment provider:** Paystack is integrated through its HTTP API and documented webhook signatures, but no live Paystack credentials are configured in this repository and all provider calls are mocked in tests. End-to-end card/bank checkout against the live provider has not been tested.
+- **Payments frontend:** Phase 9 provides the backend API only. Hosted-checkout redirect, payment-status and refund screens are not yet implemented in the frontend.
+- **Refund operations:** Provider refunds can remain `pending`, `processing`, `failed` or `needs_attention`. Operators must reconcile those states; there is no admin refund dashboard or automatic retry queue.
+- **Reservation expiry job:** The reservation-expiry sweep is an in-process interval tied to the API server. Running multiple API instances would perform duplicate sweeps (idempotently) rather than coordinating through a distributed scheduler.
+- **Order notifications:** Phase 9 emits in-process order events and Socket.IO `order:updated` events to participants. It does not send email/SMS or persist order notifications in a notification center.
+- **Transporters and delivery tracking:** Transporter profiles, assignments and live delivery tracking are not implemented. Order fulfillment uses status transitions only.
 - **Agent-assisted farmer operations:** The `agent_activity_logs` table and `logAgentActivity` service are implemented. Dedicated agent-assisted profile update endpoints (where an agent edits a farmer's data on their behalf) are not yet implemented — that workflow belongs to a future phase.
 
 ## Coding Rules for AI Agents
