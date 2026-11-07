@@ -9,7 +9,6 @@ import {
 import type {
   CreateCooperativeInput,
   UpdateCooperativeInput,
-  UpdateMembershipInput,
   AssignAgentInput,
 } from "./cooperatives.validation.js";
 import type {

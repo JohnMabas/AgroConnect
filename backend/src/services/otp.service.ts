@@ -69,12 +69,6 @@ export async function issuePhoneOtp(userId: string): Promise<void> {
     used: false,
   });
 
-  // Deliver the OTP via the configured SMS provider.
-  // The raw OTP value is passed only to the SMS provider and never logged.
-  const smsProvider = getSmsProvider();
-  // The user's phone number is fetched by the caller before invoking this.
-  // We pass it in via the options below.
-  return;
 }
 
 /**
