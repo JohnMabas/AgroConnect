@@ -49,7 +49,6 @@ export class AfricasTalkingAdapter implements SmsProvider {
       username: env.AFRICASTALKING_USERNAME!,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     this.sms = client.SMS as typeof this.sms;
   }
 
@@ -74,6 +73,7 @@ export class AfricasTalkingAdapter implements SmsProvider {
       const errMsg = err instanceof Error ? err.message : String(err);
       throw new Error(
         `Africa's Talking SMS delivery failed for ${message.to}: ${errMsg}`,
+        { cause: err },
       );
     }
 

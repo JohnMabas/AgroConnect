@@ -40,6 +40,7 @@ export class BrevoAdapter implements EmailProvider {
       const errMsg = err instanceof Error ? err.message : String(err);
       throw new Error(
         `Brevo email delivery failed for ${message.to}: ${errMsg}`,
+        { cause: err },
       );
     }
 
