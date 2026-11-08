@@ -4,7 +4,7 @@
 
 AgroConnect is a digital agricultural marketplace and supply-chain coordination platform for farmers, buyers, cooperatives, transporters and platform administrators. The initial pilot focuses on Plateau State, Nigeria, with a long-term vision of expanding to other regions and countries.
 
-The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds.
+The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds. **Phase 10** adds transporter profiles, delivery requests tied to paid orders, transporter assignment and coverage checks, a controlled delivery lifecycle with tracking history, and realtime delivery notifications.
 
 ## Technology Stack
 
@@ -55,7 +55,7 @@ AgroConnect/
 │   ├── src/
 │   │   ├── config/                 # Environment configuration
 │   │   ├── database/
-│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 9)
+│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 10)
 │   │   │   ├── models/             # Sequelize models
 │   │   │   ├── seeders/            # Idempotent development seeders (includes produce catalogue)
 │   │   │   ├── config.ts           # Connection and TLS configuration
@@ -81,7 +81,9 @@ AgroConnect/
 │   │   │   ├── messaging/          # Conversations, messages, receipts and unread counts
 │   │   │   ├── offers/             # Offers, counteroffers, negotiation history and expiry
 │   │   │   ├── orders/             # Orders, inventory reservations and expiry sweep
-│   │   │   └── payments/           # Paystack initialization, webhooks, verification and refunds
+│   │   │   ├── payments/           # Paystack initialization, webhooks, verification and refunds
+│   │   │   ├── transporters/       # Transporter profiles, availability and admin approval
+│   │   │   └── deliveries/         # Delivery requests, assignment, lifecycle and tracking history
 │   │   ├── realtime/               # Authenticated Socket.IO server and room registry
 │   │   ├── routes/                 # Health and other API routes
 │   │   ├── services/               # Password, OTP, email-verification, token, activity-log services
@@ -216,6 +218,8 @@ Never commit `.env` files or real credentials.
 | `PAYSTACK_CURRENCY` | No | Default checkout currency. Defaults to `NGN`. |
 | `PAYSTACK_MODE` | No | `test` or `live`. Defaults to `live` in production, otherwise `test`. |
 | `PAYSTACK_REQUEST_TIMEOUT_MS` | No | Timeout for Paystack API requests. Defaults to `15000`. |
+
+Phase 10 introduces no additional environment variables.
 
 ### Frontend
 
@@ -683,6 +687,98 @@ reservation to available stock when the produce is still fresh and the listing
 is active; otherwise the sold stock is removed permanently. A partial refund
 updates payment and order refund status without changing inventory.
 
+### Phase 10 — Transporters and Delivery
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/transporters/profile` | Bearer | Create the authenticated user's transporter profile |
+| `GET` | `/api/transporters/profile` | Bearer | Read the authenticated user's transporter profile |
+| `PATCH` | `/api/transporters/profile` | Bearer | Update profile details or availability |
+| `GET` | `/api/transporters/available` | Bearer | List approved, available transporters, optionally filtered by coverage |
+| `GET` | `/api/transporters/:id` | Bearer | Read a transporter profile (pending profiles are owner/admin only) |
+| `PATCH` | `/api/transporters/:id/approve` | Bearer (admin) | Approve a pending transporter |
+| `PATCH` | `/api/transporters/:id/suspend` | Bearer (admin) | Suspend a transporter with an optional reason |
+| `PATCH` | `/api/transporters/:id/reactivate` | Bearer (admin) | Reactivate a suspended transporter |
+| `GET` | `/api/transporters/my-deliveries` | Bearer | List deliveries assigned to the authenticated transporter |
+| `POST` | `/api/deliveries` | Bearer (order participant) | Create a delivery request for an eligible paid order |
+| `GET` | `/api/deliveries` | Bearer | List deliveries visible to the authenticated user |
+| `GET` | `/api/deliveries/:id` | Bearer (participant) | Read one delivery with order and party summaries |
+| `GET` | `/api/deliveries/:id/history` | Bearer (participant) | Read the immutable delivery tracking history |
+| `PATCH` | `/api/deliveries/:id/assign` | Bearer (admin) | Assign an approved, available, in-coverage transporter |
+| `PATCH` | `/api/deliveries/:id/reassign` | Bearer (admin) | Reassign an assigned or accepted delivery |
+| `PATCH` | `/api/deliveries/:id/accept` | Bearer (transporter) | Accept the assigned delivery |
+| `PATCH` | `/api/deliveries/:id/decline` | Bearer (transporter) | Decline the assigned delivery and return it to pending |
+| `PATCH` | `/api/deliveries/:id/status` | Bearer (participant) | Advance, cancel or fail a delivery through allowed transitions |
+| `GET` | `/api/orders/:orderId/delivery` | Bearer (participant) | Read the latest delivery for an order |
+
+**Transporter management.** Any authenticated user can create one transporter
+profile. Creation assigns the existing `transporter` role through the normal
+role system, sets `approval_status=pending` and `availability_status=unavailable`.
+Transporters provide a business name, contact phone, operating location,
+coverage areas, optional vehicle details, transportable produce types and an
+availability status. Only administrators can approve, suspend or reactivate a
+transporter. A transporter can only mark themselves `available` after approval;
+administrators set `suspended` when suspending.
+
+**Delivery request workflow.** A delivery request is created from an existing
+paid order by the buyer or farmer participant. The order must be `paid`,
+`processing` or `ready_for_delivery`, and the order must be paid
+(`payment_status=paid`). The request quantity, unit, currency, delivery location
+and expected delivery date must match the order terms; the engine never trusts
+client-supplied prices or payment status. Each order may have at most one active
+delivery (cancelled and failed deliveries may be replaced); a partial unique
+index plus a row lock enforce this under concurrency. Creating a delivery moves
+a paid order to `processing` through the existing order service.
+
+**Delivery assignment.** Administrators assign transporters. The transporter
+must exist, have an approved profile, be `available`, have an active user
+account and cover the delivery location. Only pending deliveries can receive a
+first assignment; only `assigned` or `accepted` deliveries can be reassigned.
+Declining an assigned delivery clears the transporter and returns the delivery
+to `pending`.
+
+**Delivery status lifecycle.** Statuses are `pending`, `assigned`, `accepted`,
+`picked_up`, `in_transit`, `delivered`, `completed`, `cancelled` and `failed`.
+The normal path is:
+
+1. `pending` — delivery request created
+2. `assigned` — administrator assigns a transporter
+3. `accepted` — transporter accepts
+4. `picked_up` — transporter marks produce collected
+5. `in_transit` — transporter starts transit
+6. `delivered` — transporter marks delivery complete
+7. `completed` — buyer (or administrator) confirms receipt
+
+Transitions are validated server-side. Only the assigned transporter can mark
+`picked_up`, `in_transit` or `delivered`; a transporter cannot mark a delivery
+`completed`. The buyer, farmer or an administrator may cancel before pickup
+under the documented rules. `failed` requires a reason and is available to the
+transporter or an administrator while the delivery is in progress. A completed
+or cancelled delivery cannot be reopened. Every change writes an immutable
+`delivery_history` row containing the previous status, new status, actor,
+description, optional location and timestamp.
+
+**Order and payment separation.** Delivery progress advances the order through
+`processing → ready_for_delivery → in_transit → delivered → completed` only when
+the order is paid and the current order status is compatible. Completing a
+delivery never changes `payment_status` and never marks an unpaid order paid.
+Delivery updates do not modify existing order or payment records beyond these
+controlled status syncs.
+
+**Delivery fees.** Fees are stored as integer minor units in
+`delivery_fee_minor` alongside an explicit currency (default `NGN`) and are
+returned both as minor units and as a safe major-unit value. NGN, GHS, ZAR and
+USD are supported with exponent 2. The fee currency must match the order
+currency; no implicit currency conversion is performed. There is no delivery
+fee edit endpoint, so an agreed fee cannot be changed without a future
+authorized workflow. Transporter payouts and commissions are out of scope.
+
+**Realtime and privacy.** When Socket.IO is running, saved delivery changes emit
+`delivery:updated` (plus `delivery:<action>`) to the buyer, farmer, creator and
+assigned transporter user rooms. The database remains the source of truth.
+Unrelated users receive `404` for delivery reads and history, and only
+participants can update statuses.
+
 ### Response format
 
 Success:
@@ -1032,6 +1128,52 @@ Immutable audit log — no `updated_at`.
 - Indexes on order, payment, status, provider refund and creation time
 - `created_at`, `updated_at`
 
+### Phase 10 tables
+
+#### `transporter_profiles`
+
+- UUID primary key
+- `user_id` unique foreign key to `users.id` (CASCADE delete)
+- `business_name`, `contact_phone`, `operating_location`
+- `coverage_areas` and `produce_types` as text arrays
+- `vehicle_type`, `vehicle_registration_number`, `vehicle_capacity` (nullable)
+- `availability_status` ENUM: `available` | `unavailable` | `suspended`
+- `approval_status` ENUM: `pending` | `approved` | `rejected` | `suspended`
+- `approved_by_user_id` foreign key to `users.id` (SET NULL), `approved_at`
+- `suspended_reason`
+- Indexes on user, availability status and approval status
+- `created_at`, `updated_at`
+
+#### `deliveries`
+
+- UUID primary key and unique `delivery_reference`
+- `order_id` foreign key to `orders.id` (CASCADE delete)
+- `farmer_id`, `buyer_id` foreign keys to `users.id` (RESTRICT delete)
+- `transporter_id` foreign key to `users.id` (SET NULL), nullable
+- `pickup_location`, `delivery_location`, `produce_description`
+- `quantity` DECIMAL(14,3), `unit`
+- `expected_pickup_date`, `expected_delivery_date` (DATEONLY)
+- `delivery_fee_minor` BIGINT and `currency` (default `NGN`)
+- `additional_instructions`
+- `status` ENUM: `pending` | `assigned` | `accepted` | `picked_up` | `in_transit` | `delivered` | `completed` | `cancelled` | `failed`
+- `created_by_user_id` foreign key to `users.id` (SET NULL)
+- Lifecycle timestamps: `assigned_at`, `accepted_at`, `picked_up_at`, `delivered_at`, `completed_at`, `cancelled_at`, `failed_at`
+- `cancellation_reason`, `failure_reason`
+- Partial unique index allowing one active delivery per order (excludes `cancelled` and `failed`)
+- Indexes on order, transporter, buyer, farmer, status, creation time and transporter/status
+- Check constraints for positive quantity, non-negative fee and ordered expected dates
+- `created_at`, `updated_at`
+
+#### `delivery_history`
+
+- UUID primary key
+- `delivery_id` foreign key to `deliveries.id` (CASCADE delete)
+- `actor_user_id` foreign key to `users.id` (SET NULL), nullable
+- `action`, `previous_status`, `new_status`
+- `description`, optional `location`, optional `metadata` (JSONB)
+- Indexes on delivery/creation time, actor and action
+- `created_at`
+
 ## Migrations and Seeders
 
 Schema changes use migrations only. `sequelize.sync()` is not used.
@@ -1081,7 +1223,7 @@ The test suite covers:
 **Phase 2 (27 tests):**
 - Database configuration and TLS
 - Database connectivity
-- Migrations (apply, rollback, re-apply) — all 26 migrations
+- Migrations (apply, rollback, re-apply) — all 29 migrations
 - User/role/user_role models and constraints
 - Role seeder idempotency — all 6 roles
 - Health endpoint
@@ -1177,7 +1319,18 @@ The test suite covers:
 - Reservation expiry cancelling unpaid orders and restoring stock
 - Phase 9 migrations, tables and indexes
 
-The full backend suite currently contains **288 tests** across Phases 2–9.
+**Phase 10 (9 tests):**
+- Transporter profile creation, duplicate prevention and owner/admin visibility
+- Approval-only availability, coverage filtering and admin approve/suspend/reactivate
+- Delivery creation from paid orders and prevention for unpaid orders
+- Order-term validation for quantity, location, currency and fee
+- Duplicate active-delivery prevention and delivery access control (IDOR returns 404)
+- Transporter eligibility checks (approval, availability and coverage)
+- Transporter acceptance/decline, invalid transitions and required failure reasons
+- Completion restricted to buyer/admin and no reopening of terminal deliveries
+- Delivery history, order/delivery status consistency and failed-delivery replacement
+
+The full backend suite currently contains **297 tests** across Phases 2–10.
 
 
 ### Frontend tests
@@ -1320,7 +1473,7 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Email delivery:** The dev email adapter logs emails to the server console. Real SMTP delivery has not been configured or tested. Configure `EMAIL_PROVIDER` and SMTP settings for real delivery.
 - **Render deployment:** `render.yaml` and deployment instructions are prepared but not live-tested.
 - **Aiven connectivity:** Verified against Aiven PostgreSQL 18.6. The backend uses DNS pre-resolution to work around IPv6 Happy Eyeballs timeout issues on this network.
-- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Transporter management belongs to a future phase.
+- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Phase 10 implements transporter management and delivery coordination.
 - **Messaging notifications:** Phase 7 persists messages and emits realtime events, but does not send email or SMS notifications for new messages. An in-process `message.created` event bus is ready for the future notifications phase.
 - **Account recovery / password reset:** Not implemented. Belongs to a future phase.
 - **File uploads:** Produce listing images support secure multipart uploads to a local development adapter. Profile image and cooperative logo uploads (`profile_image_url`, `logo_url`) are not implemented and still accept a manually supplied URL. Production object storage (for example S3-compatible storage) is not configured; Render's filesystem is ephemeral, so a durable storage adapter must be added before production use.
@@ -1335,7 +1488,9 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Refund operations:** Provider refunds can remain `pending`, `processing`, `failed` or `needs_attention`. Operators must reconcile those states; there is no admin refund dashboard or automatic retry queue.
 - **Reservation expiry job:** The reservation-expiry sweep is an in-process interval tied to the API server. Running multiple API instances would perform duplicate sweeps (idempotently) rather than coordinating through a distributed scheduler.
 - **Order notifications:** Phase 9 emits in-process order events and Socket.IO `order:updated` events to participants. It does not send email/SMS or persist order notifications in a notification center.
-- **Transporters and delivery tracking:** Transporter profiles, assignments and live delivery tracking are not implemented. Order fulfillment uses status transitions only.
+- **Transport and delivery tracking:** Phase 10 implements transporter profiles, coverage-based assignment, a controlled delivery lifecycle and event history. It does not implement GPS coordinates, live maps, route optimization, transporter payouts or commissions. Location history entries are free-text notes, not geospatial tracks.
+- **Delivery frontend:** Phase 10 provides the REST API and Socket.IO backend only. Transporter dashboards, delivery assignment screens and buyer delivery tracking screens are not yet implemented in the frontend.
+- **Delivery notifications:** Phase 10 emits Socket.IO `delivery:updated` events to authorized participants. It does not send email/SMS or persist delivery notifications in a notification center.
 - **Agent-assisted farmer operations:** The `agent_activity_logs` table and `logAgentActivity` service are implemented. Dedicated agent-assisted profile update endpoints (where an agent edits a farmer's data on their behalf) are not yet implemented — that workflow belongs to a future phase.
 
 ## Coding Rules for AI Agents
