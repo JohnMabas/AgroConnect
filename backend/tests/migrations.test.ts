@@ -46,6 +46,11 @@ const PHASE_9_TABLES = [
   "payments",
   "refunds",
 ];
+const PHASE_10_TABLES = [
+  "deliveries",
+  "delivery_history",
+  "transporter_profiles",
+];
 const ALL_TABLES = [
   ...PHASE_2_TABLES,
   ...PHASE_3_TABLES,
@@ -55,6 +60,7 @@ const ALL_TABLES = [
   ...PHASE_7_TABLES,
   ...PHASE_8_TABLES,
   ...PHASE_9_TABLES,
+  ...PHASE_10_TABLES,
 ].sort();
 
 const ALL_MIGRATION_NAMES = [
@@ -85,6 +91,9 @@ const ALL_MIGRATION_NAMES = [
   "20261108000001-create-orders",
   "20261108000002-create-inventory-reservations",
   "20261108000003-create-payments",
+  "20261109000001-create-transporter-profiles",
+  "20261109000002-create-deliveries",
+  "20261109000003-create-delivery-history",
 ];
 
 async function getPublicTables(): Promise<string[]> {
@@ -116,7 +125,7 @@ describe("migrations", () => {
       expect(status.pending).toEqual([]);
       expect(status.executed).toHaveLength(ALL_MIGRATION_NAMES.length);
     },
-    480_000, // allow more time for Aiven cold start and 26 sequential migrations
+    480_000, // allow more time for Aiven cold start and 29 sequential migrations
   );
 
   it(
