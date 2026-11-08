@@ -10,6 +10,7 @@ import {
   listOrdersHandler,
   updateOrderStatusHandler,
 } from "./orders.controller.js";
+import { getOrderDeliveryHandler } from "../deliveries/deliveries.controller.js";
 
 export function createOrdersRouter(): Router {
   const router = Router();
@@ -19,6 +20,7 @@ export function createOrdersRouter(): Router {
   router.post("/", createOrderHandler);
   router.get("/", listOrdersHandler);
 
+  router.get("/:orderId/delivery", getOrderDeliveryHandler);
   router.get("/:id/history", getOrderHistoryHandler);
   router.get("/:id/reservation", getOrderReservationHandler);
   router.get("/:id/payments", getOrderPaymentsHandler);

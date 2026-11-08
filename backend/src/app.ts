@@ -21,6 +21,8 @@ import { createMessagesRouter } from "./modules/messaging/messages.routes.js";
 import { createOffersRouter } from "./modules/offers/offers.routes.js";
 import { createOrdersRouter } from "./modules/orders/orders.routes.js";
 import { createReservationsRouter } from "./modules/orders/reservations.routes.js";
+import { createTransportersRouter } from "./modules/transporters/transporters.routes.js";
+import { createDeliveriesRouter } from "./modules/deliveries/deliveries.routes.js";
 import {
   createPaymentsRouter,
   createPaystackWebhookRouter,
@@ -112,6 +114,10 @@ export function createApp(
   app.use("/api/orders", createOrdersRouter());
   app.use("/api/reservations", createReservationsRouter());
   app.use("/api/payments", createPaymentsRouter());
+
+  // Phase 10 feature routes
+  app.use("/api/transporters", createTransportersRouter());
+  app.use("/api/deliveries", createDeliveriesRouter());
 
   // Health and other API routes
   app.use(
