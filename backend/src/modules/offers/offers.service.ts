@@ -22,6 +22,7 @@ import {
   multiplyDecimal,
   normalizeDecimal,
 } from "../listings/decimal.js";
+import { publishOfferEvent } from "./offers.events.js";
 import type {
   CounterOfferInput,
   CreateOfferInput,
@@ -282,7 +283,7 @@ async function expireIfNeeded(
  * insert run in one transaction and are safe to run repeatedly.
  */
 export async function expireOffers(): Promise<number> {
-  return sequelize.transaction(async (transaction) => {
+  const expiredIds = await sequelize.transaction(async (transaction) => {
     const rows = await sequelize.query<{ id: string }>(
       `UPDATE offers
        SET status = 'expired',
@@ -308,8 +309,24 @@ export async function expireOffers(): Promise<number> {
       );
     }
 
-    return rows.length;
+    return rows.map((row) => row.id);
   });
+
+  for (const offerId of expiredIds) {
+    try {
+      const offer = buildOfferData(await loadOfferRow(offerId));
+      publishOfferEvent({
+        action: "expired",
+        offer,
+        actor_user_id: null,
+        participant_user_ids: [offer.buyer_id, offer.farmer_id],
+      });
+    } catch (error) {
+      console.error("Failed to publish offer expiration event:", error);
+    }
+  }
+
+  return expiredIds.length;
 }
 
 let expiryTimer: NodeJS.Timeout | undefined;

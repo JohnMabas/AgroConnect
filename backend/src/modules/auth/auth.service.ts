@@ -30,6 +30,7 @@ import {
 } from "../../utils/contact.js";
 import type { RegisterInput, LoginInput } from "./auth.validation.js";
 import type { SafeUser, RegisterResult, LoginResult } from "./auth.types.js";
+import { dispatchNotification } from "../notifications/notifications.service.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -199,7 +200,28 @@ export async function verifyUserPhone(
   }
 
   const safeUser = await buildSafeUser(await user.reload());
+  void notifyAccountVerified(userId, "phone");
   return { user: safeUser };
+}
+
+async function notifyAccountVerified(
+  userId: string,
+  method: "email" | "phone",
+): Promise<void> {
+  try {
+    await dispatchNotification({
+      user_id: userId,
+      notification_type: "account_verified",
+      variables: { verification_method: method },
+      related_entity_type: "user",
+      related_entity_id: userId,
+      action_url: "/profile",
+      dedupe_key: `account-verified:${userId}:${method}`,
+      allow_external: false,
+    });
+  } catch {
+    // Verification must succeed even when notification persistence fails.
+  }
 }
 
 export async function resendPhoneOtp(
@@ -255,6 +277,7 @@ export async function verifyUserEmail(
   }
 
   const safeUser = await buildSafeUser(await user.reload());
+  void notifyAccountVerified(user.id, "email");
   return { user: safeUser };
 }
 

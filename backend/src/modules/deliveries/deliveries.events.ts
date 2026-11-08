@@ -1,11 +1,26 @@
+import { EventEmitter } from "node:events";
 import { emitToUser } from "../../realtime/registry.js";
 import type { DeliveryData } from "./deliveries.types.js";
+
+export interface DeliveryUpdatedEvent {
+  delivery: DeliveryData;
+  action: string;
+  actor_user_id: string | null;
+}
+
+export const deliveryEventBus = new EventEmitter();
 
 export function publishDeliveryUpdated(
   delivery: DeliveryData,
   action: string,
   actorUserId: string | null,
 ): void {
+  deliveryEventBus.emit("delivery.updated", {
+    delivery,
+    action,
+    actor_user_id: actorUserId,
+  } satisfies DeliveryUpdatedEvent);
+
   const recipientIds = new Set<string>([
     delivery.buyer_id,
     delivery.farmer_id,

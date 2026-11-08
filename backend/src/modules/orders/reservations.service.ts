@@ -13,7 +13,7 @@ import {
   normalizeDecimal,
   subtractDecimal,
 } from "../listings/decimal.js";
-import { recordOrderEvent } from "./orders.events.js";
+import { publishOrderExpired, recordOrderEvent } from "./orders.events.js";
 import type { OrderReservationData } from "./orders.types.js";
 
 const QUANTITY_SCALE = 3;
@@ -444,6 +444,7 @@ export async function expireReservations(limit = 100): Promise<number> {
 
     if (didExpire) {
       expired += 1;
+      publishOrderExpired(candidate.order_id, "reservation_expired");
     }
   }
 

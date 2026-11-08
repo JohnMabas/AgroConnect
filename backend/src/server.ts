@@ -16,6 +16,7 @@ let connection: ConnectionModule | undefined;
 let stopExpiryJob: (() => void) | undefined;
 let stopOfferExpiryJob: (() => void) | undefined;
 let stopReservationExpiryJob: (() => void) | undefined;
+let stopNotificationWorker: (() => void) | undefined;
 let stopRealtime: (() => Promise<void>) | undefined;
 let shuttingDown = false;
 
@@ -42,6 +43,9 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
 
     stopReservationExpiryJob?.();
     stopReservationExpiryJob = undefined;
+
+    stopNotificationWorker?.();
+    stopNotificationWorker = undefined;
 
     if (stopRealtime !== undefined) {
       await stopRealtime();
@@ -144,6 +148,12 @@ async function start(): Promise<void> {
     );
     reservationExpiry.startReservationExpiryJob();
     stopReservationExpiryJob = reservationExpiry.stopReservationExpiryJob;
+
+    const notifications = await import(
+      "./modules/notifications/notifications.service.js"
+    );
+    notifications.startNotificationWorker();
+    stopNotificationWorker = notifications.stopNotificationWorker;
 
     server = createServer(app);
     realtime.createSocketServer(server);
