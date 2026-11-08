@@ -24,6 +24,11 @@ import { createReservationsRouter } from "./modules/orders/reservations.routes.j
 import { createTransportersRouter } from "./modules/transporters/transporters.routes.js";
 import { createDeliveriesRouter } from "./modules/deliveries/deliveries.routes.js";
 import {
+  createAdminNotificationsRouter,
+  createNotificationsRouter,
+} from "./modules/notifications/notifications.routes.js";
+import { initializeNotificationEvents } from "./modules/notifications/notifications.events.js";
+import {
   createPaymentsRouter,
   createPaystackWebhookRouter,
 } from "./modules/payments/payments.routes.js";
@@ -39,6 +44,8 @@ export interface AppDependencies {
 export function createApp(
   dependencies: Partial<AppDependencies> = {},
 ) {
+  initializeNotificationEvents();
+
   const app = express();
 
   app.disable("x-powered-by");
@@ -118,6 +125,10 @@ export function createApp(
   // Phase 10 feature routes
   app.use("/api/transporters", createTransportersRouter());
   app.use("/api/deliveries", createDeliveriesRouter());
+
+  // Phase 11 feature routes
+  app.use("/api/notifications", createNotificationsRouter());
+  app.use("/api/admin/notifications", createAdminNotificationsRouter());
 
   // Health and other API routes
   app.use(
