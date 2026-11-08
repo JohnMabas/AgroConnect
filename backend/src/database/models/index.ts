@@ -12,6 +12,9 @@ import { FarmerProfile } from "./farmer-profile.model.js";
 import { InventoryAdjustment } from "./inventory-adjustment.model.js";
 import { InventoryReservation } from "./inventory-reservation.model.js";
 import { Message } from "./message.model.js";
+import { Notification } from "./notification.model.js";
+import { NotificationDelivery } from "./notification-delivery.model.js";
+import { NotificationPreference } from "./notification-preference.model.js";
 import { Offer } from "./offer.model.js";
 import { OfferEvent } from "./offer-event.model.js";
 import { Order } from "./order.model.js";
@@ -664,6 +667,45 @@ DeliveryHistory.belongsTo(User, {
   as: "actor",
 });
 
+// Phase 11 associations
+User.hasMany(Notification, {
+  foreignKey: "user_id",
+  as: "notifications",
+  onDelete: "CASCADE",
+});
+
+Notification.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+Notification.hasMany(NotificationDelivery, {
+  foreignKey: "notification_id",
+  as: "deliveries",
+  onDelete: "CASCADE",
+});
+
+NotificationDelivery.belongsTo(Notification, {
+  foreignKey: "notification_id",
+  as: "notification",
+});
+
+NotificationDelivery.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasOne(NotificationPreference, {
+  foreignKey: "user_id",
+  as: "notification_preference",
+  onDelete: "CASCADE",
+});
+
+NotificationPreference.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
 export {
   AgentActivityLog,
   BuyerRequest,
@@ -679,6 +721,9 @@ export {
   InventoryAdjustment,
   InventoryReservation,
   Message,
+  Notification,
+  NotificationDelivery,
+  NotificationPreference,
   Offer,
   OfferEvent,
   Order,
