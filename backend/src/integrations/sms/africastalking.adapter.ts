@@ -13,7 +13,11 @@
 
 import AfricasTalking from "africastalking";
 import { env } from "../../config/env.js";
-import type { SmsMessage, SmsProvider } from "./sms-provider.interface.js";
+import type {
+  SmsMessage,
+  SmsProvider,
+  SmsSendResult,
+} from "./sms-provider.interface.js";
 
 // Africa's Talking SMS send options shape (SDK is untyped; we define what we use).
 interface AtSendOptions {
@@ -52,7 +56,7 @@ export class AfricasTalkingAdapter implements SmsProvider {
     this.sms = client.SMS as typeof this.sms;
   }
 
-  async sendSms(message: SmsMessage): Promise<void> {
+  async sendSms(message: SmsMessage): Promise<SmsSendResult> {
     const options: AtSendOptions = {
       to: [message.to],
       message: message.body,
@@ -101,5 +105,9 @@ export class AfricasTalkingAdapter implements SmsProvider {
       `[SMS] Delivered to ${message.to} via Africa's Talking. ` +
         `messageId=${recipient.messageId} status=${recipient.status}`,
     );
+
+    return {
+      provider_reference: recipient.messageId ?? null,
+    };
   }
 }

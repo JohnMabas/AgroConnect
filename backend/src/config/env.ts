@@ -291,6 +291,39 @@ export const env = Object.freeze({
     process.env.PAYSTACK_REQUEST_TIMEOUT_MS,
     15_000,
   ),
+
+  // ─── Notifications ──────────────────────────────────────────────────────────
+  // Applies to email and SMS delivery attempts. In-app notifications are
+  // persisted immediately and are not retried.
+  NOTIFICATION_MAX_RETRIES: parsePositiveInt(
+    "NOTIFICATION_MAX_RETRIES",
+    process.env.NOTIFICATION_MAX_RETRIES,
+    5,
+  ),
+  // Base delay for exponential backoff between failed delivery attempts.
+  NOTIFICATION_RETRY_INTERVAL_SECONDS: parsePositiveInt(
+    "NOTIFICATION_RETRY_INTERVAL_SECONDS",
+    process.env.NOTIFICATION_RETRY_INTERVAL_SECONDS,
+    60,
+  ),
+  // Interval for the in-process notification retry/warning worker.
+  NOTIFICATION_WORKER_INTERVAL_SECONDS: parsePositiveInt(
+    "NOTIFICATION_WORKER_INTERVAL_SECONDS",
+    process.env.NOTIFICATION_WORKER_INTERVAL_SECONDS,
+    30,
+  ),
+  // How long before reservation expiry the buyer receives a warning.
+  NOTIFICATION_RESERVATION_WARNING_MINUTES: parsePositiveInt(
+    "NOTIFICATION_RESERVATION_WARNING_MINUTES",
+    process.env.NOTIFICATION_RESERVATION_WARNING_MINUTES,
+    10,
+  ),
+  // Hard timeout for an individual email/SMS provider call.
+  NOTIFICATION_PROVIDER_TIMEOUT_SECONDS: parsePositiveInt(
+    "NOTIFICATION_PROVIDER_TIMEOUT_SECONDS",
+    process.env.NOTIFICATION_PROVIDER_TIMEOUT_SECONDS,
+    15,
+  ),
 });
 
 export type Environment = typeof env;

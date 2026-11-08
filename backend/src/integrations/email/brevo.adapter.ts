@@ -9,7 +9,11 @@
 
 import { BrevoClient } from "@getbrevo/brevo";
 import { env } from "../../config/env.js";
-import type { EmailMessage, EmailProvider } from "./email-provider.interface.js";
+import type {
+  EmailMessage,
+  EmailProvider,
+  EmailSendResult,
+} from "./email-provider.interface.js";
 
 export class BrevoAdapter implements EmailProvider {
   private readonly client: BrevoClient;
@@ -22,9 +26,10 @@ export class BrevoAdapter implements EmailProvider {
     });
   }
 
-  async sendEmail(message: EmailMessage): Promise<void> {
+  async sendEmail(message: EmailMessage): Promise<EmailSendResult> {
+    let response: unknown;
     try {
-      await this.client.transactionalEmails.sendTransacEmail({
+      response = await this.client.transactionalEmails.sendTransacEmail({
         sender: {
           email: env.BREVO_SENDER_EMAIL!,
           name: env.BREVO_SENDER_NAME,
@@ -48,5 +53,15 @@ export class BrevoAdapter implements EmailProvider {
     console.log(
       `[EMAIL] Sent "${message.subject}" to ${message.to} via Brevo.`,
     );
+
+    const result = response as {
+      messageId?: string | number;
+      messageIds?: Array<string | number>;
+    };
+    const reference =
+      result.messageId ?? result.messageIds?.[0] ?? null;
+    return {
+      provider_reference: reference === null ? null : String(reference),
+    };
   }
 }

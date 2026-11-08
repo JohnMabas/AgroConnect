@@ -7,6 +7,10 @@ export interface SmsMessage {
   body: string;
 }
 
+export interface SmsSendResult {
+  provider_reference?: string | null;
+}
+
 export interface SmsProvider {
-  sendSms(message: SmsMessage): Promise<void>;
+  sendSms(message: SmsMessage): Promise<SmsSendResult | void>;
 }
