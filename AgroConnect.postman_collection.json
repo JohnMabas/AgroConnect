@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "AgroConnect API",
-    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, Phase 9 orders/payments, and Phase 10 transport and delivery.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n   - **Phase 10 — Transport & Delivery** — test transporter profiles, delivery requests, assignment, lifecycle and tracking history\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund\n- `transporter_profile_id` — set by Create transporter profile\n- `delivery_id` — set by Create delivery request",
+    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, Phase 9 orders/payments, Phase 10 transport and delivery, and Phase 11 notifications.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n   - **Phase 10 — Transport & Delivery** — test transporter profiles, delivery requests, assignment, lifecycle and tracking history\n   - **Phase 11 — Notifications** — test the inbox, preferences, unread counts, admin delivery logs and retries\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund\n- `transporter_profile_id` — set by Create transporter profile\n- `delivery_id` — set by Create delivery request\n- `notification_id` — set by List notifications\n- `notification_delivery_id` — set by List admin notification deliveries\n- `admin_access_token` — set manually from an admin account",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -106,6 +106,21 @@
       "key": "delivery_id",
       "value": "",
       "description": "Set automatically by Create delivery request."
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "description": "Set automatically by List notifications or Get notification."
+    },
+    {
+      "key": "notification_delivery_id",
+      "value": "",
+      "description": "Set automatically by List admin notification deliveries."
+    },
+    {
+      "key": "admin_access_token",
+      "value": "",
+      "description": "Access token for an administrator account. Used by notification admin requests."
     }
   ],
   "item": [
@@ -3491,6 +3506,333 @@
               "script": {
                 "exec": [
                   "pm.test('My transporter deliveries OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 11 — Notifications",
+      "description": "Notification inbox, preferences, unread counts, realtime notification events, and admin delivery retry controls.",
+      "item": [
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List notifications OK', () => { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "if (body.data.notifications.length > 0) { pm.collectionVariables.set('notification_id', body.data.notifications[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get unread count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/unread-count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "unread-count"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get unread count OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get notification",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/{{notification_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notification_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get notification OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark notification read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/{{notification_id}}/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Mark notification read OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark all notifications read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/read-all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "read-all"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Mark all notifications read OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get notification preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/preferences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "preferences"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get notification preferences OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update notification preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"in_app_enabled\": true,\n  \"email_enabled\": true,\n  \"sms_enabled\": false,\n  \"offers_enabled\": true,\n  \"messages_enabled\": true,\n  \"orders_enabled\": true,\n  \"payments_enabled\": true,\n  \"deliveries_enabled\": true,\n  \"marketing_enabled\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notifications/preferences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "preferences"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update notification preferences OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin list notification deliveries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/notifications/deliveries?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "notifications",
+                "deliveries"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin list notification deliveries OK', () => { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "if (body.data.deliveries.length > 0) { pm.collectionVariables.set('notification_delivery_id', body.data.deliveries[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin retry notification delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/notifications/deliveries/{{notification_delivery_id}}/retry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "notifications",
+                "deliveries",
+                "{{notification_delivery_id}}",
+                "retry"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin retry notification delivery OK', () => { pm.response.to.have.status(200); });"
                 ],
                 "type": "text/javascript"
               }
