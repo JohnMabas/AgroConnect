@@ -5,6 +5,8 @@ import { ConversationParticipant } from "./conversation-participant.model.js";
 import { CooperativeAgentAssignment } from "./cooperative-agent-assignment.model.js";
 import { CooperativeMembership } from "./cooperative-membership.model.js";
 import { CooperativeProfile } from "./cooperative-profile.model.js";
+import { Delivery } from "./delivery.model.js";
+import { DeliveryHistory } from "./delivery-history.model.js";
 import { EmailVerificationToken } from "./email-verification-token.model.js";
 import { FarmerProfile } from "./farmer-profile.model.js";
 import { InventoryAdjustment } from "./inventory-adjustment.model.js";
@@ -25,6 +27,7 @@ import { ProduceListingImage } from "./produce-listing-image.model.js";
 import { ProduceType } from "./produce-type.model.js";
 import { RefreshToken } from "./refresh-token.model.js";
 import { Role } from "./role.model.js";
+import { TransporterProfile } from "./transporter-profile.model.js";
 import { UserPassword } from "./user-password.model.js";
 import { UserProfile } from "./user-profile.model.js";
 import { UserRole } from "./user-role.model.js";
@@ -592,6 +595,75 @@ Refund.belongsTo(User, {
   as: "requested_by",
 });
 
+// Phase 10 associations
+User.hasOne(TransporterProfile, {
+  foreignKey: "user_id",
+  as: "transporter_profile",
+  onDelete: "CASCADE",
+});
+
+TransporterProfile.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+TransporterProfile.belongsTo(User, {
+  foreignKey: "approved_by_user_id",
+  as: "approved_by",
+});
+
+Order.hasMany(Delivery, {
+  foreignKey: "order_id",
+  as: "deliveries",
+  onDelete: "CASCADE",
+});
+
+Delivery.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+Delivery.belongsTo(User, {
+  foreignKey: "buyer_id",
+  as: "buyer",
+});
+
+Delivery.belongsTo(User, {
+  foreignKey: "farmer_id",
+  as: "farmer",
+});
+
+Delivery.belongsTo(User, {
+  foreignKey: "transporter_id",
+  as: "transporter",
+});
+
+Delivery.belongsTo(User, {
+  foreignKey: "created_by_user_id",
+  as: "creator",
+});
+
+User.hasMany(Delivery, {
+  foreignKey: "transporter_id",
+  as: "transport_deliveries",
+});
+
+Delivery.hasMany(DeliveryHistory, {
+  foreignKey: "delivery_id",
+  as: "history",
+  onDelete: "CASCADE",
+});
+
+DeliveryHistory.belongsTo(Delivery, {
+  foreignKey: "delivery_id",
+  as: "delivery",
+});
+
+DeliveryHistory.belongsTo(User, {
+  foreignKey: "actor_user_id",
+  as: "actor",
+});
+
 export {
   AgentActivityLog,
   BuyerRequest,
@@ -600,6 +672,8 @@ export {
   CooperativeAgentAssignment,
   CooperativeMembership,
   CooperativeProfile,
+  Delivery,
+  DeliveryHistory,
   EmailVerificationToken,
   FarmerProfile,
   InventoryAdjustment,
@@ -620,6 +694,7 @@ export {
   ProduceType,
   RefreshToken,
   Role,
+  TransporterProfile,
   User,
   UserPassword,
   UserProfile,
