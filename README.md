@@ -4,7 +4,7 @@
 
 AgroConnect is a digital agricultural marketplace and supply-chain coordination platform for farmers, buyers, cooperatives, transporters and platform administrators. The initial pilot focuses on Plateau State, Nigeria, with a long-term vision of expanding to other regions and countries.
 
-The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds. **Phase 10** adds transporter profiles, delivery requests tied to paid orders, transporter assignment and coverage checks, a controlled delivery lifecycle with tracking history, and realtime delivery notifications.
+The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds. **Phase 10** adds transporter profiles, delivery requests tied to paid orders, transporter assignment and coverage checks, a controlled delivery lifecycle with tracking history, and realtime delivery notifications. **Phase 11** adds a persistent notification centre with in-app, email and SMS delivery, user notification preferences, idempotent dispatch, delivery logs, exponential-backoff retries, admin retry controls, and realtime `notification:new` events.
 
 ## Technology Stack
 
@@ -55,7 +55,7 @@ AgroConnect/
 │   ├── src/
 │   │   ├── config/                 # Environment configuration
 │   │   ├── database/
-│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 10)
+│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 11)
 │   │   │   ├── models/             # Sequelize models
 │   │   │   ├── seeders/            # Idempotent development seeders (includes produce catalogue)
 │   │   │   ├── config.ts           # Connection and TLS configuration
@@ -64,8 +64,8 @@ AgroConnect/
 │   │   │   ├── seeder.ts           # Umzug seeder runner
 │   │   │   └── sequelize.ts        # Shared Sequelize instance
 │   │   ├── integrations/
-│   │   │   ├── sms/                # SMS provider interface + dev adapter
-│   │   │   ├── email/              # Email provider interface + dev adapter
+│   │   │   ├── sms/                # SMS provider interface, dev and Africa's Talking adapters
+│   │   │   ├── email/              # Email provider interface, dev and Brevo adapters
 │   │   │   └── payments/           # Paystack API client and webhook signature verification
 │   │   ├── middleware/             # Error handling, auth middleware
 │   │   ├── modules/
@@ -83,7 +83,8 @@ AgroConnect/
 │   │   │   ├── orders/             # Orders, inventory reservations and expiry sweep
 │   │   │   ├── payments/           # Paystack initialization, webhooks, verification and refunds
 │   │   │   ├── transporters/       # Transporter profiles, availability and admin approval
-│   │   │   └── deliveries/         # Delivery requests, assignment, lifecycle and tracking history
+│   │   │   ├── deliveries/         # Delivery requests, assignment, lifecycle and tracking history
+│   │   │   └── notifications/      # In-app/email/SMS notifications, preferences, retries and admin tools
 │   │   ├── realtime/               # Authenticated Socket.IO server and room registry
 │   │   ├── routes/                 # Health and other API routes
 │   │   ├── services/               # Password, OTP, email-verification, token, activity-log services
@@ -192,15 +193,14 @@ Never commit `.env` files or real credentials.
 | `OTP_RESEND_COOLDOWN_SECONDS` | No | Seconds between OTP resends. Defaults to `60`. |
 | `OTP_MAX_ATTEMPTS` | No | Max OTP verification attempts. Defaults to `5`. |
 | `EMAIL_VERIFICATION_EXPIRES_IN_SECONDS` | No | Email token lifetime. Defaults to `86400` (24 h). |
-| `SMS_PROVIDER` | No | `dev` (console log) or future real provider. |
-| `SMS_API_KEY` | When using real SMS | API key for SMS provider. |
-| `SMS_SENDER_ID` | No | SMS sender name. Defaults to `AgroConnect`. |
-| `EMAIL_PROVIDER` | No | `dev` (console log) or future real provider. |
-| `EMAIL_HOST` | When SMTP | SMTP hostname. |
-| `EMAIL_PORT` | No | SMTP port. Defaults to `587`. |
-| `EMAIL_USER` | When SMTP | SMTP username. |
-| `EMAIL_PASSWORD` | When SMTP | SMTP password. |
-| `EMAIL_FROM` | No | Sender address. Defaults to `noreply@agroconnect.app`. |
+| `SMS_PROVIDER` | No | `dev` (console log) or `africastalking`. Defaults to `dev`; `dev` is rejected in production. |
+| `AFRICASTALKING_USERNAME` | When using Africa's Talking | `sandbox` or the live Africa's Talking username. |
+| `AFRICASTALKING_API_KEY` | When using Africa's Talking | Africa's Talking API key. Never expose it to the frontend. |
+| `AFRICASTALKING_SENDER_ID` | No | Registered alphanumeric sender ID; leave empty for the shared shortcode. |
+| `EMAIL_PROVIDER` | No | `dev` (console log) or `brevo`. Defaults to `dev`; `dev` is rejected in production. |
+| `BREVO_API_KEY` | When using Brevo | Brevo transactional email API key. Never expose it to the frontend. |
+| `BREVO_SENDER_EMAIL` | When using Brevo | Sender address verified in the Brevo account. |
+| `BREVO_SENDER_NAME` | No | Sender display name. Defaults to `AgroConnect`. |
 | `TEST_DATABASE_URL` | Tests only | Isolated test database (database name or hostname must include `test`). |
 | `TEST_DB_SSL` | Tests only | `true` if the test database requires TLS. |
 | `TEST_DB_SSL_VERIFY` | Tests only | `false` to skip certificate verification for tests. |
@@ -218,8 +218,13 @@ Never commit `.env` files or real credentials.
 | `PAYSTACK_CURRENCY` | No | Default checkout currency. Defaults to `NGN`. |
 | `PAYSTACK_MODE` | No | `test` or `live`. Defaults to `live` in production, otherwise `test`. |
 | `PAYSTACK_REQUEST_TIMEOUT_MS` | No | Timeout for Paystack API requests. Defaults to `15000`. |
+| `NOTIFICATION_MAX_RETRIES` | No | Maximum email/SMS delivery attempts before a delivery is marked permanently failed. Defaults to `5`. |
+| `NOTIFICATION_RETRY_INTERVAL_SECONDS` | No | Base delay for exponential retry backoff. Defaults to `60`. |
+| `NOTIFICATION_WORKER_INTERVAL_SECONDS` | No | Interval for the in-process notification retry and reservation-warning sweep. Defaults to `30`. |
+| `NOTIFICATION_RESERVATION_WARNING_MINUTES` | No | How long before reservation expiry the buyer receives a warning. Defaults to `10`. |
+| `NOTIFICATION_PROVIDER_TIMEOUT_SECONDS` | No | Hard timeout for an individual email or SMS provider call. Defaults to `15`. |
 
-Phase 10 introduces no additional environment variables.
+Phase 10 introduces no additional environment variables. Phase 11 adds the notification settings above and reuses the existing provider credentials.
 
 ### Frontend
 
@@ -284,19 +289,19 @@ Phase 3 implements a complete token-based authentication system.
 
 The SMS provider is abstracted behind an interface. The configured provider is selected via `SMS_PROVIDER`:
 
-- `dev` (default): Logs OTPs to the server console. **Development only.**
-- Future: `africas-talking` and other providers can be added without changing auth logic.
+- `dev` (default): Logs OTPs and notifications to the server console. **Development only.**
+- `africastalking`: Delivers SMS through Africa's Talking. Set `AFRICASTALKING_USERNAME` (`sandbox` or live), `AFRICASTALKING_API_KEY` and optionally `AFRICASTALKING_SENDER_ID`.
 
-Real SMS delivery has not been tested. Configure `SMS_PROVIDER`, `SMS_API_KEY` and `SMS_SENDER_ID` for a real provider.
+Real SMS delivery has not been live-tested in this repository. Configure the Africa's Talking credentials to enable it.
 
 ### Email Provider
 
 The email provider is abstracted behind an interface. Configured via `EMAIL_PROVIDER`:
 
 - `dev` (default): Logs emails to the server console. **Development only.**
-- Future: `smtp` and transactional email services can be added.
+- `brevo`: Delivers transactional email through Brevo. Set `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and optionally `BREVO_SENDER_NAME`.
 
-Real email delivery has not been tested. Configure `EMAIL_PROVIDER` and SMTP settings for a real provider.
+Real email delivery has not been live-tested in this repository. Configure the Brevo credentials to enable it.
 
 ### Password Security
 
@@ -779,6 +784,78 @@ assigned transporter user rooms. The database remains the source of truth.
 Unrelated users receive `404` for delivery reads and history, and only
 participants can update statuses.
 
+### Phase 11 — Notifications
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/notifications` | Bearer | List the authenticated user's notifications with pagination, unread filter, type filter and unread count |
+| `GET` | `/api/notifications/:id` | Bearer (owner) | Read one notification |
+| `PATCH` | `/api/notifications/:id/read` | Bearer (owner) | Mark one notification as read |
+| `PATCH` | `/api/notifications/read-all` | Bearer | Mark all of the user's notifications as read |
+| `GET` | `/api/notifications/unread-count` | Bearer | Return the user's unread notification count |
+| `GET` | `/api/notifications/preferences` | Bearer | Read notification preferences, creating defaults on first access |
+| `PATCH` | `/api/notifications/preferences` | Bearer | Update one or more notification preferences |
+| `GET` | `/api/admin/notifications/deliveries` | Bearer (admin) | List notification delivery logs with status and channel filters |
+| `POST` | `/api/admin/notifications/deliveries/:id/retry` | Bearer (admin) | Reset and immediately retry a failed email/SMS delivery |
+
+**Persistence and channels.** Notifications are persisted in `notifications`
+before any realtime or external delivery is attempted. Each notification has a
+required `dedupe_key` unique constraint so duplicate business events, webhook
+retries and worker races cannot create duplicate inbox rows. Channel attempts
+are recorded in `notification_deliveries`, separately from the notification
+itself. `in_app` delivery is internal and created as `delivered`; email and SMS
+start as `pending` and are retried by the in-process worker. The `provider` and
+`provider_reference` fields preserve the selected provider and its response
+identifier without storing provider credentials.
+
+**Notification types.** Implemented types are `new_offer`,
+`offer_accepted`, `offer_rejected`, `counter_offer_received`,
+`offer_withdrawn`, `offer_expired`, `new_message`, `order_created`,
+`order_cancelled`, `payment_successful`, `payment_failed`,
+`reservation_expiring`, `reservation_expired`, `refund_confirmed`,
+`delivery_assigned`, `delivery_accepted`, `delivery_declined`,
+`delivery_picked_up`, `delivery_in_transit`, `delivery_delivered`,
+`delivery_completed`, `delivery_failed`, `delivery_cancelled`,
+`account_verified`, `system_announcement` and `marketing`.
+
+**Preferences.** Users control in-app, email, SMS, offers, messages, orders,
+payments, deliveries and marketing channels. Marketing is opt-in by default;
+other categories default to enabled, while SMS defaults to disabled. Essential
+account and payment/security notifications cannot be completely disabled: they
+remain available in-app even when in-app notifications are turned off. Disabled
+categories are not persisted or sent. Preferences are always scoped to the
+authenticated user; clients cannot set another user's preferences.
+
+**Event integration.** Workers subscribe to the existing in-process
+`offer.updated`, `message.created`, order/payment and delivery events, plus
+account verification. Messages are in-app only, avoiding email/SMS spam for
+chat. Expired offers publish `offer.expired`; reservation expiry emits an order
+expiration event; a notification-worker sweep sends `reservation_expiring`
+warnings before the configured reservation deadline. Notifications are
+dispatched after the business transaction has succeeded, so a notification or
+provider failure never rolls back an order, payment, delivery or account state.
+
+**Realtime delivery.** After a notification is committed, the API emits
+`notification:new` to the recipient's authenticated Socket.IO room
+(`user:<user_id>`). Offline users see the persisted notification through the
+REST inbox. Socket.IO remains a delivery accelerator; the database is the
+source of truth.
+
+**Retries and idempotency.** Email and SMS attempts use a provider timeout and
+record `attempts`, `last_attempt_at`, `next_attempt_at`, `failure_reason` and
+`provider_reference`. Failed attempts retry with exponential backoff
+(`NOTIFICATION_RETRY_INTERVAL_SECONDS * 2^(attempts - 1)`, capped at 24 hours)
+until `NOTIFICATION_MAX_RETRIES` is reached. Admins can reset and retry a failed
+delivery. In-app notifications are not retried. Dedupe keys make event dispatch
+and retries safe to repeat.
+
+**Providers and testing.** Brevo is used for email when
+`EMAIL_PROVIDER=brevo`; Africa's Talking is used for SMS when
+`SMS_PROVIDER=africastalking`. The existing `dev` adapters log content in
+development and are rejected in production. Automated tests mock both
+providers and make no real email or SMS calls. Real provider delivery has not
+been live-tested in this repository.
+
 ### Response format
 
 Success:
@@ -1174,6 +1251,42 @@ Immutable audit log — no `updated_at`.
 - Indexes on delivery/creation time, actor and action
 - `created_at`
 
+### Phase 11 tables
+
+#### `notifications`
+
+- UUID primary key
+- `user_id` foreign key to `users.id` (CASCADE delete)
+- `title`, `message`, `notification_type`
+- `channel` ENUM: `in_app` | `email` | `sms` (default `in_app`)
+- `related_entity_type`, `related_entity_id`, optional `action_url`
+- `is_read` (default false), nullable `read_at`
+- Unique nullable `dedupe_key` for idempotent dispatch
+- Indexes on user/creation time, user/read state and notification type
+- `created_at`, `updated_at`
+
+#### `notification_deliveries`
+
+- UUID primary key
+- `notification_id` foreign key to `notifications.id` (CASCADE delete)
+- `user_id` foreign key to `users.id` (CASCADE delete)
+- `channel` ENUM: `in_app` | `email` | `sms`
+- `provider`, nullable `provider_reference`
+- `delivery_status` ENUM: `pending` | `sent` | `delivered` | `failed` | `skipped`
+- `attempts` (default 0), nullable `last_attempt_at`, `next_attempt_at`, `delivered_at`
+- Nullable `failure_reason`
+- Unique index on notification/channel, retry index on status/next attempt, indexes on user and notification
+- `created_at`, `updated_at`
+
+#### `notification_preferences`
+
+- UUID primary key
+- `user_id` unique foreign key to `users.id` (CASCADE delete)
+- `in_app_enabled`, `email_enabled`, `sms_enabled`
+- `offers_enabled`, `messages_enabled`, `orders_enabled`, `payments_enabled`, `deliveries_enabled`
+- `marketing_enabled` (default false)
+- `created_at`, `updated_at`
+
 ## Migrations and Seeders
 
 Schema changes use migrations only. `sequelize.sync()` is not used.
@@ -1330,7 +1443,20 @@ The test suite covers:
 - Completion restricted to buyer/admin and no reopening of terminal deliveries
 - Delivery history, order/delivery status consistency and failed-delivery replacement
 
-The full backend suite currently contains **297 tests** across Phases 2–10.
+**Phase 11 (11 tests):**
+- Offer event persistence, ownership and realtime notification creation
+- Idempotent dispatch using unique dedupe keys
+- Category preferences, essential in-app notifications and marketing opt-in
+- Inbox listing, unread counts, read/read-all and cross-user access protection
+- Offer acceptance and order creation event notifications
+- Verified payment and delivery event notification mapping
+- Messaging notifications persisted in-app without email/SMS
+- SMS provider dispatch when enabled by preferences
+- Admin delivery listing, retry reset, retry success and authorization checks
+- Failed-delivery backoff prevents early retries
+- Socket.IO `notification:new` emission to the recipient's user room
+
+The full backend suite currently contains **308 tests** across Phases 2–11.
 
 
 ### Frontend tests
@@ -1469,28 +1595,31 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 
 ## Known Limitations
 
-- **SMS delivery:** The dev SMS adapter logs OTPs to the server console. Real SMS via Africa's Talking or another provider has not been configured or tested. Configure `SMS_PROVIDER`, `SMS_API_KEY` and `SMS_SENDER_ID` for real delivery.
-- **Email delivery:** The dev email adapter logs emails to the server console. Real SMTP delivery has not been configured or tested. Configure `EMAIL_PROVIDER` and SMTP settings for real delivery.
+- **SMS delivery:** The dev SMS adapter logs OTPs and notifications to the server console. An Africa's Talking adapter exists, but real SMS delivery has not been live-tested. Configure `SMS_PROVIDER=africastalking`, `AFRICASTALKING_USERNAME`, `AFRICASTALKING_API_KEY` and optionally `AFRICASTALKING_SENDER_ID`.
+- **Email delivery:** The dev email adapter logs emails to the server console. A Brevo adapter exists, but real email delivery has not been live-tested. Configure `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and optionally `BREVO_SENDER_NAME`.
 - **Render deployment:** `render.yaml` and deployment instructions are prepared but not live-tested.
 - **Aiven connectivity:** Verified against Aiven PostgreSQL 18.6. The backend uses DNS pre-resolution to work around IPv6 Happy Eyeballs timeout issues on this network.
-- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Phase 10 implements transporter management and delivery coordination.
-- **Messaging notifications:** Phase 7 persists messages and emits realtime events, but does not send email or SMS notifications for new messages. An in-process `message.created` event bus is ready for the future notifications phase.
+- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Phase 10 implements transporter management and delivery coordination. Phase 11 implements persistent notifications and delivery preferences.
+- **Messaging notifications:** Phase 11 persists in-app new-message notifications and emits `notification:new`, but intentionally suppresses email and SMS for chat messages to avoid spam.
 - **Account recovery / password reset:** Not implemented. Belongs to a future phase.
 - **File uploads:** Produce listing images support secure multipart uploads to a local development adapter. Profile image and cooperative logo uploads (`profile_image_url`, `logo_url`) are not implemented and still accept a manually supplied URL. Production object storage (for example S3-compatible storage) is not configured; Render's filesystem is ephemeral, so a durable storage adapter must be added before production use.
 - **Public listing discovery:** Phase 5 exposes produce categories/types publicly and published listing details by ID. Phase 6 adds authenticated marketplace discovery for listings and buyer requests. Full marketplace and buyer-request frontend screens are not yet implemented.
 - **Messaging frontend:** Phase 7 provides the REST API and Socket.IO backend only. Conversation, chat and unread-count frontend screens are not yet implemented.
 - **Offers frontend:** Phase 8 provides the REST API and realtime backend only. Offer creation, negotiation history and offer-management screens are not yet implemented.
 - **Offer inventory and fulfillment:** Accepting an offer still does not reserve inventory or create an order. The buyer must explicitly create a Phase 9 order from the accepted offer; order creation re-checks stock and atomically reserves it.
-- **Offer notifications:** Phase 8 emits in-process `offer.*` events and Socket.IO `offer:updated` events to participants. It does not send email/SMS or persist offer notifications in a notification center.
+- **Offer notifications:** Phase 11 consumes in-process `offer.*` events to persist in-app notifications and dispatch email/SMS according to user preferences. Offer expiration notifications are emitted by the expiry sweep.
 - **Agent-assisted offers:** Cooperative agents receive no implicit access to offers. Only the actual buyer and farmer participants can read or act on an offer in Phase 8.
 - **Payment provider:** Paystack is integrated through its HTTP API and documented webhook signatures, but no live Paystack credentials are configured in this repository and all provider calls are mocked in tests. End-to-end card/bank checkout against the live provider has not been tested.
 - **Payments frontend:** Phase 9 provides the backend API only. Hosted-checkout redirect, payment-status and refund screens are not yet implemented in the frontend.
 - **Refund operations:** Provider refunds can remain `pending`, `processing`, `failed` or `needs_attention`. Operators must reconcile those states; there is no admin refund dashboard or automatic retry queue.
 - **Reservation expiry job:** The reservation-expiry sweep is an in-process interval tied to the API server. Running multiple API instances would perform duplicate sweeps (idempotently) rather than coordinating through a distributed scheduler.
-- **Order notifications:** Phase 9 emits in-process order events and Socket.IO `order:updated` events to participants. It does not send email/SMS or persist order notifications in a notification center.
+- **Order notifications:** Phase 11 consumes in-process order/payment events to persist order, payment, refund and reservation notifications. Reservation-expiry warnings are emitted by the notification worker; reservation-expired notifications follow the expiry sweep.
 - **Transport and delivery tracking:** Phase 10 implements transporter profiles, coverage-based assignment, a controlled delivery lifecycle and event history. It does not implement GPS coordinates, live maps, route optimization, transporter payouts or commissions. Location history entries are free-text notes, not geospatial tracks.
 - **Delivery frontend:** Phase 10 provides the REST API and Socket.IO backend only. Transporter dashboards, delivery assignment screens and buyer delivery tracking screens are not yet implemented in the frontend.
-- **Delivery notifications:** Phase 10 emits Socket.IO `delivery:updated` events to authorized participants. It does not send email/SMS or persist delivery notifications in a notification center.
+- **Delivery notifications:** Phase 11 consumes delivery events to persist in-app notifications and dispatch email/SMS according to preferences. It does not implement GPS tracking, push notifications or carrier delivery receipts.
+- **Notification worker:** The retry and reservation-warning worker is an in-process interval tied to the API server. Multiple API instances would retry idempotently because of dedupe keys and delivery status checks, but a distributed scheduler is not configured.
+- **Notification frontend:** Phase 11 provides the REST API and Socket.IO backend only. Notification inbox, preferences and admin delivery screens are not yet implemented in the frontend.
+- **External delivery confirmation:** Email/SMS deliveries are marked `sent` when the provider accepts them. Provider-specific delivered/bounced receipts are not webhook-integrated.
 - **Agent-assisted farmer operations:** The `agent_activity_logs` table and `logAgentActivity` service are implemented. Dedicated agent-assisted profile update endpoints (where an agent edits a farmer's data on their behalf) are not yet implemented — that workflow belongs to a future phase.
 
 ## Coding Rules for AI Agents
