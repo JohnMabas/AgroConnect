@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "AgroConnect API",
-    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, and Phase 9 orders/payments.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund",
+    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, Phase 9 orders/payments, and Phase 10 transport and delivery.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n   - **Phase 10 — Transport & Delivery** — test transporter profiles, delivery requests, assignment, lifecycle and tracking history\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund\n- `transporter_profile_id` — set by Create transporter profile\n- `delivery_id` — set by Create delivery request",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -91,6 +91,21 @@
     {
       "key": "refund_id",
       "value": ""
+    },
+    {
+      "key": "transporter_profile_id",
+      "value": "",
+      "description": "Set automatically by Create transporter profile."
+    },
+    {
+      "key": "transporter_user_id",
+      "value": "",
+      "description": "User id of the transporter to assign to a delivery. Set manually."
+    },
+    {
+      "key": "delivery_id",
+      "value": "",
+      "description": "Set automatically by Create delivery request."
     }
   ],
   "item": [
@@ -2670,6 +2685,812 @@
               "script": {
                 "exec": [
                   "pm.test('Webhook handled', () => { pm.expect([200, 401]).to.include(pm.response.code); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 10 — Transport & Delivery",
+      "item": [
+        {
+          "name": "Create transporter profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "profile"
+              ]
+            },
+            "description": "Create the authenticated user's transporter profile. New profiles start pending/unavailable and are assigned the transporter role automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"business_name\": \"Jos Fresh Logistics\",\n  \"contact_phone\": \"+2348031234567\",\n  \"operating_location\": \"Jos, Plateau State\",\n  \"coverage_areas\": [\n    \"Jos South\",\n    \"Jos North\"\n  ],\n  \"vehicle_type\": \"Refrigerated truck\",\n  \"vehicle_registration_number\": \"PL-123-ABC\",\n  \"vehicle_capacity\": \"5 tonnes\",\n  \"produce_types\": [\n    \"maize\",\n    \"tomatoes\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create transporter profile OK', () => { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data.profile.id) { pm.collectionVariables.set('transporter_profile_id', body.data.profile.id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get my transporter profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "profile"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get my transporter profile OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update transporter profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "profile"
+              ]
+            },
+            "description": "Update the authenticated transporter profile. Availability can only be set to available after admin approval.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"availability_status\": \"available\",\n  \"vehicle_capacity\": \"8 tonnes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update transporter profile OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List available transporters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/available",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "available"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "location",
+                  "value": "Jos South"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List available transporters OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get transporter profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/{{transporter_profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "{{transporter_profile_id}}"
+              ]
+            },
+            "description": "Read a transporter profile. Pending profiles are visible only to their owner and administrators."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get transporter profile OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve transporter (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/{{transporter_profile_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "{{transporter_profile_id}}",
+                "approve"
+              ]
+            },
+            "description": "Administrator approves a pending transporter profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Approve transporter (admin) OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspend transporter (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/{{transporter_profile_id}}/suspend",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "{{transporter_profile_id}}",
+                "suspend"
+              ]
+            },
+            "description": "Administrator suspends a transporter profile and marks it unavailable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Compliance review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Suspend transporter (admin) OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivate transporter (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/{{transporter_profile_id}}/reactivate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "{{transporter_profile_id}}",
+                "reactivate"
+              ]
+            },
+            "description": "Administrator reactivates a suspended transporter profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reactivate transporter (admin) OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create delivery request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries"
+              ]
+            },
+            "description": "Create a delivery request for an eligible paid order. Only the buyer or farmer participant can create it. Quantity, unit, location, date and currency must match the order.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{order_id}}\",\n  \"pickup_location\": \"Bukuru Farm Gate, Jos South\",\n  \"delivery_location\": \"Bukuru, Jos South\",\n  \"produce_description\": \"Fresh maize in good condition\",\n  \"quantity\": 10,\n  \"unit\": \"kg\",\n  \"expected_pickup_date\": \"2026-11-10\",\n  \"expected_delivery_date\": \"2026-11-13\",\n  \"delivery_fee\": 1250.5,\n  \"currency\": \"NGN\",\n  \"additional_instructions\": \"Call the buyer on arrival.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create delivery request OK', () => { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data.delivery.id) { pm.collectionVariables.set('delivery_id', body.data.delivery.id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List deliveries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "sort",
+                  "value": "newest"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List deliveries OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get delivery",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries/{{delivery_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries",
+                "{{delivery_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get delivery OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assign transporter (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries/{{delivery_id}}/assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries",
+                "{{delivery_id}}",
+                "assign"
+              ]
+            },
+            "description": "Administrator assigns an approved, available transporter whose coverage includes the delivery location.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transporter_id\": \"{{transporter_user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Assign transporter (admin) OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reassign transporter (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries/{{delivery_id}}/reassign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries",
+                "{{delivery_id}}",
+                "reassign"
+              ]
+            },
+            "description": "Administrator reassigns an assigned or accepted delivery.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transporter_id\": \"{{transporter_user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reassign transporter (admin) OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept delivery (transporter)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries/{{delivery_id}}/accept",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries",
+                "{{delivery_id}}",
+                "accept"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Accept delivery (transporter) OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decline delivery (transporter)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries/{{delivery_id}}/decline",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries",
+                "{{delivery_id}}",
+                "decline"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Vehicle is in the workshop.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Decline delivery (transporter) OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update delivery status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries/{{delivery_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries",
+                "{{delivery_id}}",
+                "status"
+              ]
+            },
+            "description": "Advance the delivery lifecycle. Transporter: picked_up, in_transit, delivered, failed (with reason). Buyer/admin: completed, cancelled.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"picked_up\",\n  \"location\": \"Bukuru Farm Gate\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update delivery status OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get delivery history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deliveries/{{delivery_id}}/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deliveries",
+                "{{delivery_id}}",
+                "history"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get delivery history OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get order delivery",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/delivery",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "delivery"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get order delivery OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "My transporter deliveries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/transporters/my-deliveries",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transporters",
+                "my-deliveries"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('My transporter deliveries OK', () => { pm.response.to.have.status(200); });"
                 ],
                 "type": "text/javascript"
               }
