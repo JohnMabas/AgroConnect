@@ -25,6 +25,9 @@ import * as createOffers from "./20261107000001-create-offers.js";
 import * as createOrders from "./20261108000001-create-orders.js";
 import * as createInventoryReservations from "./20261108000002-create-inventory-reservations.js";
 import * as createPayments from "./20261108000003-create-payments.js";
+import * as createTransporterProfiles from "./20261109000001-create-transporter-profiles.js";
+import * as createDeliveries from "./20261109000002-create-deliveries.js";
+import * as createDeliveryHistory from "./20261109000003-create-delivery-history.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -110,5 +113,17 @@ export const migrations = [
   {
     name: "20261108000003-create-payments",
     ...createPayments,
+  },
+  {
+    name: "20261109000001-create-transporter-profiles",
+    ...createTransporterProfiles,
+  },
+  {
+    name: "20261109000002-create-deliveries",
+    ...createDeliveries,
+  },
+  {
+    name: "20261109000003-create-delivery-history",
+    ...createDeliveryHistory,
   },
 ];
