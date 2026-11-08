@@ -28,6 +28,9 @@ import * as createPayments from "./20261108000003-create-payments.js";
 import * as createTransporterProfiles from "./20261109000001-create-transporter-profiles.js";
 import * as createDeliveries from "./20261109000002-create-deliveries.js";
 import * as createDeliveryHistory from "./20261109000003-create-delivery-history.js";
+import * as createNotifications from "./20261110000001-create-notifications.js";
+import * as createNotificationDeliveries from "./20261110000002-create-notification-deliveries.js";
+import * as createNotificationPreferences from "./20261110000003-create-notification-preferences.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -125,5 +128,17 @@ export const migrations = [
   {
     name: "20261109000003-create-delivery-history",
     ...createDeliveryHistory,
+  },
+  {
+    name: "20261110000001-create-notifications",
+    ...createNotifications,
+  },
+  {
+    name: "20261110000002-create-notification-deliveries",
+    ...createNotificationDeliveries,
+  },
+  {
+    name: "20261110000003-create-notification-preferences",
+    ...createNotificationPreferences,
   },
 ];
