@@ -630,6 +630,74 @@ export async function updateOrderStatus(
   return buildOrderData(await loadOrderRow(id));
 }
 
+const DELIVERY_ORDER_SYNC_TRANSITIONS: Partial<
+  Record<OrderStatus, OrderStatus[]>
+> = {
+  processing: ["paid"],
+  ready_for_delivery: ["paid", "processing"],
+  in_transit: ["processing", "ready_for_delivery"],
+  delivered: ["in_transit"],
+  completed: ["delivered"],
+};
+
+/**
+ * Move an order forward to reflect a delivery lifecycle event. This only ever
+ * advances paid orders and never touches payment_status. It is a no-op when the
+ * order is missing, unpaid, already at/after the target, or in an unexpected
+ * status, so delivery flows cannot corrupt order/payment state.
+ */
+export async function syncOrderStatusForDelivery(
+  orderId: string,
+  targetStatus: OrderStatus,
+  actorUserId: string | null,
+  deliveryId: string,
+  transaction: Transaction,
+): Promise<boolean> {
+  const order = await Order.findByPk(orderId, {
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  if (!order) {
+    return false;
+  }
+
+  if (order.payment_status !== "paid") {
+    return false;
+  }
+
+  const currentStatus = (order.status ?? "pending_payment") as OrderStatus;
+  if (currentStatus === targetStatus) {
+    return false;
+  }
+
+  const allowedFrom = DELIVERY_ORDER_SYNC_TRANSITIONS[targetStatus] ?? [];
+  if (!allowedFrom.includes(currentStatus)) {
+    return false;
+  }
+
+  await order.update(
+    {
+      status: targetStatus,
+      ...(targetStatus === "completed"
+        ? { completed_at: new Date() }
+        : {}),
+    },
+    { transaction },
+  );
+
+  await recordOrderEvent(
+    order.id,
+    "delivery_status_synced",
+    actorUserId,
+    currentStatus,
+    targetStatus,
+    { delivery_id: deliveryId, delivery_target_status: targetStatus },
+    transaction,
+  );
+
+  return true;
+}
+
 export async function cancelOrder(
   userId: string,
   id: string,
