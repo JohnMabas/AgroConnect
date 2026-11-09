@@ -46,6 +46,7 @@ import {
   createAdminMarketRouter,
   createMarketRouter,
 } from "./modules/market/market.routes.js";
+import { createAdminAIRouter, createAIRouter } from "./modules/ai/ai.routes.js";
 import {
   createApiRouter,
   type ApiRouterDependencies,
@@ -63,6 +64,18 @@ export function createApp(
   const app = express();
 
   app.disable("x-powered-by");
+
+  // Baseline security headers without adding a heavyweight middleware dependency.
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    if (env.NODE_ENV === "production") {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
+    next();
+  });
 
   // CORS — allow the configured frontend origin to send credentials.
   app.use(
@@ -155,6 +168,11 @@ export function createApp(
   // Phase 13 feature routes
   app.use("/api/market", createMarketRouter());
   app.use("/api/admin/market", createAdminMarketRouter());
+
+  // Phase 14: information-only AI services. Business-changing operations stay
+  // on their established, separately authorised routes.
+  app.use("/api/ai", createAIRouter());
+  app.use("/api/admin/ai", createAdminAIRouter());
 
   // Health and other API routes
   app.use(
