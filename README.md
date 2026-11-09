@@ -4,7 +4,7 @@
 
 AgroConnect is a digital agricultural marketplace and supply-chain coordination platform for farmers, buyers, cooperatives, transporters and platform administrators. The initial pilot focuses on Plateau State, Nigeria, with a long-term vision of expanding to other regions and countries.
 
-The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds. **Phase 10** adds transporter profiles, delivery requests tied to paid orders, transporter assignment and coverage checks, a controlled delivery lifecycle with tracking history, and realtime delivery notifications. **Phase 11** adds a persistent notification centre with in-app, email and SMS delivery, user notification preferences, idempotent dispatch, delivery logs, exponential-backoff retries, admin retry controls, and realtime `notification:new` events.
+The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds. **Phase 10** adds transporter profiles, delivery requests tied to paid orders, transporter assignment and coverage checks, a controlled delivery lifecycle with tracking history, and realtime delivery notifications. **Phase 11** adds a persistent notification centre with in-app, email and SMS delivery, user notification preferences, idempotent dispatch, delivery logs, exponential-backoff retries, admin retry controls, and realtime `notification:new` events. **Phase 12** adds transaction-eligible ratings and reviews, review reporting and admin moderation, structured identity/business/transport/cooperative verification with private document storage, and public trust indicators.
 
 ## Technology Stack
 
@@ -55,7 +55,7 @@ AgroConnect/
 │   ├── src/
 │   │   ├── config/                 # Environment configuration
 │   │   ├── database/
-│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 11)
+│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 12)
 │   │   │   ├── models/             # Sequelize models
 │   │   │   ├── seeders/            # Idempotent development seeders (includes produce catalogue)
 │   │   │   ├── config.ts           # Connection and TLS configuration
@@ -66,6 +66,7 @@ AgroConnect/
 │   │   ├── integrations/
 │   │   │   ├── sms/                # SMS provider interface, dev and Africa's Talking adapters
 │   │   │   ├── email/              # Email provider interface, dev and Brevo adapters
+│   │   │   ├── storage/            # Public listing-image storage and private verification-document storage
 │   │   │   └── payments/           # Paystack API client and webhook signature verification
 │   │   ├── middleware/             # Error handling, auth middleware
 │   │   ├── modules/
@@ -84,6 +85,8 @@ AgroConnect/
 │   │   │   ├── payments/           # Paystack initialization, webhooks, verification and refunds
 │   │   │   ├── transporters/       # Transporter profiles, availability and admin approval
 │   │   │   ├── deliveries/         # Delivery requests, assignment, lifecycle and tracking history
+│   │   │   ├── reviews/            # Ratings, reviews, reports, summaries and admin moderation
+│   │   │   ├── verifications/      # Structured verification, private documents and trust profiles
 │   │   │   └── notifications/      # In-app/email/SMS notifications, preferences, retries and admin tools
 │   │   ├── realtime/               # Authenticated Socket.IO server and room registry
 │   │   ├── routes/                 # Health and other API routes
@@ -223,8 +226,15 @@ Never commit `.env` files or real credentials.
 | `NOTIFICATION_WORKER_INTERVAL_SECONDS` | No | Interval for the in-process notification retry and reservation-warning sweep. Defaults to `30`. |
 | `NOTIFICATION_RESERVATION_WARNING_MINUTES` | No | How long before reservation expiry the buyer receives a warning. Defaults to `10`. |
 | `NOTIFICATION_PROVIDER_TIMEOUT_SECONDS` | No | Hard timeout for an individual email or SMS provider call. Defaults to `15`. |
+| `REVIEW_EDIT_WINDOW_MINUTES` | No | Minutes a reviewer may edit their own review. Defaults to `1440` (24 h). |
+| `REVIEW_TITLE_MAX_LENGTH` | No | Maximum review title length. Defaults to `120`. |
+| `REVIEW_COMMENT_MAX_LENGTH` | No | Maximum review comment length. Defaults to `2000`. |
+| `REPORT_DESCRIPTION_MAX_LENGTH` | No | Maximum review-report and moderation description length. Defaults to `1000`. |
+| `VERIFICATION_DOCUMENT_STORAGE_PATH` | No | Private local directory for verification documents. Defaults to `private-uploads`. Never serve this directory publicly. |
+| `VERIFICATION_DOCUMENT_MAX_FILE_SIZE_BYTES` | No | Maximum verification document size. Defaults to `10485760` (10 MiB). |
+| `VERIFICATION_REQUEST_EXPIRY_DAYS` | No | Days before a pending verification request expires. Defaults to `30`. |
 
-Phase 10 introduces no additional environment variables. Phase 11 adds the notification settings above and reuses the existing provider credentials.
+Phase 10 introduces no additional environment variables. Phase 11 adds the notification settings above and reuses the existing provider credentials. Phase 12 adds review moderation limits and private verification-document settings.
 
 ### Frontend
 
@@ -816,10 +826,15 @@ identifier without storing provider credentials.
 `delivery_assigned`, `delivery_accepted`, `delivery_declined`,
 `delivery_picked_up`, `delivery_in_transit`, `delivery_delivered`,
 `delivery_completed`, `delivery_failed`, `delivery_cancelled`,
-`account_verified`, `system_announcement` and `marketing`.
+`new_review`, `review_reported`, `review_hidden`, `review_restored`,
+`review_report_resolved`, `review_report_dismissed`,
+`verification_submitted`, `verification_approved`,
+`verification_rejected`, `account_verified`, `system_announcement` and
+`marketing`.
 
 **Preferences.** Users control in-app, email, SMS, offers, messages, orders,
-payments, deliveries and marketing channels. Marketing is opt-in by default;
+payments, deliveries, reviews, verifications and marketing channels. Marketing
+is opt-in by default;
 other categories default to enabled, while SMS defaults to disabled. Essential
 account and payment/security notifications cannot be completely disabled: they
 remain available in-app even when in-app notifications are turned off. Disabled
@@ -855,6 +870,64 @@ and retries safe to repeat.
 development and are rejected in production. Automated tests mock both
 providers and make no real email or SMS calls. Real provider delivery has not
 been live-tested in this repository.
+
+### Phase 12 — Reviews, Moderation, Verification and Trust
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/reviews` | Bearer | Create an order review or a completed-delivery transporter review |
+| `GET` | `/api/reviews/my-reviews` | Bearer | List reviews written by the authenticated user |
+| `GET` | `/api/reviews/:id` | Optional Bearer | Read a visible review; hidden reviews are owner/admin only |
+| `PATCH` | `/api/reviews/:id` | Bearer (reviewer) | Edit a review within the configured edit window |
+| `POST` | `/api/reviews/:id/report` | Bearer | Report a review once using an approved reason |
+| `GET` | `/api/users/:userId/reviews` | Optional Bearer | List a user's visible reviews with rating filters and sorting |
+| `GET` | `/api/users/:userId/reviews/summary` | Optional Bearer | Read rating count, average and distribution |
+| `GET` | `/api/users/:userId/trust-profile` | Optional Bearer | Read public trust indicators, ratings and transaction counts |
+| `POST` | `/api/verifications` | Bearer | Submit one manual verification type for review |
+| `GET` | `/api/verifications/my-status` | Bearer | Read phone/email/manual verification indicators and requests |
+| `GET` | `/api/verifications/:id` | Bearer (owner/admin) | Read a verification request and its history |
+| `POST` | `/api/verifications/:id/documents` | Bearer (owner) | Upload a PDF/JPEG/PNG/WebP document to a pending request |
+| `DELETE` | `/api/verifications/:id/documents/:documentId` | Bearer (owner) | Delete a document from a pending request |
+| `GET` | `/api/verifications/:id/documents/:documentId/download` | Bearer (owner/admin) | Download a private document through an authorised endpoint |
+| `GET` | `/api/admin/reviews` | Bearer (admin) | List reviews with user, reviewer, order, hidden and rating filters |
+| `GET` | `/api/admin/reviews/:id` | Bearer (admin) | Read review detail with history and reports |
+| `POST` | `/api/admin/reviews/:id/hide` | Bearer (admin) | Hide a review with a required reason |
+| `POST` | `/api/admin/reviews/:id/restore` | Bearer (admin) | Restore a hidden review |
+| `GET` | `/api/admin/review-reports` | Bearer (admin) | List review reports with status, reason and participant filters |
+| `GET` | `/api/admin/review-reports/:id` | Bearer (admin) | Read one review report |
+| `PATCH` | `/api/admin/review-reports/:id/status` | Bearer (admin) | Move a report to `under_review`, `resolved` or `dismissed` |
+| `GET` | `/api/admin/verifications` | Bearer (admin) | List verification requests with status/type/user filters |
+| `GET` | `/api/admin/verifications/:id` | Bearer (admin) | Read a verification request and private document metadata |
+| `POST` | `/api/admin/verifications/:id/approve` | Bearer (admin) | Approve a pending request; at least one document is required |
+| `POST` | `/api/admin/verifications/:id/reject` | Bearer (admin) | Reject a pending request with a required reason |
+
+**Review eligibility and integrity.** Order reviews require a completed order,
+and transporter reviews require a completed delivery linked to that order. The
+reviewer must be the buyer or farmer participant, cannot review themselves, and
+cannot create duplicate reviews for the same order or delivery. Review titles
+and comments are plain-text sanitised before storage. Reviews may be edited only
+by their author and only within `REVIEW_EDIT_WINDOW_MINUTES`; every edit is
+appended to `review_history`.
+
+**Public summaries and moderation.** Public lists, rating summaries and trust
+profiles exclude hidden reviews. Owners and admins may still read a hidden
+review. Reports are unique per reporter/review, admins can update report status,
+and hiding a review requires a reason. Review and verification events reuse the
+Phase 11 notification system (`new_review`, `review_reported`, `review_hidden`,
+`review_restored`, `review_report_resolved`, `review_report_dismissed`,
+`verification_submitted`, `verification_approved`,
+`verification_rejected`).
+
+**Verification and document privacy.** Manual verification types are
+`farmer_identity`, `buyer_business`, `transporter` and `cooperative`; phone and
+email indicators are derived from existing OTP/email-token records rather than
+duplicated. Pending requests expire after
+`VERIFICATION_REQUEST_EXPIRY_DAYS`. Verification documents are magic-byte
+validated, stored outside the database under a private storage key, and served
+only through authenticated owner/admin download endpoints. Storage keys and
+original documents are never exposed in public user or trust responses.
+Approving a `farmer_identity` verification keeps the legacy farmer profile
+`verification_status` consistent with the structured verification record.
 
 ### Response format
 
@@ -1283,9 +1356,60 @@ Immutable audit log — no `updated_at`.
 - UUID primary key
 - `user_id` unique foreign key to `users.id` (CASCADE delete)
 - `in_app_enabled`, `email_enabled`, `sms_enabled`
-- `offers_enabled`, `messages_enabled`, `orders_enabled`, `payments_enabled`, `deliveries_enabled`
+- `offers_enabled`, `messages_enabled`, `orders_enabled`, `payments_enabled`, `deliveries_enabled`, `reviews_enabled`, `verifications_enabled`
 - `marketing_enabled` (default false)
 - `created_at`, `updated_at`
+
+### Phase 12 tables
+
+#### `reviews`
+
+- UUID primary key; `reviewer_id`, `reviewed_user_id`, `order_id`, optional `delivery_id`
+- `rating` (1–5), optional `review_title`, optional `review_comment`
+- `is_hidden`, `hidden_reason`, `hidden_by_user_id`, nullable `hidden_at`
+- Nullable `edited_at`; `created_at`, `updated_at`
+- Unique review constraint per reviewer/order and per reviewer/delivery
+- Check constraint prevents self-reviews; indexes support user, order, delivery, rating and moderation queries
+
+#### `review_reports`
+
+- UUID primary key; `review_id`, `reporter_id`
+- `reason` ENUM: `abusive_language` | `harassment` | `spam` | `false_misleading` | `personal_information` | `other`
+- Optional `description`
+- `status` ENUM: `pending` | `under_review` | `resolved` | `dismissed`
+- Nullable `reviewed_by`, `resolution_note`; unique reporter/review constraint
+- `created_at`, `updated_at`
+
+#### `review_history`
+
+- UUID primary key; `review_id`, optional `report_id`, optional `actor_user_id`
+- `action` ENUM: `created` | `edited` | `reported` | `report_status_changed` | `hidden` | `restored`
+- Optional previous/new rating, title, comment, note and JSONB metadata
+- `created_at`
+
+#### `verifications`
+
+- UUID primary key; `user_id`
+- `verification_type` ENUM: `phone` | `email` | `farmer_identity` | `buyer_business` | `transporter` | `cooperative`
+- `status` ENUM: `not_submitted` | `pending` | `approved` | `rejected` | `expired`
+- Nullable `submitted_at`, `reviewed_at`, `reviewed_by`, `rejection_reason`, `expiry_date`
+- Unique user/type constraint; status and reviewer indexes
+- `created_at`, `updated_at`
+
+#### `verification_documents`
+
+- UUID primary key; `verification_id`, `uploaded_by_user_id`
+- `document_type` ENUM: `identity_document` | `business_registration` | `transport_permit` | `cooperative_certificate` | `supporting_document`
+- `original_file_name`, private `storage_key`, `mime_type`, `file_size_bytes`, nullable `checksum_sha256`
+- Unique storage key; uploader and verification/created indexes
+- `created_at`, `updated_at`
+
+#### `verification_history`
+
+- UUID primary key; `verification_id`, optional `actor_user_id`
+- `action` ENUM: `submitted` | `approved` | `rejected` | `expired`
+- Optional previous status, required new status, optional reason and JSONB metadata
+- `created_at`
 
 ## Migrations and Seeders
 
@@ -1336,7 +1460,7 @@ The test suite covers:
 **Phase 2 (27 tests):**
 - Database configuration and TLS
 - Database connectivity
-- Migrations (apply, rollback, re-apply) — all 29 migrations
+- Migrations (apply, rollback, re-apply) — all 36 migrations
 - User/role/user_role models and constraints
 - Role seeder idempotency — all 6 roles
 - Health endpoint
@@ -1456,7 +1580,19 @@ The test suite covers:
 - Failed-delivery backoff prevents early retries
 - Socket.IO `notification:new` emission to the recipient's user room
 
-The full backend suite currently contains **308 tests** across Phases 2–11.
+**Phase 12 (9 tests):**
+- Order and transporter review eligibility, duplicate prevention and non-participant rejection
+- Rating summaries, comments count and `new_review` notifications
+- Plain-text sanitisation, edit-window enforcement, ownership and review audit history
+- Review reporting, duplicate/self-report rejection, admin report status transitions and notifications
+- Admin hide/restore, hidden-review visibility and hidden ratings excluded from public summaries
+- Manual verification submission, duplicate prevention, document magic-byte validation and upload
+- Owner/admin-only document download, private storage-key non-disclosure and document counts
+- Admin document requirement enforcement, rejection reasons and verification notifications
+- Approval, farmer profile consistency, trust indicators and notification preferences
+- OTP invalidation regression ensuring unused codes are deleted rather than marked verified
+
+The full backend suite currently contains **317 tests** across Phases 2–12.
 
 
 ### Frontend tests
@@ -1599,10 +1735,10 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Email delivery:** The dev email adapter logs emails to the server console. A Brevo adapter exists, but real email delivery has not been live-tested. Configure `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and optionally `BREVO_SENDER_NAME`.
 - **Render deployment:** `render.yaml` and deployment instructions are prepared but not live-tested.
 - **Aiven connectivity:** Verified against Aiven PostgreSQL 18.6. The backend uses DNS pre-resolution to work around IPv6 Happy Eyeballs timeout issues on this network.
-- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Phase 10 implements transporter management and delivery coordination. Phase 11 implements persistent notifications and delivery preferences.
+- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Phase 10 implements transporter management and delivery coordination. Phase 11 implements persistent notifications and delivery preferences. Phase 12 implements reviews, moderation, structured verification and trust indicators.
 - **Messaging notifications:** Phase 11 persists in-app new-message notifications and emits `notification:new`, but intentionally suppresses email and SMS for chat messages to avoid spam.
 - **Account recovery / password reset:** Not implemented. Belongs to a future phase.
-- **File uploads:** Produce listing images support secure multipart uploads to a local development adapter. Profile image and cooperative logo uploads (`profile_image_url`, `logo_url`) are not implemented and still accept a manually supplied URL. Production object storage (for example S3-compatible storage) is not configured; Render's filesystem is ephemeral, so a durable storage adapter must be added before production use.
+- **File uploads:** Produce listing images support secure multipart uploads to a local development adapter. Verification documents use a separate private local adapter and are never served as static files. Profile image and cooperative logo uploads (`profile_image_url`, `logo_url`) are not implemented and still accept a manually supplied URL. Production object storage (for example S3-compatible storage) is not configured; Render's filesystem is ephemeral, so a durable storage adapter must be added before production use.
 - **Public listing discovery:** Phase 5 exposes produce categories/types publicly and published listing details by ID. Phase 6 adds authenticated marketplace discovery for listings and buyer requests. Full marketplace and buyer-request frontend screens are not yet implemented.
 - **Messaging frontend:** Phase 7 provides the REST API and Socket.IO backend only. Conversation, chat and unread-count frontend screens are not yet implemented.
 - **Offers frontend:** Phase 8 provides the REST API and realtime backend only. Offer creation, negotiation history and offer-management screens are not yet implemented.
@@ -1619,6 +1755,10 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Delivery notifications:** Phase 11 consumes delivery events to persist in-app notifications and dispatch email/SMS according to preferences. It does not implement GPS tracking, push notifications or carrier delivery receipts.
 - **Notification worker:** The retry and reservation-warning worker is an in-process interval tied to the API server. Multiple API instances would retry idempotently because of dedupe keys and delivery status checks, but a distributed scheduler is not configured.
 - **Notification frontend:** Phase 11 provides the REST API and Socket.IO backend only. Notification inbox, preferences and admin delivery screens are not yet implemented in the frontend.
+- **Reviews and trust frontend:** Phase 12 provides the REST API only. Review submission/listing, report moderation, verification upload and trust-profile screens are not yet implemented in the frontend.
+- **Verification review operations:** Manual verification is admin-reviewed through the API. There is no document-processing, OCR, automated identity-check or external KYC provider integration.
+- **Private document durability:** Verification documents are stored on the local filesystem under `VERIFICATION_DOCUMENT_STORAGE_PATH`. Render's filesystem is ephemeral, so a durable private object-storage adapter is required before production use.
+- **Trust indicators:** Trust profiles expose counts and approved verification indicators only. They do not calculate an arbitrary composite trust score and do not expose identity-document contents, storage keys or private file paths.
 - **External delivery confirmation:** Email/SMS deliveries are marked `sent` when the provider accepts them. Provider-specific delivered/bounced receipts are not webhook-integrated.
 - **Agent-assisted farmer operations:** The `agent_activity_logs` table and `logAgentActivity` service are implemented. Dedicated agent-assisted profile update endpoints (where an agent edits a farmer's data on their behalf) are not yet implemented — that workflow belongs to a future phase.
 
