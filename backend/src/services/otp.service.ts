@@ -50,11 +50,11 @@ export async function issuePhoneOtp(userId: string): Promise<void> {
     );
   }
 
-  // Invalidate any previously unused OTPs for this user.
-  await PhoneOtp.update(
-    { used: true },
-    { where: { user_id: userId, used: false } },
-  );
+  // Invalidate any previously unused OTPs for this user. Delete rather than
+  // mark them used: only a successfully consumed OTP may have used = true.
+  await PhoneOtp.destroy({
+    where: { user_id: userId, used: false },
+  });
 
   // Generate and store the new OTP.
   const rawOtp = generateRawOtp();
@@ -103,11 +103,11 @@ export async function issueAndSendPhoneOtp(
     );
   }
 
-  // Invalidate prior unused OTPs.
-  await PhoneOtp.update(
-    { used: true },
-    { where: { user_id: userId, used: false } },
-  );
+  // Invalidate prior unused OTPs. Only successfully consumed OTPs may have
+  // used = true, so invalidated records are deleted.
+  await PhoneOtp.destroy({
+    where: { user_id: userId, used: false },
+  });
 
   const rawOtp = generateRawOtp();
   const otpHash = hashOtp(rawOtp);

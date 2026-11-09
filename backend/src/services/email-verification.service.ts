@@ -50,11 +50,11 @@ export async function issueEmailVerificationToken(
     );
   }
 
-  // Invalidate prior unused tokens.
-  await EmailVerificationToken.update(
-    { used: true },
-    { where: { user_id: userId, used: false } },
-  );
+  // Invalidate prior unused tokens. Only successfully consumed tokens may
+  // have used = true, so invalidated records are deleted.
+  await EmailVerificationToken.destroy({
+    where: { user_id: userId, used: false },
+  });
 
   const rawToken = generateRawToken();
   const tokenHash = hashEmailToken(rawToken);
