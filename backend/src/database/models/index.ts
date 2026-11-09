@@ -1,4 +1,9 @@
 import { AgentActivityLog } from "./agent-activity-log.model.js";
+import { AgriculturalKnowledge } from "./agricultural-knowledge.model.js";
+import { AIConfiguration } from "./ai-configuration.model.js";
+import { AIConversation } from "./ai-conversation.model.js";
+import { AIConversationMessage } from "./ai-conversation-message.model.js";
+import { AIUsageLog } from "./ai-usage-log.model.js";
 import { BuyerRequest } from "./buyer-request.model.js";
 import { Conversation } from "./conversation.model.js";
 import { ConversationParticipant } from "./conversation-participant.model.js";
@@ -9,6 +14,8 @@ import { Delivery } from "./delivery.model.js";
 import { DeliveryHistory } from "./delivery-history.model.js";
 import { EmailVerificationToken } from "./email-verification-token.model.js";
 import { FarmerProfile } from "./farmer-profile.model.js";
+import { IntegrityAssessment } from "./integrity-assessment.model.js";
+import { IntegrityReviewHistory } from "./integrity-review-history.model.js";
 import { InventoryAdjustment } from "./inventory-adjustment.model.js";
 import { InventoryReservation } from "./inventory-reservation.model.js";
 import { MarketInsight } from "./market-insight.model.js";
@@ -34,6 +41,7 @@ import { ProduceCategory } from "./produce-category.model.js";
 import { ProduceListing } from "./produce-listing.model.js";
 import { ProduceListingImage } from "./produce-listing-image.model.js";
 import { ProduceType } from "./produce-type.model.js";
+import { Recommendation } from "./recommendation.model.js";
 import { RefreshToken } from "./refresh-token.model.js";
 import { Role } from "./role.model.js";
 import { TransporterProfile } from "./transporter-profile.model.js";
@@ -943,8 +951,116 @@ ProduceCategory.hasMany(MarketInsight, {
   as: "market_insights",
 });
 
+// Phase 14 associations
+AIConfiguration.belongsTo(User, {
+  foreignKey: "updated_by_user_id",
+  as: "updated_by",
+});
+
+AgriculturalKnowledge.belongsTo(User, {
+  foreignKey: "created_by_user_id",
+  as: "created_by",
+});
+
+AgriculturalKnowledge.belongsTo(User, {
+  foreignKey: "approved_by_user_id",
+  as: "approved_by",
+});
+
+User.hasMany(AgriculturalKnowledge, {
+  foreignKey: "created_by_user_id",
+  as: "created_knowledge",
+  onDelete: "CASCADE",
+});
+
+AIConversation.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(AIConversation, {
+  foreignKey: "user_id",
+  as: "ai_conversations",
+  onDelete: "CASCADE",
+});
+
+AIConversation.hasMany(AIConversationMessage, {
+  foreignKey: "conversation_id",
+  as: "messages",
+  onDelete: "CASCADE",
+});
+
+AIConversationMessage.belongsTo(AIConversation, {
+  foreignKey: "conversation_id",
+  as: "conversation",
+});
+
+Recommendation.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(Recommendation, {
+  foreignKey: "user_id",
+  as: "recommendations",
+  onDelete: "CASCADE",
+});
+
+IntegrityAssessment.belongsTo(User, {
+  foreignKey: "subject_user_id",
+  as: "subject_user",
+});
+
+IntegrityAssessment.belongsTo(User, {
+  foreignKey: "assigned_admin_user_id",
+  as: "assigned_admin",
+});
+
+IntegrityAssessment.belongsTo(User, {
+  foreignKey: "reviewed_by_user_id",
+  as: "reviewed_by",
+});
+
+User.hasMany(IntegrityAssessment, {
+  foreignKey: "subject_user_id",
+  as: "integrity_assessments",
+  onDelete: "CASCADE",
+});
+
+IntegrityAssessment.hasMany(IntegrityReviewHistory, {
+  foreignKey: "assessment_id",
+  as: "review_history",
+  onDelete: "CASCADE",
+});
+
+IntegrityReviewHistory.belongsTo(IntegrityAssessment, {
+  foreignKey: "assessment_id",
+  as: "assessment",
+});
+
+IntegrityReviewHistory.belongsTo(User, {
+  foreignKey: "admin_user_id",
+  as: "admin_user",
+});
+
+AIUsageLog.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(AIUsageLog, {
+  foreignKey: "user_id",
+  as: "ai_usage_logs",
+  onDelete: "CASCADE",
+});
+
 export {
   AgentActivityLog,
+  AgriculturalKnowledge,
+  AIConfiguration,
+  AIConversation,
+  AIConversationMessage,
+  AIUsageLog,
   BuyerRequest,
   Conversation,
   ConversationParticipant,
@@ -955,6 +1071,8 @@ export {
   DeliveryHistory,
   EmailVerificationToken,
   FarmerProfile,
+  IntegrityAssessment,
+  IntegrityReviewHistory,
   InventoryAdjustment,
   InventoryReservation,
   MarketInsight,
@@ -980,6 +1098,7 @@ export {
   ProduceListing,
   ProduceListingImage,
   ProduceType,
+  Recommendation,
   RefreshToken,
   Role,
   TransporterProfile,

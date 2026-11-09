@@ -35,6 +35,7 @@ import * as createReviews from "./20261112000001-create-reviews.js";
 import * as createVerifications from "./20261112000002-create-verifications.js";
 import * as addPhase12NotificationPreferences from "./20261112000003-add-phase12-notification-preferences.js";
 import * as createMarketIntelligence from "./20261113000001-create-market-intelligence.js";
+import * as createAiIntegrityRecommendations from "./20261114000001-create-ai-integrity-recommendations.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -160,5 +161,9 @@ export const migrations = [
   {
     name: "20261113000001-create-market-intelligence",
     ...createMarketIntelligence,
+  },
+  {
+    name: "20261114000001-create-ai-integrity-recommendations",
+    ...createAiIntegrityRecommendations,
   },
 ];
