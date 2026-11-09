@@ -43,6 +43,10 @@ import {
   createVerificationsRouter,
 } from "./modules/verifications/verifications.routes.js";
 import {
+  createAdminMarketRouter,
+  createMarketRouter,
+} from "./modules/market/market.routes.js";
+import {
   createApiRouter,
   type ApiRouterDependencies,
 } from "./routes/index.js";
@@ -147,6 +151,10 @@ export function createApp(
   app.use("/api/admin/reviews", createAdminReviewsRouter());
   app.use("/api/admin/review-reports", createAdminReviewReportsRouter());
   app.use("/api/admin/verifications", createAdminVerificationsRouter());
+
+  // Phase 13 feature routes
+  app.use("/api/market", createMarketRouter());
+  app.use("/api/admin/market", createAdminMarketRouter());
 
   // Health and other API routes
   app.use(
