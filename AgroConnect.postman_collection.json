@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "AgroConnect API",
-    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, Phase 9 orders/payments, Phase 10 transport and delivery, and Phase 11 notifications.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n   - **Phase 10 — Transport & Delivery** — test transporter profiles, delivery requests, assignment, lifecycle and tracking history\n   - **Phase 11 — Notifications** — test the inbox, preferences, unread counts, admin delivery logs and retries\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund\n- `transporter_profile_id` — set by Create transporter profile\n- `delivery_id` — set by Create delivery request\n- `notification_id` — set by List notifications\n- `notification_delivery_id` — set by List admin notification deliveries\n- `admin_access_token` — set manually from an admin account",
+    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, Phase 9 orders/payments, Phase 10 transport and delivery, Phase 11 notifications, and Phase 12 reviews/verification/trust.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n   - **Phase 10 — Transport & Delivery** — test transporter profiles, delivery requests, assignment, lifecycle and tracking history\n   - **Phase 11 — Notifications** — test the inbox, preferences, unread counts, admin delivery logs and retries\n   - **Phase 12 — Reviews, Moderation, Verification & Trust** — test reviews, report moderation, structured verification, private document access and trust profiles\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund\n- `transporter_profile_id` — set by Create transporter profile\n- `delivery_id` — set by Create delivery request\n- `notification_id` — set by List notifications\n- `notification_delivery_id` — set by List admin notification deliveries\n- `admin_access_token` — set manually from an admin account",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -118,9 +118,29 @@
       "description": "Set automatically by List admin notification deliveries."
     },
     {
+      "key": "review_id",
+      "value": "",
+      "description": "Set automatically by Create review."
+    },
+    {
+      "key": "review_report_id",
+      "value": "",
+      "description": "Set automatically by Report review."
+    },
+    {
+      "key": "verification_id",
+      "value": "",
+      "description": "Set automatically by Submit verification."
+    },
+    {
+      "key": "verification_document_id",
+      "value": "",
+      "description": "Set automatically by Upload verification document."
+    },
+    {
       "key": "admin_access_token",
       "value": "",
-      "description": "Access token for an administrator account. Used by notification admin requests."
+      "description": "Access token for an administrator account. Used by review, verification and notification admin requests."
     }
   ],
   "item": [
@@ -3833,6 +3853,869 @@
               "script": {
                 "exec": [
                   "pm.test('Admin retry notification delivery OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 12 \u2014 Reviews, Moderation, Verification & Trust",
+      "description": "Ratings and reviews, review reports and admin moderation, structured verification with private document upload/download, notifications and public trust profiles.",
+      "item": [
+        {
+          "name": "Create review (order)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reviews"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{order_id}}\",\n  \"rating\": 5,\n  \"review_title\": \"Excellent produce\",\n  \"review_comment\": \"The order arrived in good condition.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create review OK', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('review_id', body.data.review.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create transporter review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reviews"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{order_id}}\",\n  \"delivery_id\": \"{{delivery_id}}\",\n  \"rating\": 4,\n  \"review_comment\": \"Delivery was careful and on time.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create transporter review OK', () => { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my reviews",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reviews/my-reviews?page=1&limit=20&sort=newest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reviews",
+                "my-reviews"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List my reviews OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reviews",
+                "{{review_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get review OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update review (within window)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reviews",
+                "{{review_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"review_title\": \"Updated review title\",\n  \"review_comment\": \"Updating my review within the edit window.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update review OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Report review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}/report",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reviews",
+                "{{review_id}}",
+                "report"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"spam\",\n  \"description\": \"This review looks promotional.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Report review OK', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('review_report_id', body.data.report.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List user reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{participant_user_id}}/reviews?page=1&limit=20&sort=newest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "{{participant_user_id}}",
+                "reviews"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List user reviews OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get user review summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{participant_user_id}}/reviews/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "{{participant_user_id}}",
+                "reviews",
+                "summary"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get user review summary OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get user trust profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{participant_user_id}}/trust-profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "{{participant_user_id}}",
+                "trust-profile"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get user trust profile OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/verifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "verifications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_type\": \"farmer_identity\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Submit verification OK', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('verification_id', body.data.verification.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get my verification status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/verifications/my-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "verifications",
+                "my-status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get my verification status OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload verification document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/verifications/{{verification_id}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "verifications",
+                "{{verification_id}}",
+                "documents"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document_type",
+                  "value": "identity_document",
+                  "type": "text"
+                },
+                {
+                  "key": "document",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Upload verification document OK', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('verification_document_id', body.data.document.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download verification document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/verifications/{{verification_id}}/documents/{{verification_document_id}}/download",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "verifications",
+                "{{verification_id}}",
+                "documents",
+                "{{verification_document_id}}",
+                "download"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Download verification document OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete verification document",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/verifications/{{verification_id}}/documents/{{verification_document_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "verifications",
+                "{{verification_id}}",
+                "documents",
+                "{{verification_document_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Delete verification document OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin list reviews",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/reviews?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "reviews"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin list reviews OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin get review",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/reviews/{{review_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "reviews",
+                "{{review_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin get review OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin hide review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/reviews/{{review_id}}/hide",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "reviews",
+                "{{review_id}}",
+                "hide"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Promotional content.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin hide review OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin restore review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/reviews/{{review_id}}/restore",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "reviews",
+                "{{review_id}}",
+                "restore"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin restore review OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin list review reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/review-reports?page=1&limit=20&status=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "review-reports"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin list review reports OK', () => { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "if (body.data.reports.length > 0) { pm.collectionVariables.set('review_report_id', body.data.reports[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin update review report status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/review-reports/{{review_report_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "review-reports",
+                "{{review_report_id}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"resolved\",\n  \"resolution_note\": \"Reviewed and actioned.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin update report status OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin list verifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/verifications?page=1&limit=20&status=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "verifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin list verifications OK', () => { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "if (body.data.verifications.length > 0) { pm.collectionVariables.set('verification_id', body.data.verifications[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin approve verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/verifications/{{verification_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "verifications",
+                "{{verification_id}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Identity document verified.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin approve verification OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin reject verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/verifications/{{verification_id}}/reject",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "verifications",
+                "{{verification_id}}",
+                "reject"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"The uploaded document is incomplete or unreadable.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin reject verification OK', () => { pm.response.to.have.status(200); });"
                 ],
                 "type": "text/javascript"
               }
