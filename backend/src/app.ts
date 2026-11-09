@@ -33,6 +33,16 @@ import {
   createPaystackWebhookRouter,
 } from "./modules/payments/payments.routes.js";
 import {
+  createAdminReviewReportsRouter,
+  createAdminReviewsRouter,
+  createReviewsRouter,
+  createUsersRouter,
+} from "./modules/reviews/reviews.routes.js";
+import {
+  createAdminVerificationsRouter,
+  createVerificationsRouter,
+} from "./modules/verifications/verifications.routes.js";
+import {
   createApiRouter,
   type ApiRouterDependencies,
 } from "./routes/index.js";
@@ -129,6 +139,14 @@ export function createApp(
   // Phase 11 feature routes
   app.use("/api/notifications", createNotificationsRouter());
   app.use("/api/admin/notifications", createAdminNotificationsRouter());
+
+  // Phase 12 feature routes
+  app.use("/api/reviews", createReviewsRouter());
+  app.use("/api/users", createUsersRouter());
+  app.use("/api/verifications", createVerificationsRouter());
+  app.use("/api/admin/reviews", createAdminReviewsRouter());
+  app.use("/api/admin/review-reports", createAdminReviewReportsRouter());
+  app.use("/api/admin/verifications", createAdminVerificationsRouter());
 
   // Health and other API routes
   app.use(
