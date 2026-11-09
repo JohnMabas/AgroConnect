@@ -23,6 +23,9 @@ import { OrderItem } from "./order-item.model.js";
 import { Payment } from "./payment.model.js";
 import { PaymentWebhookEvent } from "./payment-webhook-event.model.js";
 import { Refund } from "./refund.model.js";
+import { Review } from "./review.model.js";
+import { ReviewHistory } from "./review-history.model.js";
+import { ReviewReport } from "./review-report.model.js";
 import { PhoneOtp } from "./phone-otp.model.js";
 import { ProduceCategory } from "./produce-category.model.js";
 import { ProduceListing } from "./produce-listing.model.js";
@@ -35,6 +38,9 @@ import { UserPassword } from "./user-password.model.js";
 import { UserProfile } from "./user-profile.model.js";
 import { UserRole } from "./user-role.model.js";
 import { User } from "./user.model.js";
+import { Verification } from "./verification.model.js";
+import { VerificationDocument } from "./verification-document.model.js";
+import { VerificationHistory } from "./verification-history.model.js";
 
 // Phase 2 associations
 User.belongsToMany(Role, {
@@ -706,6 +712,132 @@ NotificationPreference.belongsTo(User, {
   as: "user",
 });
 
+// Phase 12 associations
+Review.belongsTo(User, {
+  foreignKey: "reviewer_id",
+  as: "reviewer",
+});
+
+Review.belongsTo(User, {
+  foreignKey: "reviewed_user_id",
+  as: "reviewed_user",
+});
+
+User.hasMany(Review, {
+  foreignKey: "reviewer_id",
+  as: "given_reviews",
+});
+
+User.hasMany(Review, {
+  foreignKey: "reviewed_user_id",
+  as: "received_reviews",
+});
+
+Review.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+Review.belongsTo(Delivery, {
+  foreignKey: "delivery_id",
+  as: "delivery",
+});
+
+Review.belongsTo(User, {
+  foreignKey: "hidden_by_user_id",
+  as: "hidden_by",
+});
+
+Review.hasMany(ReviewReport, {
+  foreignKey: "review_id",
+  as: "reports",
+  onDelete: "CASCADE",
+});
+
+ReviewReport.belongsTo(Review, {
+  foreignKey: "review_id",
+  as: "review",
+});
+
+ReviewReport.belongsTo(User, {
+  foreignKey: "reporter_id",
+  as: "reporter",
+});
+
+ReviewReport.belongsTo(User, {
+  foreignKey: "reviewed_by",
+  as: "reviewed_by_user",
+});
+
+Review.hasMany(ReviewHistory, {
+  foreignKey: "review_id",
+  as: "history",
+  onDelete: "CASCADE",
+});
+
+ReviewHistory.belongsTo(Review, {
+  foreignKey: "review_id",
+  as: "review",
+});
+
+ReviewHistory.belongsTo(ReviewReport, {
+  foreignKey: "report_id",
+  as: "report",
+});
+
+ReviewHistory.belongsTo(User, {
+  foreignKey: "actor_user_id",
+  as: "actor",
+});
+
+Verification.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(Verification, {
+  foreignKey: "user_id",
+  as: "verifications",
+  onDelete: "CASCADE",
+});
+
+Verification.belongsTo(User, {
+  foreignKey: "reviewed_by",
+  as: "reviewed_by_user",
+});
+
+Verification.hasMany(VerificationDocument, {
+  foreignKey: "verification_id",
+  as: "documents",
+  onDelete: "CASCADE",
+});
+
+VerificationDocument.belongsTo(Verification, {
+  foreignKey: "verification_id",
+  as: "verification",
+});
+
+VerificationDocument.belongsTo(User, {
+  foreignKey: "uploaded_by_user_id",
+  as: "uploaded_by",
+});
+
+Verification.hasMany(VerificationHistory, {
+  foreignKey: "verification_id",
+  as: "history",
+  onDelete: "CASCADE",
+});
+
+VerificationHistory.belongsTo(Verification, {
+  foreignKey: "verification_id",
+  as: "verification",
+});
+
+VerificationHistory.belongsTo(User, {
+  foreignKey: "actor_user_id",
+  as: "actor",
+});
+
 export {
   AgentActivityLog,
   BuyerRequest,
@@ -732,6 +864,9 @@ export {
   Payment,
   PaymentWebhookEvent,
   Refund,
+  Review,
+  ReviewHistory,
+  ReviewReport,
   PhoneOtp,
   ProduceCategory,
   ProduceListing,
@@ -744,5 +879,8 @@ export {
   UserPassword,
   UserProfile,
   UserRole,
+  Verification,
+  VerificationDocument,
+  VerificationHistory,
 };
 export { sequelize } from "../sequelize.js";

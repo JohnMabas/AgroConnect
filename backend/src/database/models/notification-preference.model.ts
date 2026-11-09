@@ -21,6 +21,8 @@ export class NotificationPreference extends Model<
   declare orders_enabled: CreationOptional<boolean>;
   declare payments_enabled: CreationOptional<boolean>;
   declare deliveries_enabled: CreationOptional<boolean>;
+  declare reviews_enabled: CreationOptional<boolean>;
+  declare verifications_enabled: CreationOptional<boolean>;
   declare marketing_enabled: CreationOptional<boolean>;
   declare created_at: CreationOptional<Date>;
   declare updated_at: CreationOptional<Date>;
@@ -74,6 +76,16 @@ NotificationPreference.init(
       defaultValue: true,
     },
     deliveries_enabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    reviews_enabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    verifications_enabled: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,

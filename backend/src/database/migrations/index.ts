@@ -31,6 +31,9 @@ import * as createDeliveryHistory from "./20261109000003-create-delivery-history
 import * as createNotifications from "./20261110000001-create-notifications.js";
 import * as createNotificationDeliveries from "./20261110000002-create-notification-deliveries.js";
 import * as createNotificationPreferences from "./20261110000003-create-notification-preferences.js";
+import * as createReviews from "./20261112000001-create-reviews.js";
+import * as createVerifications from "./20261112000002-create-verifications.js";
+import * as addPhase12NotificationPreferences from "./20261112000003-add-phase12-notification-preferences.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -140,5 +143,17 @@ export const migrations = [
   {
     name: "20261110000003-create-notification-preferences",
     ...createNotificationPreferences,
+  },
+  {
+    name: "20261112000001-create-reviews",
+    ...createReviews,
+  },
+  {
+    name: "20261112000002-create-verifications",
+    ...createVerifications,
+  },
+  {
+    name: "20261112000003-add-phase12-notification-preferences",
+    ...addPhase12NotificationPreferences,
   },
 ];
