@@ -42,6 +42,8 @@ if (testHostname) {
     const ipv4 = addresses[0];
     if (ipv4 !== undefined && ipv4 !== testHostname) {
       const resolved = new URL(testDatabaseUrl);
+      resolved.searchParams.delete("sslmode");
+      resolved.searchParams.delete("sslrootcert");
       process.env.DB_SSL_SERVERNAME = testHostname;
       resolved.hostname = ipv4;
       process.env.DATABASE_URL = resolved.toString();
