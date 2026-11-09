@@ -34,6 +34,7 @@ import * as createNotificationPreferences from "./20261110000003-create-notifica
 import * as createReviews from "./20261112000001-create-reviews.js";
 import * as createVerifications from "./20261112000002-create-verifications.js";
 import * as addPhase12NotificationPreferences from "./20261112000003-add-phase12-notification-preferences.js";
+import * as createMarketIntelligence from "./20261113000001-create-market-intelligence.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -155,5 +156,9 @@ export const migrations = [
   {
     name: "20261112000003-add-phase12-notification-preferences",
     ...addPhase12NotificationPreferences,
+  },
+  {
+    name: "20261113000001-create-market-intelligence",
+    ...createMarketIntelligence,
   },
 ];

@@ -11,6 +11,9 @@ import { EmailVerificationToken } from "./email-verification-token.model.js";
 import { FarmerProfile } from "./farmer-profile.model.js";
 import { InventoryAdjustment } from "./inventory-adjustment.model.js";
 import { InventoryReservation } from "./inventory-reservation.model.js";
+import { MarketInsight } from "./market-insight.model.js";
+import { MarketObservation } from "./market-observation.model.js";
+import { MarketPrice } from "./market-price.model.js";
 import { Message } from "./message.model.js";
 import { Notification } from "./notification.model.js";
 import { NotificationDelivery } from "./notification-delivery.model.js";
@@ -838,6 +841,108 @@ VerificationHistory.belongsTo(User, {
   as: "actor",
 });
 
+// Phase 13 associations
+MarketObservation.belongsTo(User, {
+  foreignKey: "submitted_by_user_id",
+  as: "submitted_by",
+});
+
+User.hasMany(MarketObservation, {
+  foreignKey: "submitted_by_user_id",
+  as: "market_observations",
+  onDelete: "CASCADE",
+});
+
+MarketObservation.belongsTo(User, {
+  foreignKey: "reviewed_by_user_id",
+  as: "reviewed_by",
+});
+
+MarketObservation.belongsTo(CooperativeProfile, {
+  foreignKey: "cooperative_id",
+  as: "cooperative",
+});
+
+CooperativeProfile.hasMany(MarketObservation, {
+  foreignKey: "cooperative_id",
+  as: "market_observations",
+});
+
+MarketObservation.belongsTo(ProduceType, {
+  foreignKey: "produce_type_id",
+  as: "produce_type",
+});
+
+ProduceType.hasMany(MarketObservation, {
+  foreignKey: "produce_type_id",
+  as: "market_observations",
+});
+
+MarketObservation.belongsTo(ProduceCategory, {
+  foreignKey: "produce_category_id",
+  as: "produce_category",
+});
+
+ProduceCategory.hasMany(MarketObservation, {
+  foreignKey: "produce_category_id",
+  as: "market_observations",
+});
+
+MarketPrice.belongsTo(ProduceType, {
+  foreignKey: "produce_type_id",
+  as: "produce_type",
+});
+
+ProduceType.hasMany(MarketPrice, {
+  foreignKey: "produce_type_id",
+  as: "market_prices",
+});
+
+MarketPrice.belongsTo(ProduceCategory, {
+  foreignKey: "produce_category_id",
+  as: "produce_category",
+});
+
+ProduceCategory.hasMany(MarketPrice, {
+  foreignKey: "produce_category_id",
+  as: "market_prices",
+});
+
+MarketPrice.belongsTo(MarketObservation, {
+  foreignKey: "market_observation_id",
+  as: "market_observation",
+});
+
+MarketObservation.hasOne(MarketPrice, {
+  foreignKey: "market_observation_id",
+  as: "market_price",
+});
+
+MarketPrice.belongsTo(User, {
+  foreignKey: "created_by_user_id",
+  as: "created_by",
+});
+
+MarketInsight.belongsTo(ProduceType, {
+  foreignKey: "produce_type_id",
+  as: "produce_type",
+});
+
+ProduceType.hasMany(MarketInsight, {
+  foreignKey: "produce_type_id",
+  as: "market_insights",
+});
+
+MarketInsight.belongsTo(ProduceCategory, {
+  foreignKey: "produce_category_id",
+  as: "produce_category",
+});
+
+ProduceCategory.hasMany(MarketInsight, {
+  foreignKey: "produce_category_id",
+  as: "market_insights",
+});
+
 export {
   AgentActivityLog,
   BuyerRequest,
@@ -852,6 +957,9 @@ export {
   FarmerProfile,
   InventoryAdjustment,
   InventoryReservation,
+  MarketInsight,
+  MarketObservation,
+  MarketPrice,
   Message,
   Notification,
   NotificationDelivery,
