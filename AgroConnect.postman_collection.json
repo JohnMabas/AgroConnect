@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "AgroConnect API",
-    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, Phase 9 orders/payments, Phase 10 transport and delivery, Phase 11 notifications, and Phase 12 reviews/verification/trust.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n   - **Phase 10 — Transport & Delivery** — test transporter profiles, delivery requests, assignment, lifecycle and tracking history\n   - **Phase 11 — Notifications** — test the inbox, preferences, unread counts, admin delivery logs and retries\n   - **Phase 12 — Reviews, Moderation, Verification & Trust** — test reviews, report moderation, structured verification, private document access and trust profiles\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund\n- `transporter_profile_id` — set by Create transporter profile\n- `delivery_id` — set by Create delivery request\n- `notification_id` — set by List notifications\n- `notification_delivery_id` — set by List admin notification deliveries\n- `admin_access_token` — set manually from an admin account",
+    "description": "Complete collection for testing AgroConnect API endpoints, including Phase 7 messaging, Phase 8 offers, Phase 9 orders/payments, Phase 10 transport and delivery, Phase 11 notifications, Phase 12 reviews/verification/trust, and Phase 13 market prices, analytics and insights.\n\n## Setup\n1. Import this collection into Postman.\n2. Select the **AgroConnect Local** environment (or create one).\n3. Set `base_url` to `http://localhost:5000/api` for local development.\n4. Work through the folders in order:\n   - **Health** — verify the server is running\n   - **Auth / Registration** — create accounts\n   - **Auth / Verification** — verify phone and email\n   - **Auth / Login & Session** — log in and manage tokens\n   - **Auth / Protected** — test authenticated endpoints\n   - **Phase 7 — Messaging** — test conversations and messages\n   - **Phase 8 — Offers & Negotiation** — test offer creation, counters, lifecycle, and history\n   - **Phase 9 — Orders, Reservations & Paystack Payments** — test order creation, reservations, hosted checkout, verification, webhooks, and refunds\n   - **Phase 10 — Transport & Delivery** — test transporter profiles, delivery requests, assignment, lifecycle and tracking history\n   - **Phase 11 — Notifications** — test the inbox, preferences, unread counts, admin delivery logs and retries\n   - **Phase 12 — Reviews, Moderation, Verification & Trust** — test reviews, report moderation, structured verification, private document access and trust profiles\n   - **Phase 13 — Market Prices, Analytics & Insights** — test normalized prices, trends, comparisons, supply/demand/transaction analytics, observations, moderation and deterministic insights\n\n## Variables automatically captured\n- `user_id` — set by the Register requests\n- `access_token` — set by Login and Refresh\n- `otp` — set manually after checking server console (dev adapter logs to stdout)\n- `offer_id` — set by Create offer (listing)\n- `buyer_request_offer_id` — set by Create offer (buyer request)\n- `counter_offer_id` — set by Counter offer\n- `order_id` — set by Create order from accepted offer\n- `payment_reference` — set by Initialize Paystack payment\n- `refund_id` — set by Request full refund\n- `transporter_profile_id` — set by Create transporter profile\n- `delivery_id` — set by Create delivery request\n- `notification_id` — set by List notifications\n- `notification_delivery_id` — set by List admin notification deliveries\n- `admin_access_token` — set manually from an admin account\n- `market_observation_id` — set by Submit market observation or Admin list market observations\n- `market_insight_id` — set by List market insights or Admin generate market insights",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -141,6 +141,21 @@
       "key": "admin_access_token",
       "value": "",
       "description": "Access token for an administrator account. Used by review, verification and notification admin requests."
+    },
+    {
+      "key": "produce_type_id",
+      "value": "",
+      "description": "Produce type UUID for market observation and insight requests. Set manually from the seeded produce catalogue."
+    },
+    {
+      "key": "market_observation_id",
+      "value": "",
+      "description": "Set automatically by Submit market observation or Admin list market observations."
+    },
+    {
+      "key": "market_insight_id",
+      "value": "",
+      "description": "Set automatically by List market insights or Admin generate market insights."
     }
   ],
   "item": [
@@ -3557,8 +3572,14 @@
                 "notifications"
               ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -3804,8 +3825,14 @@
                 "deliveries"
               ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -3862,7 +3889,7 @@
       ]
     },
     {
-      "name": "Phase 12 \u2014 Reviews, Moderation, Verification & Trust",
+      "name": "Phase 12 — Reviews, Moderation, Verification & Trust",
       "description": "Ratings and reviews, review reports and admin moderation, structured verification with private document upload/download, notifications and public trust profiles.",
       "item": [
         {
@@ -4716,6 +4743,448 @@
               "script": {
                 "exec": [
                   "pm.test('Admin reject verification OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 13 — Market Prices, Analytics & Insights",
+      "description": "Normalized market prices, price trends and comparisons, supply/demand/transaction analytics, moderated market observations, regional scoping and deterministic market insights.",
+      "item": [
+        {
+          "name": "List market prices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/prices?page=1&limit=20&currency=NGN&unit=kg&sort=newest"
+            },
+            "description": "List normalized price points with summary statistics, grouped prices and source breakdown. Set unit or produce filters as needed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List market prices OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Market price trends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/prices/trends?currency=NGN&unit=kg&period=month"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Market price trends OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Compare market prices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/prices/compare?currency=NGN&unit=kg&state_or_regions=Plateau"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Compare market prices OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Supply analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/analytics/supply?currency=NGN&unit=kg"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Supply analytics OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Demand analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/analytics/demand?currency=NGN&unit=kg"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Demand analytics OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transaction analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/analytics/transactions?currency=NGN&unit=kg&period=month"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Transaction analytics OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit market observation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/observations"
+            },
+            "description": "Requires produce_type_id. Set produce_type_id manually before sending.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produce_type_id\": \"{{produce_type_id}}\",\n  \"market_name\": \"Jos Main Market\",\n  \"price_per_unit\": 410,\n  \"currency\": \"NGN\",\n  \"unit\": \"kg\",\n  \"grade\": \"Grade A\",\n  \"variety\": \"Local\",\n  \"quantity\": 50,\n  \"country\": \"Nigeria\",\n  \"state_or_region\": \"Plateau\",\n  \"local_government_area\": \"Jos North\",\n  \"community\": \"Bukuru\",\n  \"observed_at\": \"2026-11-09\",\n  \"notes\": \"Price confirmed against the market sheet.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Submit market observation OK', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('market_observation_id', body.data.observation.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my market observations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/observations/my?page=1&limit=20"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List my observations OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get market observation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/observations/{{market_observation_id}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get market observation OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List market insights",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/insights?status=active&page=1&limit=20"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List market insights OK', () => { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "if (body.data.insights.length > 0) pm.collectionVariables.set('market_insight_id', body.data.insights[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get market insight",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/market/insights/{{market_insight_id}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get market insight OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin list market observations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/market/observations?status=pending&page=1&limit=20"
+            },
+            "description": "Admin only. Set admin_access_token manually from an administrator login."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin list observations OK', () => { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "if (body.data.observations.length > 0) pm.collectionVariables.set('market_observation_id', body.data.observations[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin approve market observation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/market/observations/{{market_observation_id}}/approve"
+            },
+            "description": "Approving creates one verified market price for the observation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Verified against the market sheet.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Approve observation OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin reject market observation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/market/observations/{{market_observation_id}}/reject"
+            },
+            "description": "Use a pending observation id that has not already been approved or rejected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Price could not be verified against the market sheet.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reject observation OK', () => { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin generate market insights",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/market/insights/generate"
+            },
+            "description": "Admin only. Deterministic and rule-based; re-running refreshes active insights with the same dedupe key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produce_type_id\": \"{{produce_type_id}}\",\n  \"state_or_region\": \"Plateau\",\n  \"currency\": \"NGN\",\n  \"unit\": \"kg\",\n  \"date_from\": \"2026-10-10\",\n  \"date_to\": \"2026-11-09\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Generate insights OK', () => { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "if (body.data.insights.length > 0) pm.collectionVariables.set('market_insight_id', body.data.insights[0].id);"
                 ],
                 "type": "text/javascript"
               }

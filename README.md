@@ -4,7 +4,7 @@
 
 AgroConnect is a digital agricultural marketplace and supply-chain coordination platform for farmers, buyers, cooperatives, transporters and platform administrators. The initial pilot focuses on Plateau State, Nigeria, with a long-term vision of expanding to other regions and countries.
 
-The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds. **Phase 10** adds transporter profiles, delivery requests tied to paid orders, transporter assignment and coverage checks, a controlled delivery lifecycle with tracking history, and realtime delivery notifications. **Phase 11** adds a persistent notification centre with in-app, email and SMS delivery, user notification preferences, idempotent dispatch, delivery logs, exponential-backoff retries, admin retry controls, and realtime `notification:new` events. **Phase 12** adds transaction-eligible ratings and reviews, review reporting and admin moderation, structured identity/business/transport/cooperative verification with private document storage, and public trust indicators.
+The project is developed in approved phases. **Phase 1** delivered the frontend homepage and backend foundation. **Phase 2** adds the PostgreSQL database foundation. **Phase 3** adds a complete authentication and authorization system. **Phase 4** adds user profiles, farmer profiles, cooperative registration and approval, cooperative membership management, cooperative agent assignments, and an agent activity audit log. **Phase 5** adds the produce catalogue, farmer produce listings, secure image uploads, listing lifecycle management, and inventory tracking with an adjustment audit trail. **Phase 6** adds buyer requests with lifecycle and expiry handling plus authenticated marketplace discovery for listings and buyer requests. **Phase 7** adds secure one-to-one messaging with persistent conversations, read receipts, unread counts, and realtime Socket.IO delivery. **Phase 8** adds structured offers and counteroffers with negotiation history, expiry, authorization, inventory validation, and audit events. **Phase 9** converts accepted listing offers into orders, atomically reserves inventory with expiry handling, and adds Paystack hosted-checkout payments, signed webhooks, verification and refunds. **Phase 10** adds transporter profiles, delivery requests tied to paid orders, transporter assignment and coverage checks, a controlled delivery lifecycle with tracking history, and realtime delivery notifications. **Phase 11** adds a persistent notification centre with in-app, email and SMS delivery, user notification preferences, idempotent dispatch, delivery logs, exponential-backoff retries, admin retry controls, and realtime `notification:new` events. **Phase 12** adds transaction-eligible ratings and reviews, review reporting and admin moderation, structured identity/business/transport/cooperative verification with private document storage, and public trust indicators. **Phase 13** adds dated market-price observations with moderation, normalized multi-source price aggregation, supply/demand/transaction analytics, deterministic market insights, and regional access controls.
 
 ## Technology Stack
 
@@ -55,7 +55,7 @@ AgroConnect/
 │   ├── src/
 │   │   ├── config/                 # Environment configuration
 │   │   ├── database/
-│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 12)
+│   │   │   ├── migrations/         # Sequelize migrations (Phase 2 through Phase 13)
 │   │   │   ├── models/             # Sequelize models
 │   │   │   ├── seeders/            # Idempotent development seeders (includes produce catalogue)
 │   │   │   ├── config.ts           # Connection and TLS configuration
@@ -79,6 +79,7 @@ AgroConnect/
 │   │   │   ├── listings/           # Listings, images and inventory adjustments
 │   │   │   ├── buyer-requests/     # Buyer request lifecycle, expiry and discovery
 │   │   │   ├── marketplace/        # Authenticated listing and buyer request discovery
+│   │   │   ├── market/             # Market prices, observations, analytics and deterministic insights
 │   │   │   ├── messaging/          # Conversations, messages, receipts and unread counts
 │   │   │   ├── offers/             # Offers, counteroffers, negotiation history and expiry
 │   │   │   ├── orders/             # Orders, inventory reservations and expiry sweep
@@ -233,8 +234,16 @@ Never commit `.env` files or real credentials.
 | `VERIFICATION_DOCUMENT_STORAGE_PATH` | No | Private local directory for verification documents. Defaults to `private-uploads`. Never serve this directory publicly. |
 | `VERIFICATION_DOCUMENT_MAX_FILE_SIZE_BYTES` | No | Maximum verification document size. Defaults to `10485760` (10 MiB). |
 | `VERIFICATION_REQUEST_EXPIRY_DAYS` | No | Days before a pending verification request expires. Defaults to `30`. |
+| `MARKET_DEFAULT_CURRENCY` | No | Default ISO currency for market queries and observations. Defaults to `NGN`. |
+| `MARKET_ANALYTICS_DEFAULT_WINDOW_DAYS` | No | Default lookback window for market price and analytics queries. Defaults to `90`. |
+| `MARKET_OBSERVATION_MAX_AGE_DAYS` | No | Maximum age of a market observation date. Defaults to `365`. |
+| `MARKET_INSIGHT_PRICE_CHANGE_THRESHOLD_PERCENT` | No | Minimum percentage price movement required to generate a price insight. Defaults to `10`. |
+| `MARKET_INSIGHT_SUPPLY_DEMAND_GAP_PERCENT` | No | Minimum supply/demand gap percentage required to generate a shortage or surplus insight. Defaults to `25`. |
+| `MARKET_INSIGHT_MIN_OBSERVATIONS` | No | Minimum observation count before price insights are generated. Defaults to `3`. |
+| `MARKET_INSIGHT_LOOKBACK_DAYS` | No | Default lookback window for insight generation. Defaults to `30`. |
+| `MARKET_INSIGHT_EXPIRY_DAYS` | No | Days before an active market insight expires. Defaults to `30`. |
 
-Phase 10 introduces no additional environment variables. Phase 11 adds the notification settings above and reuses the existing provider credentials. Phase 12 adds review moderation limits and private verification-document settings.
+Phase 10 introduces no additional environment variables. Phase 11 adds the notification settings above and reuses the existing provider credentials. Phase 12 adds review moderation limits and private verification-document settings. Phase 13 adds market currency, analytics window, observation freshness and insight threshold settings.
 
 ### Frontend
 
@@ -829,8 +838,9 @@ identifier without storing provider credentials.
 `new_review`, `review_reported`, `review_hidden`, `review_restored`,
 `review_report_resolved`, `review_report_dismissed`,
 `verification_submitted`, `verification_approved`,
-`verification_rejected`, `account_verified`, `system_announcement` and
-`marketing`.
+`verification_rejected`, `market_observation_submitted`,
+`market_observation_approved`, `market_observation_rejected`,
+`account_verified`, `system_announcement` and `marketing`.
 
 **Preferences.** Users control in-app, email, SMS, offers, messages, orders,
 payments, deliveries, reviews, verifications and marketing channels. Marketing
@@ -928,6 +938,80 @@ only through authenticated owner/admin download endpoints. Storage keys and
 original documents are never exposed in public user or trust responses.
 Approving a `farmer_identity` verification keeps the legacy farmer profile
 `verification_status` consistent with the structured verification record.
+
+### Phase 13 — Market Prices, Observations, Analytics and Insights
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/market/prices` | Bearer | List normalized price points with grouping, summary statistics, source breakdown and pagination |
+| `GET` | `/api/market/prices/trends` | Bearer | Return day/week/month price trends and direction for one currency and unit |
+| `GET` | `/api/market/prices/compare` | Bearer | Compare prices by produce type/category and/or region |
+| `GET` | `/api/market/analytics/supply` | Bearer | Summarize active supply by produce type and region |
+| `GET` | `/api/market/analytics/demand` | Bearer | Summarize open buyer-request demand by produce type and region |
+| `GET` | `/api/market/analytics/transactions` | Bearer | Summarize completed transactions, refunds and revenue trends |
+| `POST` | `/api/market/observations` | Bearer (farmer, buyer, cooperative, cooperative_agent, admin) | Submit a dated, sourced market-price observation for moderation |
+| `GET` | `/api/market/observations/my` | Bearer | List the authenticated user's submitted observations |
+| `GET` | `/api/market/observations/:id` | Bearer (owner/admin/authorised agent) | Read one observation |
+| `GET` | `/api/market/insights` | Bearer | List active, expired or dismissed deterministic market insights |
+| `GET` | `/api/market/insights/:id` | Bearer | Read one market insight |
+| `GET` | `/api/admin/market/observations` | Bearer (admin) | List observations with submitter, cooperative, status and date filters |
+| `POST` | `/api/admin/market/observations/:id/approve` | Bearer (admin) | Approve a pending observation and create a verified market price |
+| `POST` | `/api/admin/market/observations/:id/reject` | Bearer (admin) | Reject a pending observation with a reason |
+| `POST` | `/api/admin/market/insights/generate` | Bearer (admin) | Generate or refresh deterministic price, supply and demand insights |
+
+**Price sources and normalization.** Price points are derived from published,
+available, non-expired marketplace listings, completed orders with a paid or
+partially-refunded payment, and market prices created from approved
+observations. The `approved_external_source` source type is reserved in the
+schema but no external ingestion adapter is configured. Every point retains its
+source type/reference, produce reference, currency, unit, location and
+observation date. Currency and unit are never implicitly converted or mixed;
+queries select one currency (and optionally one unit) at a time. Summary
+statistics include count, source count, quantity, average, minimum, maximum,
+median, standard deviation and a per-source breakdown. Insufficient data returns
+a `null` summary or an `insufficient_data` trend direction rather than an
+estimated verified price.
+
+**Supply, demand and transactions.** Supply counts published, available,
+non-expired listings and reports active listings, farmers, available/reserved/
+sold quantities and average asking price. Demand counts `open` buyer requests
+whose `expiry_date` has not passed and reports active requests, buyers, requested
+quantity and average target price. Transaction analytics count completed orders
+with payment status `paid` or `partially_refunded`, net processed refunds out of
+gross revenue, and expose totals by produce type, region and trend period. Trend
+items carry their own currency and unit so mixed units are never combined.
+
+**Observations and moderation.** Observations must reference a produce type or
+category, use an ISO-style 3-letter currency, a positive price, a valid unit and
+an observation date that is not in the future or older than
+`MARKET_OBSERVATION_MAX_AGE_DAYS`. A deterministic dedupe key prevents duplicate
+submissions for the same submitter, produce, market, price, currency, unit and
+date. Approving requires an admin, locks the pending record, creates exactly one
+verified market price and notifies the submitter. Rejecting requires a reason
+and notifies the submitter. Submissions also notify admins.
+
+**Regional access and RBAC.** All market routes require authentication. Admin
+observation and insight-generation routes require the `admin` role. Farmers and
+buyers can read aggregated market data. Cooperative agents must have an active
+`CooperativeAgentAssignment` and are restricted to the state/region of their
+assigned cooperative for price, analytics and observation reads; a missing
+assignment returns `403` and a cross-region request returns `403` (or `404` for
+an observation they do not own). Admins are unrestricted.
+
+**Deterministic insights.** Insights are rule-based and admin-triggered; no AI
+model, recommendations or paid data source is used. Supported types are
+`price_increase`, `price_decrease`, `price_volatility`, `supply_shortage`,
+`supply_surplus`, `demand_increase` and `demand_decrease`. Thresholds come from
+the `MARKET_INSIGHT_*` settings. Insights carry a severity, metric/comparison
+values, change percentage, observation count, period, source metadata, dedupe
+key and expiry. Re-running generation refreshes an active insight with the same
+dedupe key instead of duplicating it. Active insights whose `expires_at` has
+passed are marked `expired` when insights are listed or read.
+
+**Notifications.** Observation events reuse the Phase 11 notification system
+with `market_observation_submitted`, `market_observation_approved` and
+`market_observation_rejected`; these types remain enabled because they are
+operational marketplace notifications.
 
 ### Response format
 
@@ -1411,6 +1495,45 @@ Immutable audit log — no `updated_at`.
 - Optional previous status, required new status, optional reason and JSONB metadata
 - `created_at`
 
+### Phase 13 tables
+
+#### `market_observations`
+
+- UUID primary key; `submitted_by_user_id`, optional `cooperative_id`
+- Optional `produce_type_id` and `produce_category_id` (at least one required)
+- Optional `market_name`, required `price_per_unit`, `currency` (default `NGN`), `unit`
+- Optional `grade`, `variety`, `quantity`, `country`, `state_or_region`, `local_government_area`, `community` and `notes`
+- `observed_at` date and `status` ENUM: `pending` | `approved` | `rejected`
+- Nullable `reviewed_by_user_id`, `reviewed_at`, `rejection_reason` (required for rejected)
+- Unique `dedupe_key`; indexes for status/date/type, submitter, cooperative, location and category
+- Check constraints for produce reference, positive price/quantity and rejection reason
+- `created_at`, `updated_at`
+
+#### `market_prices`
+
+- UUID primary key; optional `produce_type_id` and `produce_category_id`
+- `source_type` ENUM: `marketplace_listing` | `completed_transaction` | `verified_market_observation` | `approved_external_source`
+- Optional `source_reference_id`, `source_name`, `market_observation_id`
+- Required `price_per_unit`, `currency`, `unit`, `observed_at`
+- Optional `grade`, `variety`, `quantity`, `country`, `state_or_region`, `local_government_area`, `community`
+- `is_verified` (default true), optional `created_by_user_id`, required `dedupe_key`
+- Unique `dedupe_key`; partial unique index on `market_observation_id`; source/date, type/currency/unit/date, location/date and category/date indexes
+- Check constraints for produce reference and positive price/quantity
+- `created_at`, `updated_at`
+
+#### `market_insights`
+
+- UUID primary key; `insight_type` ENUM: `price_increase` | `price_decrease` | `price_volatility` | `supply_shortage` | `supply_surplus` | `demand_increase` | `demand_decrease`
+- Optional `produce_type_id`, `produce_category_id`, `country`, `state_or_region`, `local_government_area`, `currency` and `unit`
+- `title`, `summary`, `severity` ENUM: `low` | `medium` | `high`
+- Optional `metric_value`, `comparison_value`, `change_percentage`
+- `observation_count`, `period_start`, `period_end`
+- `status` ENUM: `active` | `expired` | `dismissed`, `generated_at`, nullable `expires_at`
+- Optional JSONB `metadata` and required unique `dedupe_key`
+- Indexes for status/severity/generated time, produce type/region and category
+- Check constraint for produce reference
+- `created_at`, `updated_at`
+
 ## Migrations and Seeders
 
 Schema changes use migrations only. `sequelize.sync()` is not used.
@@ -1592,7 +1715,15 @@ The test suite covers:
 - Approval, farmer profile consistency, trust indicators and notification preferences
 - OTP invalidation regression ensuring unused codes are deleted rather than marked verified
 
-The full backend suite currently contains **317 tests** across Phases 2–12.
+**Phase 13 (6 tests):**
+- Normalized price listing, summaries, source breakdowns, trends and regional comparisons
+- Supply, demand and completed-transaction analytics with refund netting and trends
+- Observation submission, duplicate prevention, admin approval and verified-price creation
+- Rejection with a required reason, notification delivery and no price creation
+- Cooperative-agent regional access and automatic scoping to the assigned state
+- Deterministic price and supply insight generation, persistence, listing and admin authorization
+
+The full backend suite currently contains **323 tests** across Phases 2–13.
 
 
 ### Frontend tests
@@ -1735,7 +1866,7 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Email delivery:** The dev email adapter logs emails to the server console. A Brevo adapter exists, but real email delivery has not been live-tested. Configure `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and optionally `BREVO_SENDER_NAME`.
 - **Render deployment:** `render.yaml` and deployment instructions are prepared but not live-tested.
 - **Aiven connectivity:** Verified against Aiven PostgreSQL 18.6. The backend uses DNS pre-resolution to work around IPv6 Happy Eyeballs timeout issues on this network.
-- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Phase 10 implements transporter management and delivery coordination. Phase 11 implements persistent notifications and delivery preferences. Phase 12 implements reviews, moderation, structured verification and trust indicators.
+- **Marketplace features:** Phase 6 implements authenticated marketplace discovery and buyer requests. Phase 7 implements farmer–buyer messaging. Phase 8 implements offers and negotiation. Phase 9 implements orders, inventory reservations and Paystack payments. Phase 10 implements transporter management and delivery coordination. Phase 11 implements persistent notifications and delivery preferences. Phase 12 implements reviews, moderation, structured verification and trust indicators. Phase 13 implements normalized market prices, moderated observations, supply/demand/transaction analytics and deterministic market insights.
 - **Messaging notifications:** Phase 11 persists in-app new-message notifications and emits `notification:new`, but intentionally suppresses email and SMS for chat messages to avoid spam.
 - **Account recovery / password reset:** Not implemented. Belongs to a future phase.
 - **File uploads:** Produce listing images support secure multipart uploads to a local development adapter. Verification documents use a separate private local adapter and are never served as static files. Profile image and cooperative logo uploads (`profile_image_url`, `logo_url`) are not implemented and still accept a manually supplied URL. Production object storage (for example S3-compatible storage) is not configured; Render's filesystem is ephemeral, so a durable storage adapter must be added before production use.
@@ -1756,6 +1887,10 @@ Add the Aiven CA certificate as a Render **Secret File** named `aiven-ca.pem`.
 - **Notification worker:** The retry and reservation-warning worker is an in-process interval tied to the API server. Multiple API instances would retry idempotently because of dedupe keys and delivery status checks, but a distributed scheduler is not configured.
 - **Notification frontend:** Phase 11 provides the REST API and Socket.IO backend only. Notification inbox, preferences and admin delivery screens are not yet implemented in the frontend.
 - **Reviews and trust frontend:** Phase 12 provides the REST API only. Review submission/listing, report moderation, verification upload and trust-profile screens are not yet implemented in the frontend.
+- **Market data sources:** Phase 13 aggregates published listings, completed transactions and approved observations. The `approved_external_source` schema type is reserved, but no paid, scraped or external market-data ingestion adapter is configured.
+- **Market data quality:** Verification relies on admin moderation and deterministic dedupe checks. There is no automated outlier detection, fraud scoring or external price-validation service; estimated or unverified values are never presented as approved prices.
+- **Market insights:** Insight generation is deterministic, admin-triggered and rule-based. There is no AI recommendation engine, background insight scheduler or automatic notification on insight creation. Expired insights are marked when insights are next listed or read.
+- **Market frontend:** Phase 13 provides the REST API only. Price comparison, observation submission/moderation, analytics and insight dashboards are not yet implemented in the frontend.
 - **Verification review operations:** Manual verification is admin-reviewed through the API. There is no document-processing, OCR, automated identity-check or external KYC provider integration.
 - **Private document durability:** Verification documents are stored on the local filesystem under `VERIFICATION_DOCUMENT_STORAGE_PATH`. Render's filesystem is ephemeral, so a durable private object-storage adapter is required before production use.
 - **Trust indicators:** Trust profiles expose counts and approved verification indicators only. They do not calculate an arbitrary composite trust score and do not expose identity-document contents, storage keys or private file paths.
