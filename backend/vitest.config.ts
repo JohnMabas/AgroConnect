@@ -23,6 +23,7 @@ export default defineConfig({
       PAYSTACK_WEBHOOK_SIGNING_SECRET: "whsec_phase9",
       PAYSTACK_CURRENCY: "NGN",
       PAYSTACK_CALLBACK_URL: "http://localhost:3000/payment/callback",
+      VERIFICATION_DOCUMENT_STORAGE_PATH: "private-uploads-test",
     },
   },
 });

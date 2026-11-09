@@ -56,6 +56,14 @@ const PHASE_11_TABLES = [
   "notification_preferences",
   "notifications",
 ];
+const PHASE_12_TABLES = [
+  "review_history",
+  "review_reports",
+  "reviews",
+  "verification_documents",
+  "verification_history",
+  "verifications",
+];
 const ALL_TABLES = [
   ...PHASE_2_TABLES,
   ...PHASE_3_TABLES,
@@ -67,6 +75,7 @@ const ALL_TABLES = [
   ...PHASE_9_TABLES,
   ...PHASE_10_TABLES,
   ...PHASE_11_TABLES,
+  ...PHASE_12_TABLES,
 ].sort();
 
 const ALL_MIGRATION_NAMES = [
@@ -103,6 +112,9 @@ const ALL_MIGRATION_NAMES = [
   "20261110000001-create-notifications",
   "20261110000002-create-notification-deliveries",
   "20261110000003-create-notification-preferences",
+  "20261112000001-create-reviews",
+  "20261112000002-create-verifications",
+  "20261112000003-add-phase12-notification-preferences",
 ];
 
 async function getPublicTables(): Promise<string[]> {
@@ -134,7 +146,7 @@ describe("migrations", () => {
       expect(status.pending).toEqual([]);
       expect(status.executed).toHaveLength(ALL_MIGRATION_NAMES.length);
     },
-    480_000, // allow more time for Aiven cold start and 32 sequential migrations
+    480_000, // allow more time for Aiven cold start and 36 sequential migrations
   );
 
   it(
