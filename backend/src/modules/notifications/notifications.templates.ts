@@ -266,6 +266,29 @@ function subjectFor(
           variables.reason ? `: ${variables.reason}` : "."
         }`,
       };
+    case "market_observation_submitted":
+      return {
+        title: "Market observation submitted",
+        message: `${actor(variables)} submitted a market observation${
+          variables.produce_name ? ` for ${variables.produce_name}` : ""
+        }${amount ? ` at ${amount}` : ""}${
+          variables.market_name ? ` in ${variables.market_name}` : ""
+        }. It is awaiting review.`,
+      };
+    case "market_observation_approved":
+      return {
+        title: "Market observation approved",
+        message: `Your market observation${
+          variables.produce_name ? ` for ${variables.produce_name}` : ""
+        }${amount ? ` at ${amount}` : ""} was approved and now contributes to verified market prices.`,
+      };
+    case "market_observation_rejected":
+      return {
+        title: "Market observation rejected",
+        message: `Your market observation${
+          variables.produce_name ? ` for ${variables.produce_name}` : ""
+        } was rejected${variables.reason ? `: ${variables.reason}` : "."}`,
+      };
     case "system_announcement":
     case "marketing":
       return {

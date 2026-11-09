@@ -35,6 +35,9 @@ export type NotificationType =
   | "verification_submitted"
   | "verification_approved"
   | "verification_rejected"
+  | "market_observation_submitted"
+  | "market_observation_approved"
+  | "market_observation_rejected"
   | "system_announcement"
   | "marketing";
 
@@ -56,6 +59,8 @@ export interface NotificationTemplateVariables {
   rating?: number | null;
   report_reason?: string | null;
   review_title?: string | null;
+  produce_name?: string | null;
+  market_name?: string | null;
   action_url?: string | null;
 }
 

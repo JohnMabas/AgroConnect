@@ -110,6 +110,9 @@ export function isCategoryEnabled(
     case "verification_approved":
     case "verification_rejected":
       return preference.verifications_enabled;
+    case "market_observation_submitted":
+    case "market_observation_approved":
+    case "market_observation_rejected":
     case "account_verified":
     case "system_announcement":
       return true;
