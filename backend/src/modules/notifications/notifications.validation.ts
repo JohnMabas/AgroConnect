@@ -29,6 +29,8 @@ export const UpdateNotificationPreferencesSchema = z
     orders_enabled: z.boolean().optional(),
     payments_enabled: z.boolean().optional(),
     deliveries_enabled: z.boolean().optional(),
+    reviews_enabled: z.boolean().optional(),
+    verifications_enabled: z.boolean().optional(),
     marketing_enabled: z.boolean().optional(),
   })
   .strict()

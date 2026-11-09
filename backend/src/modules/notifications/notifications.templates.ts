@@ -36,6 +36,11 @@ function recipient(variables: NotificationTemplateVariables): string {
   return variables.recipient_name?.trim() || "there";
 }
 
+function humanize(value: string | null | undefined): string {
+  if (!value) return "verification";
+  return value.replaceAll("_", " ");
+}
+
 function subjectFor(
   type: NotificationType,
   variables: NotificationTemplateVariables,
@@ -197,6 +202,69 @@ function subjectFor(
         message: `Your ${
           variables.verification_method === "phone" ? "phone number" : "email address"
         } was verified successfully.`,
+      };
+    case "new_review":
+      return {
+        title: "New review received",
+        message: `${actor(variables)} left you a ${
+          variables.rating ? `${variables.rating}-star ` : ""
+        }review${variables.review_title ? `: ${variables.review_title}` : "."}`,
+      };
+    case "review_reported":
+      return {
+        title: "Review reported",
+        message: `${actor(variables)} reported a review${
+          variables.report_reason
+            ? ` for ${humanize(variables.report_reason)}`
+            : ""
+        }. An administrator will review the report.`,
+      };
+    case "review_hidden":
+      return {
+        title: "Review hidden",
+        message: `Your review${
+          variables.review_title ? ` "${variables.review_title}"` : ""
+        } was hidden by an administrator${
+          variables.reason ? `: ${variables.reason}` : "."
+        }`,
+      };
+    case "review_restored":
+      return {
+        title: "Review restored",
+        message: `Your review${
+          variables.review_title ? ` "${variables.review_title}"` : ""
+        } was restored and is visible again.`,
+      };
+    case "review_report_resolved":
+      return {
+        title: "Review report resolved",
+        message: `The review report you submitted was resolved${
+          variables.reason ? `: ${variables.reason}` : "."
+        }`,
+      };
+    case "review_report_dismissed":
+      return {
+        title: "Review report dismissed",
+        message: `The review report you submitted was dismissed${
+          variables.reason ? `: ${variables.reason}` : "."
+        }`,
+      };
+    case "verification_submitted":
+      return {
+        title: "Verification submitted",
+        message: `Your ${humanize(variables.verification_type)} verification request was submitted and is awaiting review.`,
+      };
+    case "verification_approved":
+      return {
+        title: "Verification approved",
+        message: `Your ${humanize(variables.verification_type)} verification was approved.`,
+      };
+    case "verification_rejected":
+      return {
+        title: "Verification rejected",
+        message: `Your ${humanize(variables.verification_type)} verification was rejected${
+          variables.reason ? `: ${variables.reason}` : "."
+        }`,
       };
     case "system_announcement":
     case "marketing":

@@ -13,6 +13,8 @@ export interface UpdateNotificationPreferencesInput {
   orders_enabled?: boolean;
   payments_enabled?: boolean;
   deliveries_enabled?: boolean;
+  reviews_enabled?: boolean;
+  verifications_enabled?: boolean;
   marketing_enabled?: boolean;
 }
 
@@ -29,6 +31,8 @@ export function buildNotificationPreferenceData(
     orders_enabled: row.orders_enabled,
     payments_enabled: row.payments_enabled,
     deliveries_enabled: row.deliveries_enabled,
+    reviews_enabled: row.reviews_enabled,
+    verifications_enabled: row.verifications_enabled,
     marketing_enabled: row.marketing_enabled,
     created_at: row.created_at!,
     updated_at: row.updated_at!,
@@ -95,6 +99,17 @@ export function isCategoryEnabled(
     case "delivery_failed":
     case "delivery_cancelled":
       return preference.deliveries_enabled;
+    case "new_review":
+    case "review_reported":
+    case "review_hidden":
+    case "review_restored":
+    case "review_report_resolved":
+    case "review_report_dismissed":
+      return preference.reviews_enabled;
+    case "verification_submitted":
+    case "verification_approved":
+    case "verification_rejected":
+      return preference.verifications_enabled;
     case "account_verified":
     case "system_announcement":
       return true;

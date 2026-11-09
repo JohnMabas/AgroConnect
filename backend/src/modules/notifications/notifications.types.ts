@@ -26,6 +26,15 @@ export type NotificationType =
   | "delivery_failed"
   | "delivery_cancelled"
   | "account_verified"
+  | "new_review"
+  | "review_reported"
+  | "review_hidden"
+  | "review_restored"
+  | "review_report_resolved"
+  | "review_report_dismissed"
+  | "verification_submitted"
+  | "verification_approved"
+  | "verification_rejected"
   | "system_announcement"
   | "marketing";
 
@@ -43,6 +52,10 @@ export interface NotificationTemplateVariables {
   unit?: string | null;
   reason?: string | null;
   verification_method?: "email" | "phone" | null;
+  verification_type?: string | null;
+  rating?: number | null;
+  report_reason?: string | null;
+  review_title?: string | null;
   action_url?: string | null;
 }
 
@@ -98,6 +111,8 @@ export interface NotificationPreferenceData {
   orders_enabled: boolean;
   payments_enabled: boolean;
   deliveries_enabled: boolean;
+  reviews_enabled: boolean;
+  verifications_enabled: boolean;
   marketing_enabled: boolean;
   created_at: Date;
   updated_at: Date;
