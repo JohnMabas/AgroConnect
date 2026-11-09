@@ -364,6 +364,46 @@ export const env = Object.freeze({
     process.env.VERIFICATION_REQUEST_EXPIRY_DAYS,
     30,
   ),
+
+  // ─── Market intelligence and analytics ──────────────────────────────────────
+  MARKET_DEFAULT_CURRENCY:
+    optionalString(process.env.MARKET_DEFAULT_CURRENCY)?.toUpperCase() ??
+    "NGN",
+  MARKET_ANALYTICS_DEFAULT_WINDOW_DAYS: parsePositiveInt(
+    "MARKET_ANALYTICS_DEFAULT_WINDOW_DAYS",
+    process.env.MARKET_ANALYTICS_DEFAULT_WINDOW_DAYS,
+    90,
+  ),
+  MARKET_OBSERVATION_MAX_AGE_DAYS: parsePositiveInt(
+    "MARKET_OBSERVATION_MAX_AGE_DAYS",
+    process.env.MARKET_OBSERVATION_MAX_AGE_DAYS,
+    365,
+  ),
+  MARKET_INSIGHT_PRICE_CHANGE_THRESHOLD_PERCENT: parsePositiveInt(
+    "MARKET_INSIGHT_PRICE_CHANGE_THRESHOLD_PERCENT",
+    process.env.MARKET_INSIGHT_PRICE_CHANGE_THRESHOLD_PERCENT,
+    10,
+  ),
+  MARKET_INSIGHT_SUPPLY_DEMAND_GAP_PERCENT: parsePositiveInt(
+    "MARKET_INSIGHT_SUPPLY_DEMAND_GAP_PERCENT",
+    process.env.MARKET_INSIGHT_SUPPLY_DEMAND_GAP_PERCENT,
+    25,
+  ),
+  MARKET_INSIGHT_MIN_OBSERVATIONS: parsePositiveInt(
+    "MARKET_INSIGHT_MIN_OBSERVATIONS",
+    process.env.MARKET_INSIGHT_MIN_OBSERVATIONS,
+    3,
+  ),
+  MARKET_INSIGHT_LOOKBACK_DAYS: parsePositiveInt(
+    "MARKET_INSIGHT_LOOKBACK_DAYS",
+    process.env.MARKET_INSIGHT_LOOKBACK_DAYS,
+    30,
+  ),
+  MARKET_INSIGHT_EXPIRY_DAYS: parsePositiveInt(
+    "MARKET_INSIGHT_EXPIRY_DAYS",
+    process.env.MARKET_INSIGHT_EXPIRY_DAYS,
+    30,
+  ),
 });
 
 export type Environment = typeof env;
