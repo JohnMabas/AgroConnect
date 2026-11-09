@@ -111,11 +111,31 @@ function parsePositiveInt(
   return n;
 }
 
+function parseAiProvider(value: string | undefined): "dev" | "openai_compatible" {
+  const provider = optionalString(value) ?? "dev";
+  if (provider !== "dev" && provider !== "openai_compatible") {
+    throw new Error(
+      `Invalid AI_PROVIDER environment variable: "${provider}". Expected dev or openai_compatible.`,
+    );
+  }
+  return provider;
+}
+
 const NODE_ENV = parseNodeEnvironment(process.env.NODE_ENV);
 const DATABASE_URL = optionalString(process.env.DATABASE_URL);
 const DATABASE_URL_REQUESTS_SSL =
   DATABASE_URL !== undefined &&
   /[?&]sslmode=(require|verify-ca|verify-full)\b/i.test(DATABASE_URL);
+const AI_PROVIDER = parseAiProvider(process.env.AI_PROVIDER);
+const AI_API_KEY = optionalString(process.env.AI_API_KEY);
+const AI_MODEL = optionalString(process.env.AI_MODEL);
+const AI_BASE_URL =
+  optionalString(process.env.AI_BASE_URL) ?? "https://api.openai.com/v1";
+
+if (AI_PROVIDER === "openai_compatible") {
+  requireString("AI_API_KEY", AI_API_KEY);
+  requireString("AI_MODEL", AI_MODEL);
+}
 
 export const env = Object.freeze({
   NODE_ENV,
@@ -403,6 +423,64 @@ export const env = Object.freeze({
     "MARKET_INSIGHT_EXPIRY_DAYS",
     process.env.MARKET_INSIGHT_EXPIRY_DAYS,
     30,
+  ),
+
+  // ─── AI assistance, recommendations and integrity ───────────────────────────
+  // "dev" performs no external calls and uses deterministic fallbacks.
+  // "openai_compatible" requires AI_API_KEY and AI_MODEL at startup.
+  AI_PROVIDER,
+  AI_API_KEY,
+  AI_BASE_URL,
+  AI_MODEL,
+  AI_REQUEST_TIMEOUT_MS: parsePositiveInt(
+    "AI_REQUEST_TIMEOUT_MS",
+    process.env.AI_REQUEST_TIMEOUT_MS,
+    20_000,
+  ),
+  AI_MAX_INPUT_LENGTH: parsePositiveInt(
+    "AI_MAX_INPUT_LENGTH",
+    process.env.AI_MAX_INPUT_LENGTH,
+    4_000,
+  ),
+  AI_MAX_OUTPUT_TOKENS: parsePositiveInt(
+    "AI_MAX_OUTPUT_TOKENS",
+    process.env.AI_MAX_OUTPUT_TOKENS,
+    1_000,
+  ),
+  AI_RATE_LIMIT_PER_MINUTE: parsePositiveInt(
+    "AI_RATE_LIMIT_PER_MINUTE",
+    process.env.AI_RATE_LIMIT_PER_MINUTE,
+    30,
+  ),
+  AI_DAILY_USER_LIMIT: parsePositiveInt(
+    "AI_DAILY_USER_LIMIT",
+    process.env.AI_DAILY_USER_LIMIT,
+    100,
+  ),
+  AI_ASSISTANT_ENABLED: parseBoolean(
+    "AI_ASSISTANT_ENABLED",
+    process.env.AI_ASSISTANT_ENABLED,
+    true,
+  ),
+  AI_RECOMMENDATIONS_ENABLED: parseBoolean(
+    "AI_RECOMMENDATIONS_ENABLED",
+    process.env.AI_RECOMMENDATIONS_ENABLED,
+    true,
+  ),
+  AI_INTEGRITY_ENABLED: parseBoolean(
+    "AI_INTEGRITY_ENABLED",
+    process.env.AI_INTEGRITY_ENABLED,
+    true,
+  ),
+  AI_KNOWLEDGE_SEARCH_LIMIT: parsePositiveInt(
+    "AI_KNOWLEDGE_SEARCH_LIMIT",
+    process.env.AI_KNOWLEDGE_SEARCH_LIMIT,
+    5,
+  ),
+  AI_CONVERSATION_CONTEXT_LIMIT: parsePositiveInt(
+    "AI_CONVERSATION_CONTEXT_LIMIT",
+    process.env.AI_CONVERSATION_CONTEXT_LIMIT,
+    10,
   ),
 });
 
