@@ -1,6 +1,10 @@
 import { env } from "../../config/env.js";
 import { LocalImageStorageAdapter } from "./local-storage.adapter.js";
-import type { ImageStorageAdapter } from "./storage.interface.js";
+import { LocalPrivateDocumentStorageAdapter } from "./local-private-document.adapter.js";
+import type {
+  ImageStorageAdapter,
+  PrivateDocumentStorageAdapter,
+} from "./storage.interface.js";
 
 /**
  * Active image storage adapter.
@@ -15,4 +19,17 @@ export const imageStorage: ImageStorageAdapter = new LocalImageStorageAdapter(
   env.UPLOAD_PUBLIC_PREFIX,
 );
 
-export type { ImageStorageAdapter } from "./storage.interface.js";
+/**
+ * Private verification-document storage. This must never be exposed through a
+ * static middleware path.
+ */
+export const privateDocumentStorage: PrivateDocumentStorageAdapter =
+  new LocalPrivateDocumentStorageAdapter(
+    env.VERIFICATION_DOCUMENT_STORAGE_PATH,
+  );
+
+export type {
+  ImageStorageAdapter,
+  PrivateDocumentStorageAdapter,
+  StoredPrivateDocument,
+} from "./storage.interface.js";

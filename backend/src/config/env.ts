@@ -324,6 +324,46 @@ export const env = Object.freeze({
     process.env.NOTIFICATION_PROVIDER_TIMEOUT_SECONDS,
     15,
   ),
+
+  // ─── Reviews and reports ────────────────────────────────────────────────────
+  // How long a reviewer may edit their own review after creation.
+  REVIEW_EDIT_WINDOW_MINUTES: parsePositiveInt(
+    "REVIEW_EDIT_WINDOW_MINUTES",
+    process.env.REVIEW_EDIT_WINDOW_MINUTES,
+    24 * 60,
+  ),
+  REVIEW_TITLE_MAX_LENGTH: parsePositiveInt(
+    "REVIEW_TITLE_MAX_LENGTH",
+    process.env.REVIEW_TITLE_MAX_LENGTH,
+    120,
+  ),
+  REVIEW_COMMENT_MAX_LENGTH: parsePositiveInt(
+    "REVIEW_COMMENT_MAX_LENGTH",
+    process.env.REVIEW_COMMENT_MAX_LENGTH,
+    2_000,
+  ),
+  REPORT_DESCRIPTION_MAX_LENGTH: parsePositiveInt(
+    "REPORT_DESCRIPTION_MAX_LENGTH",
+    process.env.REPORT_DESCRIPTION_MAX_LENGTH,
+    1_000,
+  ),
+
+  // ─── Verification documents ─────────────────────────────────────────────────
+  // Private storage root. This directory must never be served publicly.
+  VERIFICATION_DOCUMENT_STORAGE_PATH:
+    optionalString(process.env.VERIFICATION_DOCUMENT_STORAGE_PATH) ??
+    "private-uploads",
+  VERIFICATION_DOCUMENT_MAX_FILE_SIZE_BYTES: parsePositiveInt(
+    "VERIFICATION_DOCUMENT_MAX_FILE_SIZE_BYTES",
+    process.env.VERIFICATION_DOCUMENT_MAX_FILE_SIZE_BYTES,
+    10 * 1024 * 1024, // 10 MiB
+  ),
+  // Pending verification requests expire after this many days.
+  VERIFICATION_REQUEST_EXPIRY_DAYS: parsePositiveInt(
+    "VERIFICATION_REQUEST_EXPIRY_DAYS",
+    process.env.VERIFICATION_REQUEST_EXPIRY_DAYS,
+    30,
+  ),
 });
 
 export type Environment = typeof env;

@@ -24,3 +24,24 @@ export interface ImageStorageAdapter {
   saveImage(input: SaveImageInput): Promise<StoredImage>;
   deleteImage(storageKey: string): Promise<void>;
 }
+
+export interface SavePrivateDocumentInput {
+  verificationId: string;
+  buffer: Buffer;
+  extension: string;
+}
+
+export interface StoredPrivateDocument {
+  /** Generated private storage key. Never exposed in API responses. */
+  storageKey: string;
+}
+
+/**
+ * Private storage contract for identity and business verification documents.
+ * These files must never be served from the public upload directory.
+ */
+export interface PrivateDocumentStorageAdapter {
+  saveDocument(input: SavePrivateDocumentInput): Promise<StoredPrivateDocument>;
+  readDocument(storageKey: string): Promise<Buffer>;
+  deleteDocument(storageKey: string): Promise<void>;
+}
