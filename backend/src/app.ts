@@ -47,6 +47,7 @@ import {
   createMarketRouter,
 } from "./modules/market/market.routes.js";
 import { createAdminAIRouter, createAIRouter } from "./modules/ai/ai.routes.js";
+import { createAdminFarmerProtectionRouter } from "./modules/farmer-protection/farmer-protection.routes.js";
 import {
   createApiRouter,
   type ApiRouterDependencies,
@@ -173,6 +174,13 @@ export function createApp(
   // on their established, separately authorised routes.
   app.use("/api/ai", createAIRouter());
   app.use("/api/admin/ai", createAdminAIRouter());
+
+  // Phase 16: farmer protection, cooperative-only agent governance, consent,
+  // approval workflows, complaints and append-only audit review.
+  app.use(
+    "/api/admin/farmer-protection",
+    createAdminFarmerProtectionRouter(),
+  );
 
   // Health and other API routes
   app.use(

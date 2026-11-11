@@ -11,6 +11,7 @@ import {
   updateOrderStatusHandler,
 } from "./orders.controller.js";
 import { getOrderDeliveryHandler } from "../deliveries/deliveries.controller.js";
+import { listOrderFeeDisclosuresHandler } from "../farmer-protection/farmer-protection.controller.js";
 
 export function createOrdersRouter(): Router {
   const router = Router();
@@ -24,6 +25,7 @@ export function createOrdersRouter(): Router {
   router.get("/:id/history", getOrderHistoryHandler);
   router.get("/:id/reservation", getOrderReservationHandler);
   router.get("/:id/payments", getOrderPaymentsHandler);
+  router.get("/:id/fee-disclosures", listOrderFeeDisclosuresHandler);
   router.get("/:id", getOrderHandler);
 
   router.patch("/:id/status", updateOrderStatusHandler);
