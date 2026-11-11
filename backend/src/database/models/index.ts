@@ -1,4 +1,6 @@
 import { AgentActivityLog } from "./agent-activity-log.model.js";
+import { AgentProfile } from "./agent-profile.model.js";
+import { AgentVerificationRecord } from "./agent-verification-record.model.js";
 import { AgriculturalKnowledge } from "./agricultural-knowledge.model.js";
 import { AIConfiguration } from "./ai-configuration.model.js";
 import { AIConversation } from "./ai-conversation.model.js";
@@ -10,9 +12,16 @@ import { ConversationParticipant } from "./conversation-participant.model.js";
 import { CooperativeAgentAssignment } from "./cooperative-agent-assignment.model.js";
 import { CooperativeMembership } from "./cooperative-membership.model.js";
 import { CooperativeProfile } from "./cooperative-profile.model.js";
+import { ComplaintEvidence } from "./complaint-evidence.model.js";
+import { ComplaintInvestigation } from "./complaint-investigation.model.js";
 import { Delivery } from "./delivery.model.js";
 import { DeliveryHistory } from "./delivery-history.model.js";
 import { EmailVerificationToken } from "./email-verification-token.model.js";
+import { FarmerActionApproval } from "./farmer-action-approval.model.js";
+import { FarmerAgentPermission } from "./farmer-agent-permission.model.js";
+import { FarmerAgentRelationship } from "./farmer-agent-relationship.model.js";
+import { FarmerComplaint } from "./farmer-complaint.model.js";
+import { FarmerConsentRecord } from "./farmer-consent-record.model.js";
 import { FarmerProfile } from "./farmer-profile.model.js";
 import { IntegrityAssessment } from "./integrity-assessment.model.js";
 import { IntegrityReviewHistory } from "./integrity-review-history.model.js";
@@ -29,6 +38,7 @@ import { Offer } from "./offer.model.js";
 import { OfferEvent } from "./offer-event.model.js";
 import { Order } from "./order.model.js";
 import { OrderEvent } from "./order-event.model.js";
+import { OrderFeeDisclosure } from "./order-fee-disclosure.model.js";
 import { OrderItem } from "./order-item.model.js";
 import { Payment } from "./payment.model.js";
 import { PaymentWebhookEvent } from "./payment-webhook-event.model.js";
@@ -1054,8 +1064,303 @@ User.hasMany(AIUsageLog, {
   onDelete: "CASCADE",
 });
 
+// Phase 16 associations — cooperative-only agents, farmer consent and safety.
+AgentProfile.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(AgentProfile, {
+  foreignKey: "user_id",
+  as: "agent_profiles",
+  onDelete: "CASCADE",
+});
+
+AgentProfile.belongsTo(CooperativeProfile, {
+  foreignKey: "cooperative_id",
+  as: "cooperative",
+});
+
+CooperativeProfile.hasMany(AgentProfile, {
+  foreignKey: "cooperative_id",
+  as: "agent_profiles",
+  onDelete: "CASCADE",
+});
+
+AgentProfile.belongsTo(User, {
+  foreignKey: "invited_by_user_id",
+  as: "invited_by",
+});
+
+AgentProfile.belongsTo(User, {
+  foreignKey: "verified_by_user_id",
+  as: "verified_by",
+});
+
+AgentProfile.hasMany(AgentVerificationRecord, {
+  foreignKey: "agent_profile_id",
+  as: "verification_records",
+  onDelete: "CASCADE",
+});
+
+AgentVerificationRecord.belongsTo(AgentProfile, {
+  foreignKey: "agent_profile_id",
+  as: "agent_profile",
+});
+
+AgentVerificationRecord.belongsTo(User, {
+  foreignKey: "submitted_by_user_id",
+  as: "submitted_by",
+});
+
+AgentVerificationRecord.belongsTo(User, {
+  foreignKey: "reviewed_by_user_id",
+  as: "reviewed_by",
+});
+
+FarmerAgentRelationship.belongsTo(User, {
+  foreignKey: "farmer_user_id",
+  as: "farmer",
+});
+
+User.hasMany(FarmerAgentRelationship, {
+  foreignKey: "farmer_user_id",
+  as: "agent_relationships",
+  onDelete: "CASCADE",
+});
+
+FarmerAgentRelationship.belongsTo(User, {
+  foreignKey: "agent_user_id",
+  as: "agent",
+});
+
+User.hasMany(FarmerAgentRelationship, {
+  foreignKey: "agent_user_id",
+  as: "farmer_relationships",
+  onDelete: "CASCADE",
+});
+
+FarmerAgentRelationship.belongsTo(CooperativeProfile, {
+  foreignKey: "cooperative_id",
+  as: "cooperative",
+});
+
+CooperativeProfile.hasMany(FarmerAgentRelationship, {
+  foreignKey: "cooperative_id",
+  as: "farmer_relationships",
+  onDelete: "CASCADE",
+});
+
+FarmerAgentRelationship.belongsTo(AgentProfile, {
+  foreignKey: "agent_profile_id",
+  as: "agent_profile",
+});
+
+AgentProfile.hasMany(FarmerAgentRelationship, {
+  foreignKey: "agent_profile_id",
+  as: "farmer_relationships",
+});
+
+FarmerAgentRelationship.hasMany(FarmerAgentPermission, {
+  foreignKey: "relationship_id",
+  as: "permissions",
+  onDelete: "CASCADE",
+});
+
+FarmerAgentPermission.belongsTo(FarmerAgentRelationship, {
+  foreignKey: "relationship_id",
+  as: "relationship",
+});
+
+FarmerAgentPermission.belongsTo(User, {
+  foreignKey: "granted_by_user_id",
+  as: "granted_by",
+});
+
+FarmerAgentRelationship.hasMany(FarmerConsentRecord, {
+  foreignKey: "relationship_id",
+  as: "consent_records",
+  onDelete: "CASCADE",
+});
+
+FarmerConsentRecord.belongsTo(FarmerAgentRelationship, {
+  foreignKey: "relationship_id",
+  as: "relationship",
+});
+
+FarmerConsentRecord.belongsTo(User, {
+  foreignKey: "farmer_user_id",
+  as: "farmer",
+});
+
+FarmerConsentRecord.belongsTo(User, {
+  foreignKey: "agent_user_id",
+  as: "agent",
+});
+
+FarmerConsentRecord.belongsTo(CooperativeProfile, {
+  foreignKey: "cooperative_id",
+  as: "cooperative",
+});
+
+FarmerActionApproval.belongsTo(User, {
+  foreignKey: "farmer_user_id",
+  as: "farmer",
+});
+
+User.hasMany(FarmerActionApproval, {
+  foreignKey: "farmer_user_id",
+  as: "action_approvals",
+  onDelete: "CASCADE",
+});
+
+FarmerActionApproval.belongsTo(User, {
+  foreignKey: "agent_user_id",
+  as: "agent",
+});
+
+User.hasMany(FarmerActionApproval, {
+  foreignKey: "agent_user_id",
+  as: "requested_approvals",
+  onDelete: "CASCADE",
+});
+
+FarmerActionApproval.belongsTo(CooperativeProfile, {
+  foreignKey: "cooperative_id",
+  as: "cooperative",
+});
+
+CooperativeProfile.hasMany(FarmerActionApproval, {
+  foreignKey: "cooperative_id",
+  as: "action_approvals",
+  onDelete: "CASCADE",
+});
+
+FarmerActionApproval.belongsTo(FarmerAgentRelationship, {
+  foreignKey: "relationship_id",
+  as: "relationship",
+});
+
+FarmerAgentRelationship.hasMany(FarmerActionApproval, {
+  foreignKey: "relationship_id",
+  as: "action_approvals",
+});
+
+FarmerComplaint.belongsTo(User, {
+  foreignKey: "farmer_user_id",
+  as: "farmer",
+});
+
+User.hasMany(FarmerComplaint, {
+  foreignKey: "farmer_user_id",
+  as: "complaints",
+  onDelete: "CASCADE",
+});
+
+FarmerComplaint.belongsTo(User, {
+  foreignKey: "agent_user_id",
+  as: "agent",
+});
+
+User.hasMany(FarmerComplaint, {
+  foreignKey: "agent_user_id",
+  as: "agent_complaints",
+  onDelete: "SET NULL",
+});
+
+FarmerComplaint.belongsTo(CooperativeProfile, {
+  foreignKey: "cooperative_id",
+  as: "cooperative",
+});
+
+CooperativeProfile.hasMany(FarmerComplaint, {
+  foreignKey: "cooperative_id",
+  as: "complaints",
+  onDelete: "SET NULL",
+});
+
+FarmerComplaint.belongsTo(Order, {
+  foreignKey: "related_order_id",
+  as: "related_order",
+});
+
+FarmerComplaint.belongsTo(ProduceListing, {
+  foreignKey: "related_listing_id",
+  as: "related_listing",
+});
+
+FarmerComplaint.belongsTo(User, {
+  foreignKey: "assigned_admin_user_id",
+  as: "assigned_admin",
+});
+
+FarmerComplaint.hasMany(ComplaintEvidence, {
+  foreignKey: "complaint_id",
+  as: "evidence",
+  onDelete: "CASCADE",
+});
+
+ComplaintEvidence.belongsTo(FarmerComplaint, {
+  foreignKey: "complaint_id",
+  as: "complaint",
+});
+
+ComplaintEvidence.belongsTo(User, {
+  foreignKey: "uploaded_by_user_id",
+  as: "uploaded_by",
+});
+
+FarmerComplaint.hasMany(ComplaintInvestigation, {
+  foreignKey: "complaint_id",
+  as: "investigations",
+  onDelete: "CASCADE",
+});
+
+ComplaintInvestigation.belongsTo(FarmerComplaint, {
+  foreignKey: "complaint_id",
+  as: "complaint",
+});
+
+ComplaintInvestigation.belongsTo(User, {
+  foreignKey: "admin_user_id",
+  as: "admin",
+});
+
+OrderFeeDisclosure.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+Order.hasMany(OrderFeeDisclosure, {
+  foreignKey: "order_id",
+  as: "fee_disclosures",
+  onDelete: "CASCADE",
+});
+
+OrderFeeDisclosure.belongsTo(CooperativeProfile, {
+  foreignKey: "cooperative_id",
+  as: "cooperative",
+});
+
+OrderFeeDisclosure.belongsTo(User, {
+  foreignKey: "agent_user_id",
+  as: "agent",
+});
+
+OrderFeeDisclosure.belongsTo(User, {
+  foreignKey: "agreed_by_farmer_user_id",
+  as: "agreed_by_farmer",
+});
+
+OrderFeeDisclosure.belongsTo(FarmerActionApproval, {
+  foreignKey: "farmer_approval_id",
+  as: "farmer_approval",
+});
+
 export {
   AgentActivityLog,
+  AgentProfile,
+  AgentVerificationRecord,
   AgriculturalKnowledge,
   AIConfiguration,
   AIConversation,
@@ -1067,9 +1372,16 @@ export {
   CooperativeAgentAssignment,
   CooperativeMembership,
   CooperativeProfile,
+  ComplaintEvidence,
+  ComplaintInvestigation,
   Delivery,
   DeliveryHistory,
   EmailVerificationToken,
+  FarmerActionApproval,
+  FarmerAgentPermission,
+  FarmerAgentRelationship,
+  FarmerComplaint,
+  FarmerConsentRecord,
   FarmerProfile,
   IntegrityAssessment,
   IntegrityReviewHistory,
@@ -1086,6 +1398,7 @@ export {
   OfferEvent,
   Order,
   OrderEvent,
+  OrderFeeDisclosure,
   OrderItem,
   Payment,
   PaymentWebhookEvent,
