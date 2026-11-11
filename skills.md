@@ -3092,3 +3092,1335 @@ These commands build the backend first and then execute the compiled runner.
 Phase 2 does not include registration endpoints, OTP, login/logout, authentication, JWT/sessions, RBAC middleware, profiles, listings, buyer requests, messaging, offers, orders, inventory, transport, payments, Redis, AI or USSD/SMS/IVR workflows. Those belong to later approved phases.
 
 Do not start Phase 3 until explicit approval is received.
+
+
+
+# PART B: AGROCONNECT FRONTEND DEVELOPMENT SKILLS
+
+# 1. ROLE AND RESPONSIBILITY
+
+You are the Senior Frontend Engineer responsible for building the complete AgroConnect frontend.
+
+Your responsibility is to transform the AgroConnect product vision and existing backend APIs into a modern, responsive, accessible, secure, and production-quality web application.
+
+You must follow the existing backend architecture and integrate with its actual API endpoints.
+
+You are not building a separate product. You are building the frontend of the existing AgroConnect platform.
+
+## Core responsibilities
+
+- Build a beautiful and professional user interface.
+- Create responsive pages for desktop, tablet, and mobile.
+- Integrate the frontend with the existing backend.
+- Implement authentication and role-based experiences.
+- Build marketplace, produce listings, buyer requests, messaging, offers, orders, payments, deliveries, notifications, analytics, and AI features.
+- Use reusable components.
+- Maintain clean and scalable code.
+- Ensure that all buttons, forms, navigation links, and interactions work.
+- Handle loading, success, empty, and error states properly.
+
+# 2. PROJECT IDENTITY
+
+## Product name
+
+AgroConnect
+
+## Main tagline
+
+Connecting Agriculture. Empowering Markets.
+
+## Secondary tagline
+
+From Farm to Market, Connected.
+
+## Product vision
+
+AgroConnect is a global agricultural marketplace connecting farmers, buyers, cooperatives, transporters, and other agricultural participants.
+
+The platform helps farmers find buyers, allows buyers to discover agricultural produce, supports direct communication and negotiation, facilitates transactions, and provides agricultural knowledge and market intelligence.
+
+The frontend must communicate:
+
+- Trust
+- Simplicity
+- Accessibility
+- Transparency
+- Professionalism
+- Agricultural innovation
+- Global opportunities
+
+Do not make the platform look like an ordinary e-commerce template.
+
+It should look like a modern global agritech platform.
+
+# 3. FRONTEND TECHNOLOGY STACK
+
+Use the following technologies:
+
+- Next.js with App Router
+- React
+- TypeScript
+- Tailwind CSS
+- Lucide React icons
+- React Hook Form for complex forms
+- Zod for validation
+- TanStack Query for server-state management where appropriate
+- Recharts for analytics and charts where appropriate
+- Socket.IO Client for real-time messaging and notifications
+- Native Fetch API or a reusable API client for backend communication
+
+Use the versions already installed in the project where possible.
+
+Do not unnecessarily replace existing dependencies or upgrade packages.
+
+Do not introduce another frontend framework.
+
+# 4. BRAND IDENTITY AND DESIGN SYSTEM
+
+Use the official AgroConnect color palette.
+
+## Primary colors
+
+- Agro Green: #176B45
+- Fresh Green: #8BC34A
+- Harvest Gold: #E9A23B
+- Deep Navy: #18324B
+- Soft Background: #F5F7F2
+- White: #FFFFFF
+
+## Typography
+
+- Headings: Manrope
+- Body text: Inter
+
+Use Next.js font optimization where appropriate.
+
+## Design direction
+
+The interface must be:
+
+- Clean and minimal.
+- Modern and professional.
+- Visually attractive without being overcrowded.
+- Easy to navigate.
+- Consistent across all pages.
+- Mobile-first.
+- Accessible.
+
+Use generous whitespace, clear typography, subtle borders, soft shadows, rounded cards, and consistent spacing.
+
+Avoid excessive gradients, unnecessary animations, oversized text, cluttered dashboards, and too many colors.
+
+Use the green palette for primary actions and important agricultural elements.
+
+Use harvest gold sparingly for highlights and important indicators.
+
+Use subtle animations for hover states, transitions, dropdowns, and loading feedback.
+
+Animations must not interfere with accessibility or performance.
+
+# 5. IMPORTANT DEVELOPMENT RULES
+
+1. Inspect the existing frontend before writing code.
+2. Preserve the existing Next.js project structure.
+3. Do not restart the project from scratch.
+4. Do not delete completed work without a clear reason.
+5. Do not modify the backend unnecessarily.
+6. Follow the existing backend API contracts.
+7. Never invent API endpoints or response structures.
+8. If an API endpoint is missing, document it and report the backend dependency.
+9. Use reusable components.
+10. Use TypeScript throughout.
+11. Avoid unnecessary packages.
+12. Keep code modular and maintainable.
+13. Do not hardcode fake user data into production functionality.
+14. Do not use mock data when a working backend endpoint is available.
+15. Do not expose secret keys or private environment variables.
+16. Never trust frontend payment confirmation.
+17. Implement real validation and error handling.
+18. Test every major feature before declaring it complete.
+
+# 6. FRONTEND PROJECT STRUCTURE
+
+Organize the frontend cleanly.
+
+Recommended structure:
+
+frontend/
+├── public/
+│   ├── images/
+│   ├── icons/
+│   └── logos/
+│
+├── src/
+│   ├── app/
+│   │   ├── (marketing)/
+│   │   │   ├── page.tsx
+│   │   │   ├── about/
+│   │   │   ├── how-it-works/
+│   │   │   ├── marketplace/
+│   │   │   └── contact/
+│   │   │
+│   │   ├── (auth)/
+│   │   │   ├── login/
+│   │   │   ├── register/
+│   │   │   ├── verify/
+│   │   │   └── forgot-password/
+│   │   │
+│   │   ├── dashboard/
+│   │   ├── marketplace/
+│   │   ├── listings/
+│   │   ├── buyer-requests/
+│   │   ├── messages/
+│   │   ├── offers/
+│   │   ├── orders/
+│   │   ├── deliveries/
+│   │   ├── notifications/
+│   │   ├── market-intelligence/
+│   │   ├── ai-assistant/
+│   │   ├── profile/
+│   │   ├── settings/
+│   │   └── admin/
+│   │
+│   ├── components/
+│   │   ├── ui/
+│   │   ├── layout/
+│   │   ├── navigation/
+│   │   ├── forms/
+│   │   ├── marketplace/
+│   │   ├── listings/
+│   │   ├── messaging/
+│   │   ├── offers/
+│   │   ├── orders/
+│   │   ├── deliveries/
+│   │   ├── notifications/
+│   │   ├── analytics/
+│   │   └── ai/
+│   │
+│   ├── hooks/
+│   ├── lib/
+│   │   ├── api.ts
+│   │   ├── auth.ts
+│   │   ├── socket.ts
+│   │   ├── utils.ts
+│   │   └── constants.ts
+│   │
+│   ├── services/
+│   │   ├── auth.service.ts
+│   │   ├── user.service.ts
+│   │   ├── listing.service.ts
+│   │   ├── buyer-request.service.ts
+│   │   ├── messaging.service.ts
+│   │   ├── offer.service.ts
+│   │   ├── order.service.ts
+│   │   ├── payment.service.ts
+│   │   ├── delivery.service.ts
+│   │   ├── notification.service.ts
+│   │   ├── analytics.service.ts
+│   │   └── ai.service.ts
+│   │
+│   ├── types/
+│   ├── providers/
+│   ├── styles/
+│   └── middleware.ts
+│
+├── .env.local
+└── package.json
+
+Adapt this structure to the existing project rather than forcing a destructive reorganization.
+
+# 7. BACKEND INTEGRATION RULES
+
+The frontend must communicate with the backend through HTTP APIs.
+
+Never connect directly to PostgreSQL.
+
+## Environment variables
+
+Create or maintain:
+
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
+
+Use the actual backend port and URL discovered in the existing project.
+
+For production, configure the deployed backend URL through the frontend hosting environment.
+
+Never put private API keys in NEXT_PUBLIC variables.
+
+## API client
+
+Create a reusable API client in:
+
+src/lib/api.ts
+
+It must support:
+
+- GET
+- POST
+- PUT
+- PATCH
+- DELETE
+- JSON responses
+- Appropriate request headers
+- Authentication credentials
+- Consistent error handling
+- Request timeouts where appropriate
+- File uploads using FormData without manually setting its Content-Type header
+
+Use the backend's actual authentication method.
+
+If the backend uses secure HttpOnly cookies, use credentials appropriately.
+
+If the backend uses access and refresh tokens, implement the existing backend's token lifecycle securely. Do not invent a new authentication system.
+
+Never store sensitive long-lived tokens in localStorage.
+
+Create service functions for each backend feature instead of scattering fetch calls throughout components.
+
+# 8. AUTHENTICATION AND USER ONBOARDING
+
+Build a simple, professional authentication experience.
+
+Support the existing backend registration options:
+
+- Phone number registration.
+- Email registration.
+- Phone and email when supported.
+
+Registration must follow the backend verification process.
+
+## Required pages
+
+- Login
+- Registration
+- Phone OTP verification
+- Email verification
+- Forgot password
+- Reset password
+
+## Registration experience
+
+Collect only information required by the backend.
+
+Allow users to select their appropriate role:
+
+- Farmer
+- Buyer
+- Transporter
+- Cooperative
+- Agent, where authorized
+
+Do not allow public users to assign themselves administrator privileges.
+
+## Authentication requirements
+
+- Connect forms to real backend endpoints.
+- Validate fields.
+- Show useful error messages.
+- Show loading states.
+- Prevent duplicate submissions.
+- Handle expired OTPs.
+- Support OTP resend cooldowns.
+- Support logout.
+- Handle expired sessions.
+- Redirect users appropriately after login.
+- Protect authenticated pages.
+
+Do not invent authentication routes. Inspect the backend first.
+
+# 9. ROLE-BASED DASHBOARDS
+
+Build dashboard experiences based on authenticated user roles.
+
+Do not show every user the same dashboard.
+
+## Farmer dashboard
+
+Display:
+
+- Welcome message.
+- Total active listings.
+- Available produce.
+- Reserved stock.
+- Sold produce.
+- Incoming offers.
+- Recent orders.
+- Buyer messages.
+- Notifications.
+- Market insights.
+- Recommended buyers and opportunities.
+
+Quick actions:
+
+- Add produce.
+- Manage listings.
+- View buyer requests.
+- Check offers.
+- Open messages.
+
+## Buyer dashboard
+
+Display:
+
+- Welcome message.
+- Active buyer requests.
+- Incoming farmer offers.
+- Recent orders.
+- Saved or shortlisted listings, if supported.
+- Messages.
+- Payment history.
+- Recommended farmers.
+- Market insights.
+
+Quick actions:
+
+- Browse marketplace.
+- Create buyer request.
+- Contact farmer.
+- Review offers.
+- View orders.
+
+## Transporter dashboard
+
+Display:
+
+- Assigned deliveries.
+- Pending delivery requests.
+- Accepted deliveries.
+- Completed deliveries.
+- Delivery history.
+- Availability status.
+
+Quick actions:
+
+- View assigned deliveries.
+- Accept eligible deliveries.
+- Update delivery status.
+
+## Cooperative and agent dashboard
+
+Display:
+
+- Authorized farmers.
+- Farmer activity.
+- Relevant listings.
+- Assigned tasks.
+- Verification assistance.
+- Regional market information.
+
+Respect the backend's permission boundaries.
+
+Agents must not gain unrestricted access to farmer accounts.
+
+## Admin dashboard
+
+Display:
+
+- User statistics.
+- Farmer and buyer activity.
+- Marketplace statistics.
+- Orders and payment summaries.
+- Delivery activity.
+- Pending verifications.
+- Review reports.
+- Integrity AI assessments.
+- Knowledge source management.
+- System notifications.
+
+Admin routes must be protected by backend authorization, not just hidden in the frontend.
+
+# 10. PUBLIC WEBSITE AND HOMEPAGE
+
+Create a polished public-facing homepage.
+
+The homepage should explain AgroConnect clearly to first-time visitors.
+
+## Navigation
+
+Include:
+
+- AgroConnect logo.
+- Home.
+- About.
+- How it works.
+- Marketplace.
+- Contact.
+- Login.
+- Join AgroConnect.
+
+Make the navigation responsive with a mobile menu.
+
+## Hero section
+
+Main heading:
+
+"Connecting Agriculture. Empowering Markets."
+
+Supporting text:
+
+"AgroConnect brings farmers, buyers, and agricultural businesses together through a smarter, more connected marketplace."
+
+Primary CTA:
+
+"Explore Marketplace"
+
+Secondary CTA:
+
+"Join AgroConnect"
+
+Use authentic agricultural imagery where available.
+
+## Homepage sections
+
+1. Hero section.
+2. Trusted agricultural marketplace introduction.
+3. How AgroConnect works.
+4. Benefits for farmers.
+5. Benefits for buyers.
+6. Marketplace produce preview.
+7. Buyer requests preview.
+8. Market intelligence introduction.
+9. AgroConnect AI Assistant introduction.
+10. Call-to-action section.
+11. Footer.
+
+Do not invent customer testimonials, partner logos, user counts, or platform statistics.
+
+Use genuine backend data for live statistics. If no data is available, show descriptive content rather than fabricated numbers.
+
+# 11. PRODUCE MARKETPLACE
+
+Build a modern agricultural marketplace.
+
+## Marketplace features
+
+- Browse produce listings.
+- Search by produce name.
+- Filter by category.
+- Filter by location.
+- Filter by price range.
+- Filter by quantity.
+- Filter by availability.
+- Sort results.
+- Pagination.
+- View produce details.
+
+## Listing cards
+
+Each card should display available information:
+
+- Produce image.
+- Produce name.
+- Price.
+- Quantity available.
+- Unit.
+- Location.
+- Farmer information.
+- Verification indicator when approved.
+- Availability status.
+
+## Produce details
+
+Display:
+
+- Produce images.
+- Description.
+- Quality or grade when available.
+- Available quantity.
+- Price and currency.
+- Farmer profile.
+- Location.
+- Harvest or freshness information when available.
+- Contact farmer.
+- Make an offer.
+
+Only show actions allowed by the backend and user's permissions.
+
+# 12. FARMER LISTINGS AND INVENTORY
+
+Farmers must be able to manage produce listings.
+
+Build:
+
+- Create listing.
+- Edit listing.
+- View listing.
+- Pause listing.
+- Reactivate listing.
+- Delete or archive where supported.
+- Manage inventory.
+- View reserved quantity.
+- View sold quantity.
+
+The inventory interface must distinguish:
+
+- Available stock.
+- Reserved stock.
+- Sold stock.
+
+Never calculate or modify authoritative inventory independently in the frontend.
+
+The backend is the source of truth.
+
+When a reservation expires, refresh the relevant inventory data from the backend.
+
+Do not show expired or unavailable produce as purchasable.
+
+# 13. BUYER REQUESTS
+
+Create a buyer request section.
+
+Buyers should be able to:
+
+- Browse buyer requests.
+- Search requests.
+- Filter by produce.
+- Filter by location.
+- View quantities.
+- View target prices where available.
+- Create requests.
+- Edit eligible requests.
+- Pause requests.
+- Reopen requests.
+- Cancel requests.
+- View offers received.
+
+Farmers should be able to:
+
+- Discover relevant buyer requests.
+- View request details.
+- Contact the buyer.
+- Submit an offer.
+
+Respect the buyer request status and backend authorization.
+
+# 14. MESSAGING AND COMMUNICATION
+
+Build a modern messaging experience using the existing backend messaging APIs and Socket.IO implementation.
+
+## Messaging interface
+
+Desktop:
+
+- Left sidebar: conversation list.
+- Center: active conversation.
+- Right sidebar: relevant listing or buyer request information, where available.
+
+Mobile:
+
+- Conversation list page.
+- Individual conversation page.
+
+Features:
+
+- Send messages.
+- Receive messages in real time.
+- View conversation history.
+- Unread message count.
+- Read receipts where supported.
+- Conversation timestamps.
+- Message loading states.
+- Reconnection handling.
+- Empty conversation state.
+
+Persist messages through the backend.
+
+Socket.IO should provide real-time updates, not replace PostgreSQL as the source of truth.
+
+Do not create duplicate conversations unnecessarily.
+
+# 15. OFFERS AND NEGOTIATIONS
+
+Build an offer management interface.
+
+Users should be able to:
+
+- Create an offer.
+- View received offers.
+- View sent offers.
+- Accept offers.
+- Reject offers.
+- Withdraw eligible offers.
+- Submit counteroffers.
+- View offer history.
+
+Display:
+
+- Produce or buyer request.
+- Quantity.
+- Unit price.
+- Total amount.
+- Currency.
+- Delivery details.
+- Offer status.
+- Expiry time.
+- Offer history.
+
+Use clear status labels:
+
+- Pending
+- Countered
+- Accepted
+- Rejected
+- Withdrawn
+- Expired
+
+Only show actions that the backend permits.
+
+Do not assume an accepted offer means an order has been paid.
+
+# 16. ORDERS AND PAYMENTS
+
+Create a complete order management interface.
+
+## Order pages
+
+- My orders.
+- Order details.
+- Order history.
+- Payment details.
+- Payment result.
+
+Display:
+
+- Order number.
+- Produce.
+- Quantity.
+- Agreed price.
+- Total.
+- Currency.
+- Buyer and farmer details according to permissions.
+- Reservation information.
+- Order status.
+- Payment status.
+- Delivery status when applicable.
+
+## Paystack integration
+
+Use the backend Paystack integration.
+
+The frontend must:
+
+1. Request payment initialization from the backend.
+2. Receive the actual Paystack authorization URL.
+3. Redirect the user to Paystack hosted checkout.
+4. Handle the return/callback page.
+5. Ask the backend to verify payment.
+6. Display the verified result.
+
+Never:
+
+- Put the Paystack secret key in the frontend.
+- Trust a successful redirect as proof of payment.
+- Mark an order paid directly from the browser.
+- Calculate the authoritative payment amount in the frontend.
+- Simulate a successful transaction.
+
+The backend must remain responsible for payment initialization, verification, webhooks, and order updates.
+
+Display clear payment states:
+
+- Pending
+- Processing
+- Successful
+- Failed
+- Refunded
+- Partially refunded
+
+# 17. TRANSPORT AND DELIVERY
+
+Build delivery management interfaces.
+
+Buyers and farmers should be able to see relevant delivery information for their orders.
+
+Transporters should see assigned deliveries.
+
+Display:
+
+- Delivery number.
+- Related order.
+- Pickup location.
+- Destination.
+- Produce.
+- Quantity.
+- Delivery fee.
+- Assigned transporter.
+- Current delivery status.
+- Delivery history.
+
+Support the actual backend status transitions.
+
+Do not display fake live GPS tracking.
+
+If live location tracking is not implemented, show the delivery status timeline instead.
+
+# 18. NOTIFICATIONS
+
+Build an in-app notification center.
+
+Display notifications for:
+
+- New offers.
+- Accepted or rejected offers.
+- Counteroffers.
+- New messages.
+- New orders.
+- Payment results.
+- Reservation expiry.
+- Delivery updates.
+- Verification updates.
+- Important account announcements.
+
+Features:
+
+- Unread count.
+- Mark as read.
+- Mark all as read.
+- Delete where supported.
+- Notification history.
+- Relevant links to the related resource.
+
+Use Socket.IO for real-time updates when supported.
+
+Persisted notifications must load from the backend.
+
+# 19. MARKET INTELLIGENCE AND ANALYTICS
+
+Create a clean analytics interface.
+
+Display available backend analytics such as:
+
+- Produce price trends.
+- Regional price comparisons.
+- Supply levels.
+- Buyer demand.
+- Completed transactions.
+- Produce demand by location.
+- Marketplace activity.
+
+Use charts only when actual data is available.
+
+Clearly distinguish:
+
+- Asking prices.
+- Completed transaction prices.
+- Verified market observations.
+
+Always display relevant:
+
+- Currency.
+- Unit.
+- Location.
+- Date range.
+- Number of observations.
+
+Do not mix incompatible units or currencies.
+
+Do not fabricate market prices or trends.
+
+Show a useful empty state when there is insufficient data.
+
+# 20. AGROCONNECT AI ASSISTANT
+
+Build a conversational AI assistant.
+
+This is a core AgroConnect feature.
+
+The assistant must allow users to ask questions about:
+
+1. AgroConnect platform usage.
+2. Agricultural knowledge.
+3. Market intelligence.
+4. General relevant agricultural questions.
+
+## Interface
+
+Create:
+
+- Chat interface.
+- Message bubbles.
+- User and assistant identification.
+- Message input.
+- Send button.
+- Loading indicator.
+- Conversation history.
+- New conversation button.
+- Delete conversation action.
+- Suggested questions.
+
+Suggested questions:
+
+- How do I create a produce listing?
+- How can I find buyers?
+- How do I make an offer?
+- What is the best time to plant maize?
+- How can I improve tomato production?
+- What causes common crop diseases?
+- What are current market trends for maize?
+
+## Assistant behavior
+
+The frontend must connect to the existing backend AI assistant APIs.
+
+Display:
+
+- Assistant responses.
+- Source references where returned.
+- Relevant market data.
+- Loading and failure states.
+- Follow-up conversations.
+
+Do not create a separate AI provider integration in the browser.
+
+Never expose AI provider API keys.
+
+The backend must handle knowledge retrieval, AI provider calls, permissions, and agricultural safety.
+
+Do not present uncertain agricultural advice as guaranteed fact.
+
+# 21. PROFILES AND SETTINGS
+
+Build profile pages for:
+
+- Farmers.
+- Buyers.
+- Transporters.
+- Cooperatives.
+- Agents.
+
+Display available profile information.
+
+Allow authorized users to edit their own profile.
+
+Include:
+
+- Personal details.
+- Contact details.
+- Profile image.
+- Location.
+- Business information where applicable.
+- Verification status.
+- Ratings and reviews.
+- Account settings.
+- Notification preferences.
+
+Verification indicators must come from approved backend records.
+
+Do not display users as verified merely because they uploaded documents.
+
+# 22. RATINGS, REVIEWS AND TRUST
+
+Build review interfaces.
+
+Features:
+
+- Display average ratings.
+- Display review counts.
+- Display individual reviews.
+- Submit eligible reviews.
+- Edit eligible reviews.
+- Report inappropriate reviews.
+- Display moderation status only where appropriate.
+
+Use actual completed transaction eligibility returned by the backend.
+
+Keep verification badges separate from rating scores.
+
+# 23. ADMIN INTERFACE
+
+Build an organized admin dashboard.
+
+Include sections for:
+
+- Users.
+- Farmers.
+- Buyers.
+- Cooperatives.
+- Transporters.
+- Listings.
+- Buyer requests.
+- Orders.
+- Payments.
+- Deliveries.
+- Verifications.
+- Reviews and reports.
+- Integrity AI assessments.
+- AI knowledge sources.
+- Platform analytics.
+
+Admin operations must use protected backend endpoints.
+
+Do not implement frontend-only admin authorization.
+
+Use confirmation dialogs for sensitive actions.
+
+# 24. FORMS AND VALIDATION
+
+All forms must have proper validation.
+
+Use React Hook Form and Zod where appropriate.
+
+Requirements:
+
+- Required field validation.
+- Email validation.
+- Phone number validation.
+- Quantity validation.
+- Price validation.
+- File validation.
+- Useful field-level error messages.
+- Loading state during submission.
+- Disabled submission while processing.
+- Success and failure feedback.
+
+Never trust frontend validation alone. The backend must validate all submitted data.
+
+# 25. RESPONSIVE DESIGN
+
+AgroConnect must work properly on:
+
+- Desktop.
+- Laptop.
+- Tablet.
+- Mobile phones.
+
+Mobile design is especially important because many farmers and buyers will access the platform through smartphones.
+
+Requirements:
+
+- Responsive navigation.
+- Touch-friendly controls.
+- Readable typography.
+- Responsive tables.
+- Mobile-friendly dashboards.
+- Responsive forms.
+- Proper image sizing.
+- No horizontal overflow.
+- Accessible mobile menus.
+
+Do not simply shrink the desktop layout. Design appropriate mobile experiences.
+
+# 26. ACCESSIBILITY
+
+Follow accessibility best practices.
+
+Implement:
+
+- Semantic HTML.
+- Proper heading hierarchy.
+- Accessible labels.
+- Keyboard navigation.
+- Visible focus states.
+- Accessible dialogs.
+- Sufficient color contrast.
+- Alternative text for meaningful images.
+- Screen-reader-friendly status messages.
+
+Do not use color alone to communicate important statuses.
+
+# 27. LOADING, EMPTY, ERROR AND SUCCESS STATES
+
+Every major data-driven page must handle four states.
+
+## Loading
+
+Use skeleton loaders or clear loading indicators.
+
+## Empty
+
+Show helpful messages and appropriate next actions.
+
+Example:
+
+"You haven't created any produce listings yet."
+
+Button: "Create Your First Listing"
+
+## Error
+
+Show understandable errors with a retry action where appropriate.
+
+Do not expose backend stack traces or internal server details.
+
+## Success
+
+Show clear confirmation after successful operations.
+
+Avoid excessive notifications and unnecessary popups.
+
+# 28. SECURITY REQUIREMENTS
+
+- Never expose backend secrets.
+- Never expose Paystack secret keys.
+- Never expose Brevo or Africa's Talking credentials.
+- Never expose database credentials.
+- Do not trust frontend role information.
+- Respect backend authorization.
+- Sanitize and safely render user-generated content.
+- Avoid unsafe HTML rendering.
+- Validate file uploads.
+- Handle expired sessions.
+- Avoid leaking private user information.
+- Do not put sensitive information in URLs.
+- Do not store long-lived sensitive tokens in localStorage.
+- Use HTTPS in production.
+- Follow the backend's CORS and cookie configuration.
+
+# 29. PERFORMANCE AND SEO
+
+Implement:
+
+- Next.js image optimization.
+- Lazy loading where appropriate.
+- Server Components by default.
+- Client Components only where interaction requires them.
+- Pagination for large datasets.
+- Efficient data fetching.
+- Avoid unnecessary re-renders.
+- Metadata for public pages.
+- Search-friendly page titles.
+- Descriptive page metadata.
+- Proper loading and error boundaries.
+
+Do not turn the entire application into Client Components unnecessarily.
+
+# 30. TESTING REQUIREMENTS
+
+Test:
+
+- Public navigation.
+- Authentication flows.
+- Registration and verification.
+- Login and logout.
+- Protected pages.
+- Role-based dashboards.
+- Marketplace search and filters.
+- Produce listing management.
+- Buyer requests.
+- Messaging.
+- Offers.
+- Orders.
+- Paystack checkout and verification flow.
+- Deliveries.
+- Notifications.
+- Market intelligence.
+- AI assistant.
+- Responsive layouts.
+
+Use the existing test framework if present.
+
+Mock external services in tests.
+
+Never use real payment credentials or make real payments during automated tests.
+
+# 31. FRONTEND DEVELOPMENT PHASES
+
+Follow these phases in order.
+
+Do not attempt to build the entire frontend in one operation.
+
+## FRONTEND PHASE 1: FOUNDATION AND DESIGN SYSTEM
+
+Build:
+
+- Frontend architecture.
+- Brand styles.
+- Typography.
+- Color system.
+- Global CSS.
+- Responsive layout foundation.
+- Reusable UI components.
+- Buttons.
+- Inputs.
+- Cards.
+- Modals.
+- Dropdowns.
+- Toast notifications.
+- Navigation.
+- Footer.
+- Public homepage.
+
+Integrate no unnecessary backend features at this stage.
+
+Completion requirements:
+
+- Frontend runs successfully.
+- Homepage looks polished.
+- Design system is consistent.
+- Layout works on mobile and desktop.
+- Existing project work is preserved.
+
+## FRONTEND PHASE 2: AUTHENTICATION AND ONBOARDING
+
+Build:
+
+- Registration.
+- Login.
+- Phone OTP verification.
+- Email verification.
+- Forgot password.
+- Reset password.
+- Session management.
+- Protected routes.
+- Role selection and onboarding.
+
+Connect all flows to actual backend authentication endpoints.
+
+## FRONTEND PHASE 3: PROFILES AND DASHBOARDS
+
+Build:
+
+- User profiles.
+- Profile editing.
+- Farmer dashboard.
+- Buyer dashboard.
+- Transporter dashboard.
+- Cooperative/agent dashboard.
+- Admin dashboard foundation.
+- Account settings.
+
+Use actual authenticated user data.
+
+## FRONTEND PHASE 4: MARKETPLACE AND INVENTORY
+
+Build:
+
+- Marketplace.
+- Produce listing cards.
+- Search.
+- Filters.
+- Sorting.
+- Produce details.
+- Create listing.
+- Edit listing.
+- Inventory management.
+- Listing status management.
+
+Connect to the existing backend listing and inventory APIs.
+
+## FRONTEND PHASE 5: BUYER REQUESTS AND DISCOVERY
+
+Build:
+
+- Buyer request marketplace.
+- Buyer request creation.
+- Request management.
+- Request details.
+- Farmer discovery.
+- Relevant search and filters.
+
+Connect to existing buyer request APIs.
+
+## FRONTEND PHASE 6: MESSAGING AND COMMUNICATION
+
+Build:
+
+- Conversation list.
+- Chat interface.
+- Real-time messages.
+- Message history.
+- Unread counts.
+- Read receipts where supported.
+- Mobile messaging experience.
+
+Connect to the existing messaging APIs and Socket.IO.
+
+## FRONTEND PHASE 7: OFFERS, ORDERS AND PAYMENTS
+
+Build:
+
+- Offer management.
+- Counteroffers.
+- Offer history.
+- Accept and reject actions.
+- Order management.
+- Order details.
+- Payment initialization.
+- Paystack hosted checkout.
+- Payment verification.
+- Payment result pages.
+
+Use the backend as the source of truth for all payment and order statuses.
+
+## FRONTEND PHASE 8: DELIVERY, NOTIFICATIONS, ANALYTICS, AI AND FINAL POLISH
+
+Build:
+
+- Delivery management.
+- Delivery status timeline.
+- Notification center.
+- Market intelligence.
+- Ratings and reviews.
+- Verification interfaces.
+- AgroConnect AI Assistant.
+- Admin management features.
+- Responsive and accessibility improvements.
+- Final testing and optimization.
+
+Only implement features whose backend APIs are available. Record any missing dependencies clearly.
+
+# 32. REQUIRED WORKFLOW FOR EVERY PHASE
+
+Before starting a phase:
+
+1. Read this frontend skills document.
+2. Inspect the current frontend structure.
+3. Review the relevant backend endpoints and models.
+4. Identify available API routes and response formats.
+5. Identify missing backend dependencies.
+6. Prepare an implementation plan.
+7. Implement only the requested phase.
+8. Test the implementation.
+9. Fix errors before proceeding.
+10. Document what was completed.
+
+At the end of every phase, report:
+
+- Features implemented.
+- Pages created.
+- Components created.
+- Backend APIs connected.
+- Environment variables required.
+- Tests performed.
+- Known issues.
+- Missing backend dependencies.
+- Recommended next phase.
+
+Do not claim a feature is complete if it only has a visual design without working functionality.
+
+# 33. FINAL EXPECTATIONS
+
+The finished AgroConnect frontend must:
+
+- Look like a professional global agricultural technology platform.
+- Be simple enough for ordinary farmers and buyers.
+- Be visually clean and consistent.
+- Work on desktop and mobile.
+- Connect properly to the existing backend.
+- Support all implemented user roles.
+- Support real marketplace activity.
+- Support communication and negotiations.
+- Support orders and Paystack payments.
+- Support delivery management.
+- Support notifications.
+- Support agricultural market intelligence.
+- Support the AgroConnect AI Assistant.
+- Follow security and accessibility standards.
+- Be maintainable and ready for production deployment.
+
+# FINAL INSTRUCTION TO THE AI AGENT
+
+You are working on the existing AgroConnect project.
+
+The backend has already been developed through its own implementation phases. Do not rebuild it or replace its architecture.
+
+Your immediate responsibility is to start FRONTEND PHASE 1.
+
+Before coding, inspect the existing frontend, preserve the existing Next.js foundation and homepage, and understand the current backend integration requirements.
+
+Build a clean, premium, modern AgroConnect interface using the official brand identity.
+
+Work phase by phase. Do not skip phases, invent backend endpoints, use fake production data, or claim incomplete functionality is finished.
+
+Prioritize excellent UI/UX, real functionality, maintainable code, and reliable backend integration.
