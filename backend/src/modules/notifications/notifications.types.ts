@@ -38,6 +38,19 @@ export type NotificationType =
   | "market_observation_submitted"
   | "market_observation_approved"
   | "market_observation_rejected"
+  | "agent_invited"
+  | "agent_verification_approved"
+  | "agent_verification_rejected"
+  | "agent_relationship_requested"
+  | "agent_relationship_approved"
+  | "agent_relationship_revoked"
+  | "action_approval_requested"
+  | "action_approved"
+  | "action_rejected"
+  | "action_approval_expired"
+  | "complaint_submitted"
+  | "complaint_status_updated"
+  | "complaint_resolved"
   | "system_announcement"
   | "marketing";
 
@@ -61,6 +74,9 @@ export interface NotificationTemplateVariables {
   review_title?: string | null;
   produce_name?: string | null;
   market_name?: string | null;
+  complaint_number?: string | null;
+  action_type?: string | null;
+  approval_id?: string | null;
   action_url?: string | null;
 }
 

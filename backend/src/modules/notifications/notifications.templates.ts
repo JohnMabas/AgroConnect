@@ -249,6 +249,87 @@ function subjectFor(
           variables.reason ? `: ${variables.reason}` : "."
         }`,
       };
+    case "agent_invited":
+      return {
+        title: "Cooperative agent invitation",
+        message: `${actor(variables)} invited you to act as an agent for their cooperative. Complete verification before assisting farmers.`,
+      };
+    case "agent_verification_approved":
+      return {
+        title: "Agent verification approved",
+        message: "Your cooperative agent verification was approved. You can now request farmer consent.",
+      };
+    case "agent_verification_rejected":
+      return {
+        title: "Agent verification rejected",
+        message: `Your cooperative agent verification was rejected${
+          variables.reason ? `: ${variables.reason}` : "."
+        }`,
+      };
+    case "agent_relationship_requested":
+      return {
+        title: "Farmer consent requested",
+        message: `${actor(variables)} requested permission to assist with your farm activities. Review the request and grant only the permissions you approve.`,
+      };
+    case "agent_relationship_approved":
+      return {
+        title: "Farmer consent granted",
+        message: `${actor(variables)} granted you permission to assist with their farm activities.`,
+      };
+    case "agent_relationship_revoked":
+      return {
+        title: "Farmer consent revoked",
+        message: `${actor(variables)} revoked your permission to assist with their farm activities${
+          variables.reason ? `: ${variables.reason}` : "."
+        }`,
+      };
+    case "action_approval_requested":
+      return {
+        title: "Action approval requested",
+        message: `${actor(variables)} requested your approval for ${humanize(
+          variables.action_type,
+        )}. No change will be made unless you approve it.`,
+      };
+    case "action_approved":
+      return {
+        title: "Action approved",
+        message: `The farmer approved ${humanize(variables.action_type)}.`,
+      };
+    case "action_rejected":
+      return {
+        title: "Action rejected",
+        message: `The farmer rejected ${humanize(variables.action_type)}${
+          variables.reason ? `: ${variables.reason}` : "."
+        }`,
+      };
+    case "action_approval_expired":
+      return {
+        title: "Action approval expired",
+        message: `The approval request for ${humanize(
+          variables.action_type,
+        )} expired without farmer consent.`,
+      };
+    case "complaint_submitted":
+      return {
+        title: "Complaint received",
+        message: `Complaint${
+          variables.complaint_number ? ` ${variables.complaint_number}` : ""
+        } was received and will be reviewed by an administrator.`,
+      };
+    case "complaint_status_updated":
+      return {
+        title: "Complaint status updated",
+        message: `Complaint${
+          variables.complaint_number ? ` ${variables.complaint_number}` : ""
+        } is now ${humanize(variables.reason)}.`,
+      };
+    case "complaint_resolved":
+      return {
+        title: "Complaint resolved",
+        message: `Complaint${
+          variables.complaint_number ? ` ${variables.complaint_number}` : ""
+        } was resolved${variables.reason ? `: ${variables.reason}` : "."}`,
+      };
     case "verification_submitted":
       return {
         title: "Verification submitted",

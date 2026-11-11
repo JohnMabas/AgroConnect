@@ -110,6 +110,19 @@ export function isCategoryEnabled(
     case "verification_approved":
     case "verification_rejected":
       return preference.verifications_enabled;
+    case "agent_invited":
+    case "agent_verification_approved":
+    case "agent_verification_rejected":
+    case "agent_relationship_requested":
+    case "agent_relationship_approved":
+    case "agent_relationship_revoked":
+    case "action_approval_requested":
+    case "action_approved":
+    case "action_rejected":
+    case "action_approval_expired":
+    case "complaint_submitted":
+    case "complaint_status_updated":
+    case "complaint_resolved":
     case "market_observation_submitted":
     case "market_observation_approved":
     case "market_observation_rejected":
@@ -127,6 +140,11 @@ const ALWAYS_IN_APP_TYPES: ReadonlySet<NotificationType> = new Set([
   "payment_failed",
   "reservation_expiring",
   "reservation_expired",
+  "action_approval_requested",
+  "action_approved",
+  "action_rejected",
+  "complaint_submitted",
+  "complaint_resolved",
 ]);
 
 export function isAlwaysInApp(type: NotificationType): boolean {

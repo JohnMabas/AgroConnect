@@ -44,6 +44,11 @@ const ALWAYS_IN_APP: NotificationType[] = [
   "payment_failed",
   "reservation_expiring",
   "reservation_expired",
+  "action_approval_requested",
+  "action_approved",
+  "action_rejected",
+  "complaint_submitted",
+  "complaint_resolved",
 ];
 
 const processingDeliveries = new Set<string>();
