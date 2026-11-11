@@ -19,6 +19,13 @@ import {
   listAgentsHandler,
   deactivateAgentHandler,
 } from "./cooperatives.controller.js";
+import {
+  inviteAgentHandler,
+  listAgentVerificationsHandler,
+  listCooperativeAgentsHandler,
+  listCooperativeAuditHandler,
+  listCooperativeRelationshipsHandler,
+} from "../farmer-protection/farmer-protection.controller.js";
 
 export function createCooperativesRouter(): Router {
   const router = Router();
@@ -49,6 +56,38 @@ export function createCooperativesRouter(): Router {
   router.post("/:id/agents", authenticate, requireRoles("cooperative"), assignAgentHandler);
   router.get("/:id/agents", authenticate, listAgentsHandler);
   router.patch("/:id/agents/:agentId", authenticate, requireRoles("cooperative"), deactivateAgentHandler);
+
+  // Phase 16 — cooperative-only agent invitations, consent visibility and audit.
+  router.post(
+    "/:id/agents/invite",
+    authenticate,
+    requireRoles("cooperative"),
+    inviteAgentHandler,
+  );
+  router.get(
+    "/:id/agents/profiles",
+    authenticate,
+    requireRoles("cooperative"),
+    listCooperativeAgentsHandler,
+  );
+  router.get(
+    "/:id/agents/:agentProfileId/verifications",
+    authenticate,
+    requireRoles("cooperative", "admin"),
+    listAgentVerificationsHandler,
+  );
+  router.get(
+    "/:id/relationships",
+    authenticate,
+    requireRoles("cooperative"),
+    listCooperativeRelationshipsHandler,
+  );
+  router.get(
+    "/:id/audit",
+    authenticate,
+    requireRoles("cooperative"),
+    listCooperativeAuditHandler,
+  );
 
   return router;
 }
