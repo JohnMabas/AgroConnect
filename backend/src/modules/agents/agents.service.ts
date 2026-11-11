@@ -7,24 +7,36 @@ import { buildAgentAssignmentData } from "../cooperatives/cooperatives.service.j
 
 export interface AgentActivityData {
   id: string;
-  agent_user_id: string;
-  farmer_user_id: string;
+  agent_user_id: string | null;
+  farmer_user_id: string | null;
   cooperative_id: string | null;
   action: string;
   description: string | null;
   metadata: Record<string, unknown> | null;
+  resource_type: string | null;
+  resource_id: string | null;
+  approval_required: boolean;
+  approval_id: string | null;
+  approval_status: string | null;
+  action_result: string | null;
   created_at: Date;
 }
 
 function buildActivityData(log: AgentActivityLog): AgentActivityData {
   return {
     id: log.id,
-    agent_user_id: log.agent_user_id,
-    farmer_user_id: log.farmer_user_id,
+    agent_user_id: log.agent_user_id ?? null,
+    farmer_user_id: log.farmer_user_id ?? null,
     cooperative_id: log.cooperative_id ?? null,
     action: log.action,
     description: log.description ?? null,
     metadata: log.metadata ?? null,
+    resource_type: log.resource_type ?? null,
+    resource_id: log.resource_id ?? null,
+    approval_required: log.approval_required ?? false,
+    approval_id: log.approval_id ?? null,
+    approval_status: log.approval_status ?? null,
+    action_result: log.action_result ?? null,
     created_at: log.created_at!,
   };
 }
