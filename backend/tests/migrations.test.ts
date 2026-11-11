@@ -79,6 +79,18 @@ const PHASE_14_TABLES = [
   "integrity_review_history",
   "recommendations",
 ];
+const PHASE_16_TABLES = [
+  "agent_profiles",
+  "agent_verification_records",
+  "complaint_evidence",
+  "complaint_investigations",
+  "farmer_action_approvals",
+  "farmer_agent_permissions",
+  "farmer_agent_relationships",
+  "farmer_complaints",
+  "farmer_consent_records",
+  "order_fee_disclosures",
+];
 const ALL_TABLES = [
   ...PHASE_2_TABLES,
   ...PHASE_3_TABLES,
@@ -93,6 +105,7 @@ const ALL_TABLES = [
   ...PHASE_12_TABLES,
   ...PHASE_13_TABLES,
   ...PHASE_14_TABLES,
+  ...PHASE_16_TABLES,
 ].sort();
 
 const ALL_MIGRATION_NAMES = [
@@ -134,6 +147,7 @@ const ALL_MIGRATION_NAMES = [
   "20261112000003-add-phase12-notification-preferences",
   "20261113000001-create-market-intelligence",
   "20261114000001-create-ai-integrity-recommendations",
+  "20261115000001-create-phase16-farmer-protection",
 ];
 
 async function getPublicTables(): Promise<string[]> {
