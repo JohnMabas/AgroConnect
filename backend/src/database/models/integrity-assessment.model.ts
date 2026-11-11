@@ -14,6 +14,13 @@ export type IntegrityRiskCategory =
   | "payment_abuse"
   | "spam_activity"
   | "verification_anomaly"
+  | "unauthorized_access"
+  | "approval_bypass"
+  | "price_manipulation"
+  | "quantity_manipulation"
+  | "payment_destination_manipulation"
+  | "consent_violation"
+  | "cooperative_misconduct"
   | "other";
 
 export type IntegrityRiskLevel = "low" | "medium" | "high" | "critical";
@@ -96,6 +103,13 @@ IntegrityAssessment.init(
         "payment_abuse",
         "spam_activity",
         "verification_anomaly",
+        "unauthorized_access",
+        "approval_bypass",
+        "price_manipulation",
+        "quantity_manipulation",
+        "payment_destination_manipulation",
+        "consent_violation",
+        "cooperative_misconduct",
         "other",
       ),
       allowNull: false,

@@ -21,11 +21,18 @@ export class CooperativeProfile extends Model<
   declare local_government_area: CreationOptional<string | null>;
   declare community: CreationOptional<string | null>;
   declare address: CreationOptional<string | null>;
+  declare contact_person_name: CreationOptional<string | null>;
   declare contact_phone: CreationOptional<string | null>;
   declare contact_email: CreationOptional<string | null>;
   declare logo_url: CreationOptional<string | null>;
+  declare date_of_registration: CreationOptional<string | null>;
   declare verification_status: CreationOptional<
-    "pending" | "approved" | "rejected" | "suspended"
+    | "pending"
+    | "under_review"
+    | "approved"
+    | "rejected"
+    | "suspended"
+    | "deactivated"
   >;
   declare approval_notes: CreationOptional<string | null>;
   declare approved_by_user_id: CreationOptional<string | null>;
@@ -78,6 +85,10 @@ CooperativeProfile.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    contact_person_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+    },
     contact_phone: {
       type: DataTypes.STRING(32),
       allowNull: true,
@@ -90,8 +101,19 @@ CooperativeProfile.init(
       type: DataTypes.STRING(512),
       allowNull: true,
     },
+    date_of_registration: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
     verification_status: {
-      type: DataTypes.ENUM("pending", "approved", "rejected", "suspended"),
+      type: DataTypes.ENUM(
+        "pending",
+        "under_review",
+        "approved",
+        "rejected",
+        "suspended",
+        "deactivated",
+      ),
       allowNull: false,
       defaultValue: "pending",
     },

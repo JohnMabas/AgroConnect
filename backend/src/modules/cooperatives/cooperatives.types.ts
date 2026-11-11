@@ -1,4 +1,10 @@
-export type CooperativeVerificationStatus = "pending" | "approved" | "rejected" | "suspended";
+export type CooperativeVerificationStatus =
+  | "pending"
+  | "under_review"
+  | "approved"
+  | "rejected"
+  | "suspended"
+  | "deactivated";
 export type MembershipStatus = "pending" | "active" | "rejected" | "suspended" | "left";
 export type MembershipRole = "member" | "coordinator";
 export type AgentAssignmentStatus = "active" | "deactivated";
@@ -14,9 +20,11 @@ export interface CooperativeData {
   local_government_area: string | null;
   community: string | null;
   address: string | null;
+  contact_person_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   logo_url: string | null;
+  date_of_registration: string | null;
   verification_status: CooperativeVerificationStatus;
   approval_notes: string | null;
   approved_by_user_id: string | null;

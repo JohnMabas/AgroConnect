@@ -15,6 +15,17 @@ export const CreateCooperativeSchema = z.object({
   local_government_area: z.string().trim().max(150, "Local government area must be at most 150 characters.").optional(),
   community: z.string().trim().max(150, "Community must be at most 150 characters.").optional(),
   address: z.string().trim().optional(),
+  contact_person_name: z
+    .string()
+    .trim()
+    .min(2, "Contact person name must be at least 2 characters.")
+    .max(200, "Contact person name must be at most 200 characters.")
+    .optional(),
+  date_of_registration: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Registration date must be in YYYY-MM-DD format.")
+    .optional(),
   contact_phone: z.string().trim().max(32, "Contact phone must be at most 32 characters.").optional(),
   contact_email: z
     .string()
