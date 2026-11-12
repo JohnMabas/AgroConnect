@@ -2004,6 +2004,38 @@ Expansion decisions must be based on:
 
 Do not expand merely because a feature has been built.
 
+### 8.18.1 Phase 17 — USSD, Voice/IVR, Rural Access and Localization
+
+**Goal:** Let users without smartphones or reliable data access the existing marketplace
+through USSD and Voice/IVR, and support localized messages.
+
+Implemented:
+- Africa's Talking USSD callback at `POST /api/ussd` (`/callback` alias) with guest,
+  pending, farmer and buyer menus.
+- Voice/IVR callback at `POST /api/voice` (`/incoming`, `/events`, `/callback` aliases)
+  returning Voice XML.
+- Registration through USSD with SMS OTP verification; no PIN, card or bank data.
+- Produce listing, offers, orders, market prices, language and support flows that reuse
+  the existing backend services.
+- Idempotent webhook handling through `telecom_webhook_events`, plus USSD/voice session
+  and event tables.
+- Callback security: shared secret, optional IP allowlist, rate limiting, channel
+  switches, session TTL and response-length limits.
+- Localization APIs under `/api/localization` and `PATCH /api/users/my-language`, with
+  English fallback for critical messages unless the language is reviewed.
+- Admin telecom APIs under `/api/admin/telecom` for sessions, support requests, webhook
+  events and safe configuration.
+
+Rules:
+- USSD and Voice are entry points only; all business logic stays in the existing modules.
+- Never invent short codes, voice numbers, prices, quantities or availability.
+- Keep channels disabled until the provider approves the short code/voice number.
+- Critical payment, consent, approval and safety messages require reviewed translations.
+- Do not collect payment credentials over USSD or Voice.
+
+Documentation: `docs/phase17-telecom-localization.md`.
+Tests: `backend/tests/phase17.test.ts`.
+
 ### 8.19 Standard Phase Completion Report
 
 At the end of every phase, provide:
