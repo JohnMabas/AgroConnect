@@ -48,6 +48,10 @@ import {
 } from "./modules/market/market.routes.js";
 import { createAdminAIRouter, createAIRouter } from "./modules/ai/ai.routes.js";
 import { createAdminFarmerProtectionRouter } from "./modules/farmer-protection/farmer-protection.routes.js";
+import { createUssdRouter } from "./modules/telecom/ussd.routes.js";
+import { createVoiceRouter } from "./modules/telecom/voice.routes.js";
+import { createTelecomAdminRouter } from "./modules/telecom/telecom.admin.routes.js";
+import { createLocalizationRouter } from "./modules/localization/localization.routes.js";
 import {
   createApiRouter,
   type ApiRouterDependencies,
@@ -181,6 +185,12 @@ export function createApp(
     "/api/admin/farmer-protection",
     createAdminFarmerProtectionRouter(),
   );
+
+  // Phase 17: USSD, Voice/IVR, localization and telecom administration.
+  app.use("/api/ussd", createUssdRouter());
+  app.use("/api/voice", createVoiceRouter());
+  app.use("/api/localization", createLocalizationRouter());
+  app.use("/api/admin/telecom", createTelecomAdminRouter());
 
   // Health and other API routes
   app.use(
