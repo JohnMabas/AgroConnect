@@ -91,6 +91,14 @@ const PHASE_16_TABLES = [
   "farmer_consent_records",
   "order_fee_disclosures",
 ];
+const PHASE_17_TABLES = [
+  "telecom_support_requests",
+  "telecom_webhook_events",
+  "ussd_session_events",
+  "ussd_sessions",
+  "voice_call_events",
+  "voice_call_sessions",
+];
 const ALL_TABLES = [
   ...PHASE_2_TABLES,
   ...PHASE_3_TABLES,
@@ -106,6 +114,7 @@ const ALL_TABLES = [
   ...PHASE_13_TABLES,
   ...PHASE_14_TABLES,
   ...PHASE_16_TABLES,
+  ...PHASE_17_TABLES,
 ].sort();
 
 const ALL_MIGRATION_NAMES = [
@@ -148,6 +157,7 @@ const ALL_MIGRATION_NAMES = [
   "20261113000001-create-market-intelligence",
   "20261114000001-create-ai-integrity-recommendations",
   "20261115000001-create-phase16-farmer-protection",
+  "20261116000001-create-phase17-telecom-localization",
 ];
 
 async function getPublicTables(): Promise<string[]> {

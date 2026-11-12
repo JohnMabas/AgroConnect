@@ -37,6 +37,7 @@ import * as addPhase12NotificationPreferences from "./20261112000003-add-phase12
 import * as createMarketIntelligence from "./20261113000001-create-market-intelligence.js";
 import * as createAiIntegrityRecommendations from "./20261114000001-create-ai-integrity-recommendations.js";
 import * as createPhase16FarmerProtection from "./20261115000001-create-phase16-farmer-protection.js";
+import * as createPhase17TelecomLocalization from "./20261116000001-create-phase17-telecom-localization.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -170,5 +171,9 @@ export const migrations = [
   {
     name: "20261115000001-create-phase16-farmer-protection",
     ...createPhase16FarmerProtection,
+  },
+  {
+    name: "20261116000001-create-phase17-telecom-localization",
+    ...createPhase17TelecomLocalization,
   },
 ];

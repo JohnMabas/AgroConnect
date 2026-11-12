@@ -54,7 +54,11 @@ import { ProduceType } from "./produce-type.model.js";
 import { Recommendation } from "./recommendation.model.js";
 import { RefreshToken } from "./refresh-token.model.js";
 import { Role } from "./role.model.js";
+import { TelecomSupportRequest } from "./telecom-support-request.model.js";
+import { TelecomWebhookEvent } from "./telecom-webhook-event.model.js";
 import { TransporterProfile } from "./transporter-profile.model.js";
+import { UssdSession } from "./ussd-session.model.js";
+import { UssdSessionEvent } from "./ussd-session-event.model.js";
 import { UserPassword } from "./user-password.model.js";
 import { UserProfile } from "./user-profile.model.js";
 import { UserRole } from "./user-role.model.js";
@@ -62,6 +66,8 @@ import { User } from "./user.model.js";
 import { Verification } from "./verification.model.js";
 import { VerificationDocument } from "./verification-document.model.js";
 import { VerificationHistory } from "./verification-history.model.js";
+import { VoiceCallEvent } from "./voice-call-event.model.js";
+import { VoiceCallSession } from "./voice-call-session.model.js";
 
 // Phase 2 associations
 User.belongsToMany(Role, {
@@ -1357,6 +1363,59 @@ OrderFeeDisclosure.belongsTo(FarmerActionApproval, {
   as: "farmer_approval",
 });
 
+// Phase 17 associations
+UssdSession.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(UssdSession, {
+  foreignKey: "user_id",
+  as: "ussd_sessions",
+});
+
+UssdSession.hasMany(UssdSessionEvent, {
+  foreignKey: "ussd_session_id",
+  as: "events",
+  onDelete: "CASCADE",
+});
+
+UssdSessionEvent.belongsTo(UssdSession, {
+  foreignKey: "ussd_session_id",
+  as: "session",
+});
+
+VoiceCallSession.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(VoiceCallSession, {
+  foreignKey: "user_id",
+  as: "voice_call_sessions",
+});
+
+VoiceCallSession.hasMany(VoiceCallEvent, {
+  foreignKey: "voice_call_session_id",
+  as: "events",
+  onDelete: "CASCADE",
+});
+
+VoiceCallEvent.belongsTo(VoiceCallSession, {
+  foreignKey: "voice_call_session_id",
+  as: "session",
+});
+
+TelecomSupportRequest.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(TelecomSupportRequest, {
+  foreignKey: "user_id",
+  as: "telecom_support_requests",
+});
+
 export {
   AgentActivityLog,
   AgentProfile,
@@ -1414,7 +1473,11 @@ export {
   Recommendation,
   RefreshToken,
   Role,
+  TelecomSupportRequest,
+  TelecomWebhookEvent,
   TransporterProfile,
+  UssdSession,
+  UssdSessionEvent,
   User,
   UserPassword,
   UserProfile,
@@ -1422,5 +1485,7 @@ export {
   Verification,
   VerificationDocument,
   VerificationHistory,
+  VoiceCallEvent,
+  VoiceCallSession,
 };
 export { sequelize } from "../sequelize.js";
