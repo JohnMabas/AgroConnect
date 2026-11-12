@@ -229,6 +229,79 @@ export const env = Object.freeze({
   // Registered alphanumeric sender ID. Optional — omit for the shared shortcode.
   AFRICASTALKING_SENDER_ID: optionalString(process.env.AFRICASTALKING_SENDER_ID),
 
+  // ─── Telecom: USSD, Voice/IVR and rural access ──────────────────────────────
+  // Phase 17 is disabled only when explicitly turned off. The provider is
+  // Africa's Talking for both USSD and voice callbacks.
+  TELECOM_ENABLED: parseBoolean(
+    "TELECOM_ENABLED",
+    process.env.TELECOM_ENABLED,
+    true,
+  ),
+  USSD_ENABLED: parseBoolean(
+    "USSD_ENABLED",
+    process.env.USSD_ENABLED,
+    true,
+  ),
+  VOICE_ENABLED: parseBoolean(
+    "VOICE_ENABLED",
+    process.env.VOICE_ENABLED,
+    true,
+  ),
+  AFRICASTALKING_ENVIRONMENT:
+    optionalString(process.env.AFRICASTALKING_ENVIRONMENT) ?? "sandbox",
+  USSD_SERVICE_CODE: optionalString(process.env.USSD_SERVICE_CODE),
+  USSD_CALLBACK_SECRET: optionalString(process.env.USSD_CALLBACK_SECRET),
+  VOICE_NUMBER: optionalString(process.env.VOICE_NUMBER),
+  VOICE_CALLBACK_URL: optionalString(process.env.VOICE_CALLBACK_URL),
+  VOICE_CALLBACK_SECRET: optionalString(process.env.VOICE_CALLBACK_SECRET),
+  // Shared fallback when separate USSD/Voice secrets are not configured.
+  TELECOM_CALLBACK_SECRET: optionalString(process.env.TELECOM_CALLBACK_SECRET),
+  // Comma-separated IPv4 addresses or CIDR ranges. Empty means no IP filter.
+  TELECOM_CALLBACK_IP_ALLOWLIST: optionalString(
+    process.env.TELECOM_CALLBACK_IP_ALLOWLIST,
+  ),
+  TELECOM_SESSION_TTL_SECONDS: parsePositiveInt(
+    "TELECOM_SESSION_TTL_SECONDS",
+    process.env.TELECOM_SESSION_TTL_SECONDS,
+    180,
+  ),
+  TELECOM_DUPLICATE_WINDOW_SECONDS: parsePositiveInt(
+    "TELECOM_DUPLICATE_WINDOW_SECONDS",
+    process.env.TELECOM_DUPLICATE_WINDOW_SECONDS,
+    10,
+  ),
+  TELECOM_MAX_MENU_OPTIONS: parsePositiveInt(
+    "TELECOM_MAX_MENU_OPTIONS",
+    process.env.TELECOM_MAX_MENU_OPTIONS,
+    8,
+  ),
+  TELECOM_SUPPORT_MESSAGE_MAX_LENGTH: parsePositiveInt(
+    "TELECOM_SUPPORT_MESSAGE_MAX_LENGTH",
+    process.env.TELECOM_SUPPORT_MESSAGE_MAX_LENGTH,
+    500,
+  ),
+  TELECOM_RATE_LIMIT_PER_MINUTE: parsePositiveInt(
+    "TELECOM_RATE_LIMIT_PER_MINUTE",
+    process.env.TELECOM_RATE_LIMIT_PER_MINUTE,
+    60,
+  ),
+  USSD_MAX_RESPONSE_LENGTH: parsePositiveInt(
+    "USSD_MAX_RESPONSE_LENGTH",
+    process.env.USSD_MAX_RESPONSE_LENGTH,
+    182,
+  ),
+
+  // ─── Localization ───────────────────────────────────────────────────────────
+  LOCALIZATION_DEFAULT_LANGUAGE:
+    optionalString(process.env.LOCALIZATION_DEFAULT_LANGUAGE) ?? "en",
+  LOCALIZATION_SUPPORTED_LANGUAGES:
+    optionalString(process.env.LOCALIZATION_SUPPORTED_LANGUAGES) ??
+    "en,ha,ig,yo,pcm",
+  // Languages whose translations have had human review. Critical messages in
+  // all other languages fall back to English.
+  LOCALIZATION_REVIEWED_LANGUAGES:
+    optionalString(process.env.LOCALIZATION_REVIEWED_LANGUAGES) ?? "en",
+
   // ─── Email provider ──────────────────────────────────────────────────────────
   // Supported values: "dev" (console log), "brevo", "smtp".
   // "dev" is the default and must not be used in production.

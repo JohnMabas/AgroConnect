@@ -9,8 +9,8 @@ export default defineConfig({
     sequence: {
       concurrent: false,
     },
-    testTimeout: 90_000,  // generous timeout for Aiven cold connections
-    hookTimeout: 600_000, // migrations can take several minutes on a cold Aiven connection
+    testTimeout: 240_000, // multi-step USSD flows against a high-latency Aiven DB
+    hookTimeout: 1_800_000, // migrations can take 10+ minutes on a cold Aiven connection
     // Vitest automatically sets VITEST=true in all worker threads before any
     // module is evaluated. env.ts checks for this flag and skips dotenv, so the
     // backend/.env file (which has DB_SSL=true and a DB_SSL_CA_PATH for Aiven)
@@ -19,11 +19,19 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       DB_SSL: "false",
+      SMS_PROVIDER: "dev",
+      EMAIL_PROVIDER: "dev",
       PAYSTACK_SECRET_KEY: "sk_test_phase9",
       PAYSTACK_WEBHOOK_SIGNING_SECRET: "whsec_phase9",
       PAYSTACK_CURRENCY: "NGN",
       PAYSTACK_CALLBACK_URL: "http://localhost:3000/payment/callback",
       VERIFICATION_DOCUMENT_STORAGE_PATH: "private-uploads-test",
+      TELECOM_ENABLED: "true",
+      USSD_ENABLED: "true",
+      VOICE_ENABLED: "true",
+      TELECOM_DUPLICATE_WINDOW_SECONDS: "3600",
+      LOCALIZATION_SUPPORTED_LANGUAGES: "en,ha,ig,yo,pcm",
+      LOCALIZATION_REVIEWED_LANGUAGES: "en",
     },
   },
 });
