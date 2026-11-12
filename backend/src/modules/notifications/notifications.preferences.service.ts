@@ -127,6 +127,9 @@ export function isCategoryEnabled(
     case "market_observation_approved":
     case "market_observation_rejected":
     case "account_verified":
+    case "telecom_registration_verified":
+    case "telecom_listing_published":
+    case "telecom_support_requested":
     case "system_announcement":
       return true;
     case "marketing":
@@ -145,6 +148,9 @@ const ALWAYS_IN_APP_TYPES: ReadonlySet<NotificationType> = new Set([
   "action_rejected",
   "complaint_submitted",
   "complaint_resolved",
+  "telecom_registration_verified",
+  "telecom_listing_published",
+  "telecom_support_requested",
 ]);
 
 export function isAlwaysInApp(type: NotificationType): boolean {

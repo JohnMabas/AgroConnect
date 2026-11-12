@@ -49,6 +49,9 @@ const ALWAYS_IN_APP: NotificationType[] = [
   "action_rejected",
   "complaint_submitted",
   "complaint_resolved",
+  "telecom_registration_verified",
+  "telecom_listing_published",
+  "telecom_support_requested",
 ];
 
 const processingDeliveries = new Set<string>();
@@ -162,7 +165,7 @@ export async function dispatchNotification(
     isCategoryEnabled(preference, type);
   const smsEnabled =
     allowExternal &&
-    preference.sms_enabled &&
+    (preference.sms_enabled || input.force_sms === true) &&
     Boolean(user.phone_number) &&
     isCategoryEnabled(preference, type);
 

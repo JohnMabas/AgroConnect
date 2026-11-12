@@ -7,6 +7,10 @@ import {
 import { createFixedWindowLimiter } from "../messaging/messaging.rate-limit.js";
 import { getTrustProfileHandler } from "../verifications/verifications.controller.js";
 import {
+  getMyLanguageHandler,
+  updateMyLanguageHandler,
+} from "../localization/localization.controller.js";
+import {
   adminGetReportHandler,
   adminGetReviewHandler,
   adminHideReviewHandler,
@@ -60,6 +64,10 @@ export function createReviewsRouter(): Router {
 
 export function createUsersRouter(): Router {
   const router = Router();
+
+  router.get("/my-language", authenticate, getMyLanguageHandler);
+  router.put("/my-language", authenticate, updateMyLanguageHandler);
+  router.patch("/my-language", authenticate, updateMyLanguageHandler);
 
   router.get(
     "/:userId/reviews",

@@ -370,6 +370,26 @@ function subjectFor(
           variables.produce_name ? ` for ${variables.produce_name}` : ""
         } was rejected${variables.reason ? `: ${variables.reason}` : "."}`,
       };
+    case "telecom_registration_verified":
+      return {
+        title: "Phone verified",
+        message:
+          "Your phone number was verified through USSD. You can now use AgroConnect by dialling the short code.",
+      };
+    case "telecom_listing_published":
+      return {
+        title: "Produce listing published",
+        message: `Your produce listing${
+          variables.produce_name ? ` for ${variables.produce_name}` : ""
+        }${quantity ? ` (${quantity})` : ""} was published through USSD.`,
+      };
+    case "telecom_support_requested":
+      return {
+        title: "Support request received",
+        message: `Your support request${
+          variables.message ? `: ${variables.message}` : ""
+        } was received. Our team will contact you.`,
+      };
     case "system_announcement":
     case "marketing":
       return {

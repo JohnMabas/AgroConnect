@@ -51,6 +51,9 @@ export type NotificationType =
   | "complaint_submitted"
   | "complaint_status_updated"
   | "complaint_resolved"
+  | "telecom_registration_verified"
+  | "telecom_listing_published"
+  | "telecom_support_requested"
   | "system_announcement"
   | "marketing";
 
@@ -165,4 +168,5 @@ export interface DispatchNotificationInput {
   dedupe_key: string;
   is_marketing?: boolean;
   allow_external?: boolean;
+  force_sms?: boolean;
 }
