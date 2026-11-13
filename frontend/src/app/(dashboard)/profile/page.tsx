@@ -133,9 +133,14 @@ export default function ProfilePage() {
               </Link>
             )}
             {user.roles.includes("admin") && (
-              <Link href="/admin/cooperatives" className="text-agro-green hover:underline font-medium">
-                → Admin Panel
-              </Link>
+              <>
+                <Link href="/admin/cooperatives" className="text-agro-green hover:underline font-medium">
+                  → Admin Panel
+                </Link>
+                <Link href="/admin/pilot" className="text-agro-green hover:underline font-medium">
+                  → Pilot Dashboard
+                </Link>
+              </>
             )}
           </div>
         </section>

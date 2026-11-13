@@ -542,3 +542,277 @@ export const listingsApi = {
       headers: { Authorization: `Bearer ${token}` },
     }),
 };
+
+// ─── Phase 18: controlled pilot readiness ────────────────────────────────────
+
+export type PilotReadinessStatus =
+  | "not_implemented"
+  | "implemented_not_tested"
+  | "testing_in_progress"
+  | "passed"
+  | "blocked"
+  | "sandbox_tested_only"
+  | "prepared_awaiting_provider_approval"
+  | "ready_for_controlled_pilot";
+
+export interface PilotReadinessModule {
+  key: string;
+  name: string;
+  category: string;
+  critical: boolean;
+  implementation_status: string;
+  testing_status: string;
+  integration_status: string;
+  pilot_readiness: PilotReadinessStatus;
+  evidence: string[];
+  known_issues: string[];
+  dependencies: string[];
+  runtime_notes: string[];
+  source: "catalog" | "admin_review";
+  override: Record<string, unknown> | null;
+}
+
+export interface PilotReadinessReport {
+  generated_at: string;
+  pilot_configuration: PilotConfigurationData | null;
+  launch_recommendation:
+    | "NOT_READY"
+    | "INTERNAL_TESTING_READY"
+    | "CONTROLLED_PILOT_READY";
+  recommendation_reason: string;
+  summary: {
+    total_modules: number;
+    critical_modules: number;
+    counts_by_readiness: Record<string, number>;
+    counts_by_testing: Record<string, number>;
+    counts_by_integration: Record<string, number>;
+    critical_blockers: string[];
+    modules_awaiting_provider_approval: string[];
+  };
+  modules: PilotReadinessModule[];
+}
+
+export interface PilotConfigurationData {
+  id: string;
+  name: string;
+  status: "draft" | "active" | "paused" | "completed" | "archived";
+  country: string;
+  state_or_region: string;
+  start_date: string | null;
+  end_date: string | null;
+  locations: string[];
+  produce_category_ids: string[];
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PilotParticipantData {
+  id: string;
+  pilot_configuration_id: string;
+  user_id: string;
+  participant_type: string;
+  status: string;
+  consent_given_at: string | null;
+  consent_version: string | null;
+  approved_at: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface PilotFeedbackData {
+  id: string;
+  feedback_number: string;
+  pilot_configuration_id: string | null;
+  user_id: string;
+  participant_type: string | null;
+  category: string;
+  description: string;
+  severity: "low" | "normal" | "high" | "critical";
+  status: string;
+  assigned_admin_user_id: string | null;
+  resolution_notes: string | null;
+  related_complaint_id: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface PilotMetrics {
+  pilot_configuration_id: string;
+  generated_at: string;
+  window: { start: string | null; end: string | null; timezone: string };
+  farmers: Record<string, number>;
+  buyers: Record<string, number>;
+  marketplace: Record<string, number>;
+  accessibility: Record<string, number>;
+  trust: Record<string, number>;
+  participation: Record<string, number>;
+}
+
+export const pilotApi = {
+  getReadiness: (token: string) =>
+    request<{ success: boolean; data: PilotReadinessReport }>(
+      "/admin/pilot/readiness",
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  listConfigurations: (token: string) =>
+    request<{
+      success: boolean;
+      data: { items: PilotConfigurationData[] };
+    }>("/admin/pilot/configurations", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  createConfiguration: (
+    token: string,
+    data: {
+      name: string;
+      country?: string;
+      state_or_region?: string;
+      start_date?: string | null;
+      end_date?: string | null;
+      locations?: string[];
+      is_active?: boolean;
+      notes?: string;
+    },
+  ) =>
+    request<{
+      success: boolean;
+      data: { configuration: PilotConfigurationData };
+    }>("/admin/pilot/configurations", {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  updateConfiguration: (
+    token: string,
+    id: string,
+    data: Partial<{
+      name: string;
+      status: PilotConfigurationData["status"];
+      is_active: boolean;
+      notes: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      locations: string[];
+    }>,
+  ) =>
+    request<{
+      success: boolean;
+      data: { configuration: PilotConfigurationData };
+    }>(`/admin/pilot/configurations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  listParticipants: (token: string, id: string) =>
+    request<{
+      success: boolean;
+      data: { items: PilotParticipantData[] };
+    }>(`/admin/pilot/configurations/${id}/participants`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  addParticipant: (
+    token: string,
+    id: string,
+    data: {
+      user_id: string;
+      participant_type: string;
+      status?: string;
+      consent_confirmed: boolean;
+      consent_version?: string;
+      notes?: string;
+    },
+  ) =>
+    request<{
+      success: boolean;
+      data: { participant: PilotParticipantData };
+    }>(`/admin/pilot/configurations/${id}/participants`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  updateParticipant: (
+    token: string,
+    configurationId: string,
+    participantId: string,
+    data: {
+      status?: string;
+      consent_confirmed?: boolean;
+      consent_version?: string;
+      notes?: string | null;
+    },
+  ) =>
+    request<{
+      success: boolean;
+      data: { participant: PilotParticipantData };
+    }>(
+      `/admin/pilot/configurations/${configurationId}/participants/${participantId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+
+  getMetrics: (token: string, id: string) =>
+    request<{ success: boolean; data: PilotMetrics }>(
+      `/admin/pilot/configurations/${id}/metrics`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  listFeedback: (token: string, query = "") =>
+    request<{
+      success: boolean;
+      data: { items: PilotFeedbackData[] };
+    }>(`/admin/pilot/feedback${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  updateFeedback: (
+    token: string,
+    id: string,
+    data: {
+      status?: string;
+      severity?: string;
+      assigned_admin_user_id?: string | null;
+      resolution_notes?: string | null;
+    },
+  ) =>
+    request<{ success: boolean; data: { feedback: PilotFeedbackData } }>(
+      `/admin/pilot/feedback/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+
+  overrideReadiness: (
+    token: string,
+    configurationId: string,
+    moduleKey: string,
+    data: {
+      testing_status?: string;
+      integration_status?: string;
+      pilot_readiness?: string;
+      known_issues?: string[];
+      evidence?: string[];
+      notes?: string;
+    },
+  ) =>
+    request<{ success: boolean; data: PilotReadinessReport }>(
+      `/admin/pilot/configurations/${configurationId}/readiness/${moduleKey}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+};
