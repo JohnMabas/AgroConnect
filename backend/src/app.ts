@@ -53,6 +53,10 @@ import { createVoiceRouter } from "./modules/telecom/voice.routes.js";
 import { createTelecomAdminRouter } from "./modules/telecom/telecom.admin.routes.js";
 import { createLocalizationRouter } from "./modules/localization/localization.routes.js";
 import {
+  createAdminPilotRouter,
+  createPilotRouter,
+} from "./modules/pilot/pilot.routes.js";
+import {
   createApiRouter,
   type ApiRouterDependencies,
 } from "./routes/index.js";
@@ -191,6 +195,10 @@ export function createApp(
   app.use("/api/voice", createVoiceRouter());
   app.use("/api/localization", createLocalizationRouter());
   app.use("/api/admin/telecom", createTelecomAdminRouter());
+
+  // Phase 18: controlled pilot readiness, participants, feedback and metrics.
+  app.use("/api/pilot", createPilotRouter());
+  app.use("/api/admin/pilot", createAdminPilotRouter());
 
   // Health and other API routes
   app.use(
