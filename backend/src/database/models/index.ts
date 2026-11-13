@@ -42,6 +42,9 @@ import { OrderFeeDisclosure } from "./order-fee-disclosure.model.js";
 import { OrderItem } from "./order-item.model.js";
 import { Payment } from "./payment.model.js";
 import { PaymentWebhookEvent } from "./payment-webhook-event.model.js";
+import { PilotConfiguration } from "./pilot-configuration.model.js";
+import { PilotFeedback } from "./pilot-feedback.model.js";
+import { PilotParticipant } from "./pilot-participant.model.js";
 import { Refund } from "./refund.model.js";
 import { Review } from "./review.model.js";
 import { ReviewHistory } from "./review-history.model.js";
@@ -1363,6 +1366,77 @@ OrderFeeDisclosure.belongsTo(FarmerActionApproval, {
   as: "farmer_approval",
 });
 
+// Phase 18 associations — controlled pilot configuration and feedback.
+PilotConfiguration.belongsTo(User, {
+  foreignKey: "created_by_user_id",
+  as: "created_by",
+});
+
+User.hasMany(PilotConfiguration, {
+  foreignKey: "created_by_user_id",
+  as: "created_pilot_configurations",
+  onDelete: "SET NULL",
+});
+
+PilotConfiguration.hasMany(PilotParticipant, {
+  foreignKey: "pilot_configuration_id",
+  as: "participants",
+  onDelete: "CASCADE",
+});
+
+PilotParticipant.belongsTo(PilotConfiguration, {
+  foreignKey: "pilot_configuration_id",
+  as: "pilot_configuration",
+});
+
+PilotParticipant.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(PilotParticipant, {
+  foreignKey: "user_id",
+  as: "pilot_participations",
+  onDelete: "CASCADE",
+});
+
+PilotParticipant.belongsTo(User, {
+  foreignKey: "approved_by_user_id",
+  as: "approved_by",
+});
+
+PilotFeedback.belongsTo(PilotConfiguration, {
+  foreignKey: "pilot_configuration_id",
+  as: "pilot_configuration",
+});
+
+PilotConfiguration.hasMany(PilotFeedback, {
+  foreignKey: "pilot_configuration_id",
+  as: "feedback",
+  onDelete: "SET NULL",
+});
+
+PilotFeedback.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(PilotFeedback, {
+  foreignKey: "user_id",
+  as: "pilot_feedback",
+  onDelete: "CASCADE",
+});
+
+PilotFeedback.belongsTo(User, {
+  foreignKey: "assigned_admin_user_id",
+  as: "assigned_admin",
+});
+
+PilotFeedback.belongsTo(FarmerComplaint, {
+  foreignKey: "related_complaint_id",
+  as: "related_complaint",
+});
+
 // Phase 17 associations
 UssdSession.belongsTo(User, {
   foreignKey: "user_id",
@@ -1461,6 +1535,9 @@ export {
   OrderItem,
   Payment,
   PaymentWebhookEvent,
+  PilotConfiguration,
+  PilotFeedback,
+  PilotParticipant,
   Refund,
   Review,
   ReviewHistory,
