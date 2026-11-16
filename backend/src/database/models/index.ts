@@ -49,6 +49,7 @@ import { Refund } from "./refund.model.js";
 import { Review } from "./review.model.js";
 import { ReviewHistory } from "./review-history.model.js";
 import { ReviewReport } from "./review-report.model.js";
+import { PasswordResetToken } from "./password-reset-token.model.js";
 import { PhoneOtp } from "./phone-otp.model.js";
 import { ProduceCategory } from "./produce-category.model.js";
 import { ProduceListing } from "./produce-listing.model.js";
@@ -141,6 +142,17 @@ User.hasMany(EmailVerificationToken, {
 });
 
 EmailVerificationToken.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+User.hasMany(PasswordResetToken, {
+  foreignKey: "user_id",
+  as: "password_reset_tokens",
+  onDelete: "CASCADE",
+});
+
+PasswordResetToken.belongsTo(User, {
   foreignKey: "user_id",
   as: "user",
 });
@@ -1534,6 +1546,7 @@ export {
   OrderFeeDisclosure,
   OrderItem,
   Payment,
+  PasswordResetToken,
   PaymentWebhookEvent,
   PilotConfiguration,
   PilotFeedback,

@@ -40,6 +40,7 @@ import * as createPhase16FarmerProtection from "./20261115000001-create-phase16-
 import * as createPhase17TelecomLocalization from "./20261116000001-create-phase17-telecom-localization.js";
 import * as createPhase18PilotReadiness from "./20261117000001-create-phase18-pilot-readiness.js";
 import * as addEmailVerificationOtpFields from "./20261118000001-add-email-verification-otp-fields.js";
+import * as createPasswordResetTokens from "./20261119000001-create-password-reset-tokens.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -185,5 +186,9 @@ export const migrations = [
   {
     name: "20261118000001-add-email-verification-otp-fields",
     ...addEmailVerificationOtpFields,
+  },
+  {
+    name: "20261119000001-create-password-reset-tokens",
+    ...createPasswordResetTokens,
   },
 ];
