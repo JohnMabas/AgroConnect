@@ -16,6 +16,7 @@ import { runMigrationsUp } from "../src/database/migrator.js";
 import { runSeedersUp } from "../src/database/seeder.js";
 import { sequelize } from "../src/database/sequelize.js";
 import { setEmailProvider } from "../src/integrations/email/index.js";
+import { setSmsProvider } from "../src/integrations/sms/index.js";
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ interface SentEmail {
 }
 
 const sentEmails: SentEmail[] = [];
+const sentSms: Array<{ to: string; body: string }> = [];
 let failNextEmail = false;
 
 const mockEmailProvider = {
@@ -58,6 +60,11 @@ beforeAll(async () => {
   await runMigrationsUp();
   await runSeedersUp();
   setEmailProvider(mockEmailProvider);
+  setSmsProvider({
+    async sendSms(message) {
+      sentSms.push(message);
+    },
+  });
 });
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -203,6 +210,33 @@ describe("POST /api/auth/register", () => {
         email: "short@example.com",
         password: "abc",
         password_confirm: "abc",
+      });
+
+    expect(res.status).toBe(422);
+  });
+
+  it("assigns the requested self-registration role", async () => {
+    const res = await request(app)
+      .post("/api/auth/register")
+      .send({
+        email: "buyer-role@example.com",
+        password: "TestPass1!",
+        password_confirm: "TestPass1!",
+        role: "buyer",
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.user.roles).toEqual(["buyer"]);
+  });
+
+  it("rejects privileged roles during self-registration", async () => {
+    const res = await request(app)
+      .post("/api/auth/register")
+      .send({
+        email: "admin-role@example.com",
+        password: "TestPass1!",
+        password_confirm: "TestPass1!",
+        role: "admin",
       });
 
     expect(res.status).toBe(422);
@@ -500,6 +534,156 @@ describe("Email OTP verification", () => {
 
     const user = await User.findByPk(userId);
     expect(user?.status).toBe("pending");
+  });
+});
+
+// ─── Password reset ───────────────────────────────────────────────────────────
+
+describe("POST /api/auth/forgot-password and /reset-password", () => {
+  const password = "TestPass1!";
+
+  async function registerAndVerifyEmail(email: string): Promise<string> {
+    const register = await request(app).post("/api/auth/register").send({
+      email,
+      password,
+      password_confirm: password,
+    });
+    expect(register.status).toBe(201);
+
+    const verificationEmail = latestEmailTo(email);
+    expect(verificationEmail).toBeDefined();
+    const verificationCode = extractVerificationCode(verificationEmail!.text);
+
+    const verify = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ email, otp: verificationCode });
+    expect(verify.status).toBe(200);
+    return register.body.data.user.id as string;
+  }
+
+  it("returns a generic response for unknown accounts", async () => {
+    const unknown = "password-reset-unknown@example.com";
+    const before = sentEmails.length;
+
+    const res = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ identifier: unknown });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toMatch(/if an account exists/i);
+    expect(sentEmails.length).toBe(before);
+  });
+
+  it("emails a code, resets the password, and invalidates the old password", async () => {
+    const email = "password-reset-email@example.com";
+    await registerAndVerifyEmail(email);
+
+    const forgot = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ identifier: email });
+    expect(forgot.status).toBe(200);
+
+    const resetEmail = latestEmailTo(email);
+    expect(resetEmail).toBeDefined();
+    expect(resetEmail!.subject).toBe("Reset your AgroConnect password");
+    const code = extractVerificationCode(resetEmail!.text);
+    expect(code).toMatch(/^\d{6}$/);
+
+    const briefDelay = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ identifier: email });
+    expect(briefDelay.status).toBe(200);
+    expect(latestEmailTo(email)!.text).toBe(resetEmail!.text);
+
+    const wrongCode = code === "000000" ? "111111" : "000000";
+    const wrong = await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        identifier: email,
+        code: wrongCode,
+        password: "NewPass1!",
+        password_confirm: "NewPass1!",
+      });
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.error.message).toMatch(/incorrect/i);
+
+    const reset = await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        identifier: email,
+        code,
+        password: "NewPass1!",
+        password_confirm: "NewPass1!",
+      });
+    expect(reset.status).toBe(200);
+    expect(reset.body.success).toBe(true);
+
+    const replay = await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        identifier: email,
+        code,
+        password: "AnotherPass1!",
+        password_confirm: "AnotherPass1!",
+      });
+    expect(replay.status).toBe(400);
+
+    const oldLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ identifier: email, password });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ identifier: email, password: "NewPass1!" });
+    expect(newLogin.status).toBe(200);
+  });
+
+  it("resets a phone-registered account using an SMS code", async () => {
+    const phone = "+2348099111001";
+    const register = await request(app).post("/api/auth/register").send({
+      phone_number: phone,
+      password,
+      password_confirm: password,
+    });
+    expect(register.status).toBe(201);
+    const userId = register.body.data.user.id as string;
+
+    const registrationSms = [...sentSms].reverse().find((sms) => sms.to === phone);
+    expect(registrationSms).toBeDefined();
+    const verifyCode = extractVerificationCode(registrationSms!.body);
+
+    const verify = await request(app)
+      .post("/api/auth/verify-phone")
+      .send({ user_id: userId, otp: verifyCode });
+    expect(verify.status).toBe(200);
+
+    const forgot = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ identifier: phone });
+    expect(forgot.status).toBe(200);
+
+    const resetSms = [...sentSms]
+      .reverse()
+      .find((sms) => sms.to === phone && /password reset code/i.test(sms.body));
+    expect(resetSms).toBeDefined();
+    const code = extractVerificationCode(resetSms!.body);
+
+    const reset = await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        identifier: phone,
+        code,
+        password: "PhonePass1!",
+        password_confirm: "PhonePass1!",
+      });
+    expect(reset.status).toBe(200);
+
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ identifier: phone, password: "PhonePass1!" });
+    expect(login.status).toBe(200);
   });
 });
 

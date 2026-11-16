@@ -11,6 +11,7 @@ import { resetTestDatabase } from "./test-database.js";
 const PHASE_2_TABLES = ["roles", "user_roles", "users"];
 const PHASE_3_TABLES = [
   "email_verification_tokens",
+  "password_reset_tokens",
   "phone_otps",
   "refresh_tokens",
   "user_passwords",
@@ -166,6 +167,7 @@ const ALL_MIGRATION_NAMES = [
   "20261116000001-create-phase17-telecom-localization",
   "20261117000001-create-phase18-pilot-readiness",
   "20261118000001-add-email-verification-otp-fields",
+  "20261119000001-create-password-reset-tokens",
 ];
 
 async function getPublicTables(): Promise<string[]> {
