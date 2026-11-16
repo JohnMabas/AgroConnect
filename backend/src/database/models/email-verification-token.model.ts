@@ -13,7 +13,9 @@ export class EmailVerificationToken extends Model<
 > {
   declare id: CreationOptional<string>;
   declare user_id: string;
+  declare email: string | null;
   declare token_hash: string;
+  declare attempts: CreationOptional<number>;
   declare expires_at: Date;
   declare used: CreationOptional<boolean>;
   declare created_at: CreationOptional<Date>;
@@ -31,9 +33,18 @@ EmailVerificationToken.init(
       type: DataTypes.UUID,
       allowNull: false,
     },
+    email: {
+      type: DataTypes.STRING(254),
+      allowNull: true,
+    },
     token_hash: {
       type: DataTypes.STRING(64),
       allowNull: false,
+    },
+    attempts: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
     },
     expires_at: {
       type: DataTypes.DATE,

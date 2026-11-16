@@ -39,6 +39,7 @@ import * as createAiIntegrityRecommendations from "./20261114000001-create-ai-in
 import * as createPhase16FarmerProtection from "./20261115000001-create-phase16-farmer-protection.js";
 import * as createPhase17TelecomLocalization from "./20261116000001-create-phase17-telecom-localization.js";
 import * as createPhase18PilotReadiness from "./20261117000001-create-phase18-pilot-readiness.js";
+import * as addEmailVerificationOtpFields from "./20261118000001-add-email-verification-otp-fields.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -180,5 +181,9 @@ export const migrations = [
   {
     name: "20261117000001-create-phase18-pilot-readiness",
     ...createPhase18PilotReadiness,
+  },
+  {
+    name: "20261118000001-add-email-verification-otp-fields",
+    ...addEmailVerificationOtpFields,
   },
 ];
