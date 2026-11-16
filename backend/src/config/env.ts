@@ -240,6 +240,18 @@ export const env = Object.freeze({
     5,
   ),
 
+  // ─── Password reset ─────────────────────────────────────────────────────────
+  PASSWORD_RESET_EXPIRES_IN_SECONDS: parsePositiveInt(
+    "PASSWORD_RESET_EXPIRES_IN_SECONDS",
+    process.env.PASSWORD_RESET_EXPIRES_IN_SECONDS,
+    900,
+  ),
+  PASSWORD_RESET_MAX_ATTEMPTS: parsePositiveInt(
+    "PASSWORD_RESET_MAX_ATTEMPTS",
+    process.env.PASSWORD_RESET_MAX_ATTEMPTS,
+    5,
+  ),
+
   // ─── SMS provider ────────────────────────────────────────────────────────────
   // Supported values: "dev" (console log), "africastalking".
   // "dev" is the default and must not be used in production.

@@ -26,6 +26,13 @@ const displayNameField = z
   .max(150, "Display name must be at most 150 characters.")
   .optional();
 
+const selfRegistrationRole = z.enum([
+  "farmer",
+  "buyer",
+  "cooperative",
+  "transporter",
+]);
+
 export const RegisterSchema = z
   .object({
     display_name: displayNameField,
@@ -33,6 +40,7 @@ export const RegisterSchema = z
     email: emailField.optional(),
     password: passwordField,
     password_confirm: z.string(),
+    role: selfRegistrationRole.optional(),
   })
   .refine(
     (data) =>
@@ -137,3 +145,29 @@ export const LoginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof LoginSchema>;
+
+const resetIdentifierField = z
+  .string()
+  .trim()
+  .min(1, "Email or phone number is required.")
+  .max(254, "Email or phone number is too long.");
+
+export const ForgotPasswordSchema = z.object({
+  identifier: resetIdentifierField,
+});
+
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+
+export const ResetPasswordSchema = z
+  .object({
+    identifier: resetIdentifierField,
+    code: emailCodeField,
+    password: passwordField,
+    password_confirm: z.string(),
+  })
+  .refine((data) => data.password === data.password_confirm, {
+    message: "Passwords do not match.",
+    path: ["password_confirm"],
+  });
+
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

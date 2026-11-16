@@ -7,6 +7,8 @@ import {
   ResendPhoneOtpSchema,
   VerifyEmailSchema,
   ResendEmailVerificationSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
   LoginSchema,
 } from "./auth.validation.js";
 import {
@@ -15,6 +17,8 @@ import {
   resendPhoneOtp,
   verifyUserEmail,
   resendEmailVerification,
+  requestPasswordReset,
+  resetUserPassword,
   loginUser,
   refreshSession,
   logoutUser,
@@ -246,6 +250,68 @@ export async function resendEmailVerify(
   }
 }
 
+// ─── Password reset ───────────────────────────────────────────────────────────
+
+export async function forgotPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const parsed = ForgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({
+        success: false,
+        message: "Validation failed.",
+        errors: zodErrorToFields(parsed.error),
+      });
+      return;
+    }
+
+    await requestPasswordReset(parsed.data);
+    res.json({
+      success: true,
+      message:
+        "If an account exists for that email or phone number, a reset code has been sent.",
+      data: { retry_after_seconds: env.OTP_RESEND_COOLDOWN_SECONDS },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const parsed = ResetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({
+        success: false,
+        message: "Validation failed.",
+        errors: zodErrorToFields(parsed.error),
+      });
+      return;
+    }
+
+    await resetUserPassword(parsed.data);
+    res.clearCookie(REFRESH_TOKEN_COOKIE, { path: "/api/auth" });
+    res.json({
+      success: true,
+      message: "Password reset successful. Please sign in with your new password.",
+    });
+  } catch (err) {
+    const e = err as Error & { code?: string };
+    if (e.code === "PASSWORD_RESET_INVALID") {
+      res.status(400).json({ success: false, error: { message: e.message } });
+      return;
+    }
+    next(err);
+  }
+}
+
 // ─── Login ────────────────────────────────────────────────────────────────────
 
 export async function login(
@@ -285,12 +351,28 @@ export async function login(
       },
     });
   } catch (err) {
-    const e = err as Error & { code?: string };
+    const e = err as Error & {
+      code?: string;
+      userId?: string;
+      email?: string | null;
+      phoneNumber?: string | null;
+    };
     if (
-      e.code === "INVALID_CREDENTIALS" ||
       e.code === "PHONE_NOT_VERIFIED" ||
       e.code === "EMAIL_NOT_VERIFIED"
     ) {
+      res.status(401).json({
+        success: false,
+        error: { message: e.message },
+        data: {
+          user_id: e.userId,
+          email: e.email ?? null,
+          phone_number: e.phoneNumber ?? null,
+        },
+      });
+      return;
+    }
+    if (e.code === "INVALID_CREDENTIALS") {
       res.status(401).json({ success: false, error: { message: e.message } });
       return;
     }

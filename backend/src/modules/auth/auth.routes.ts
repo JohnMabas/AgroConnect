@@ -9,6 +9,8 @@ import {
   resendOtp,
   verifyEmail,
   resendEmailVerify,
+  forgotPassword,
+  resetPassword,
   login,
   refresh,
   logout,
@@ -69,6 +71,10 @@ export function createAuthRouter(): Router {
   // Email verification
   router.post("/verify-email", otpLimiter, verifyEmail);
   router.post("/resend-email-verification", otpLimiter, resendEmailVerify);
+
+  // Password reset
+  router.post("/forgot-password", authLimiter, forgotPassword);
+  router.post("/reset-password", otpLimiter, resetPassword);
 
   // Session management
   router.post("/login", authLimiter, login);

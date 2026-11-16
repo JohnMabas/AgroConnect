@@ -19,6 +19,10 @@ import {
   verifyEmailToken,
 } from "../../services/email-verification.service.js";
 import {
+  issuePasswordResetCode,
+  resetPasswordWithCode,
+} from "../../services/password-reset.service.js";
+import {
   signAccessToken,
   issueRefreshToken,
   rotateRefreshToken,
@@ -29,7 +33,12 @@ import {
   normalizeEmail,
   normalizePhoneNumber,
 } from "../../utils/contact.js";
-import type { RegisterInput, LoginInput } from "./auth.validation.js";
+import type {
+  RegisterInput,
+  LoginInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+} from "./auth.validation.js";
 import type { SafeUser, RegisterResult, LoginResult } from "./auth.types.js";
 import { dispatchNotification } from "../notifications/notifications.service.js";
 
@@ -41,6 +50,19 @@ async function getUserRoleNames(userId: string): Promise<string[]> {
     include: [{ model: Role, as: "role", attributes: ["name"] }],
   });
   return userRoles.map((ur) => (ur as UserRole & { role: Role }).role.name);
+}
+
+async function findUserByIdentifier(identifier: string): Promise<User | null> {
+  const trimmed = identifier.trim();
+  try {
+    if (trimmed.includes("@")) {
+      return await User.findOne({ where: { email: normalizeEmail(trimmed) } });
+    }
+    const phone = normalizePhoneNumber(trimmed, env.DEFAULT_PHONE_COUNTRY);
+    return await User.findOne({ where: { phone_number: phone } });
+  } catch {
+    return null;
+  }
 }
 
 async function buildSafeUser(
@@ -107,6 +129,15 @@ export async function registerUser(
     );
   }
 
+  const requestedRole = input.role ?? "farmer";
+  const assignedRole = await Role.findOne({ where: { name: requestedRole } });
+  if (!assignedRole) {
+    throw Object.assign(
+      new Error("Registration is temporarily unavailable. Please try again later."),
+      { code: "ROLE_UNAVAILABLE" },
+    );
+  }
+
   // Create user.
   const user = await User.create({
     display_name: input.display_name ?? null,
@@ -119,14 +150,9 @@ export async function registerUser(
   const hash = await hashPassword(input.password);
   await UserPassword.create({ user_id: user.id, hash });
 
-  // Assign default 'farmer' role (users can be re-assigned later).
-  // Find or skip if roles aren't seeded yet.
-  const farmerRole = await Role.findOne({ where: { name: "farmer" } });
-  if (farmerRole) {
-    await UserRole.create({ user_id: user.id, role_id: farmerRole.id });
-  }
+  await UserRole.create({ user_id: user.id, role_id: assignedRole.id });
 
-  const safeUser = await buildSafeUser(user, farmerRole ? ["farmer"] : []);
+  const safeUser = await buildSafeUser(user, [requestedRole]);
 
   const result: RegisterResult = { user: safeUser };
 
@@ -336,6 +362,53 @@ export async function resendEmailVerification(
   await issueEmailVerificationCode(user.id, user.email);
 }
 
+// ─── Password reset ───────────────────────────────────────────────────────────
+
+export async function requestPasswordReset(
+  input: ForgotPasswordInput,
+): Promise<void> {
+  const user = await findUserByIdentifier(input.identifier);
+  if (!user) {
+    return;
+  }
+
+  try {
+    await issuePasswordResetCode(user);
+  } catch {
+    // Do not reveal whether the account exists or whether delivery failed.
+    console.warn("[AUTH] Password reset code delivery was not completed.");
+  }
+}
+
+export async function resetUserPassword(
+  input: ResetPasswordInput,
+): Promise<void> {
+  const user = await findUserByIdentifier(input.identifier);
+  if (!user) {
+    throw Object.assign(
+      new Error("Reset code is invalid or has expired. Please request a new one."),
+      { code: "PASSWORD_RESET_INVALID" },
+    );
+  }
+
+  const hash = await hashPassword(input.password);
+  const result = await resetPasswordWithCode(user.id, input.code, hash);
+
+  if (!result.success) {
+    const messages: Record<string, string> = {
+      not_found: "Reset code is invalid or has expired. Please request a new one.",
+      expired: "Reset code has expired. Please request a new one.",
+      used: "This reset code has already been used. Please request a new one.",
+      max_attempts: "Too many incorrect attempts. Please request a new code.",
+      invalid: "Incorrect reset code. Please check and try again.",
+    };
+    throw Object.assign(
+      new Error(messages[result.reason] ?? "Reset code is invalid."),
+      { code: "PASSWORD_RESET_INVALID", reason: result.reason },
+    );
+  }
+}
+
 // ─── Login ────────────────────────────────────────────────────────────────────
 
 export async function loginUser(
@@ -379,43 +452,6 @@ export async function loginUser(
     });
   }
 
-  // Check account status.
-  if (user.status === "suspended") {
-    throw Object.assign(
-      new Error("This account has been suspended. Please contact support."),
-      { code: "ACCOUNT_SUSPENDED" },
-    );
-  }
-
-  // Verify that the used login contact method is verified.
-  if (isEmail) {
-    const emailVerified =
-      (await EmailVerificationToken.count({
-        where: { user_id: user.id, used: true },
-      })) > 0;
-    if (!emailVerified) {
-      throw Object.assign(
-        new Error(
-          "Email address is not verified. Please verify your email before logging in.",
-        ),
-        { code: "EMAIL_NOT_VERIFIED" },
-      );
-    }
-  } else {
-    const phoneVerified =
-      (await PhoneOtp.count({
-        where: { user_id: user.id, used: true },
-      })) > 0;
-    if (!phoneVerified) {
-      throw Object.assign(
-        new Error(
-          "Phone number is not verified. Please verify your phone before logging in.",
-        ),
-        { code: "PHONE_NOT_VERIFIED" },
-      );
-    }
-  }
-
   // Verify password.
   const passwordRecord = await UserPassword.findOne({
     where: { user_id: user.id },
@@ -437,6 +473,47 @@ export async function loginUser(
     throw Object.assign(new Error("Invalid credentials."), {
       code: "INVALID_CREDENTIALS",
     });
+  }
+
+  if (user.status === "suspended") {
+    throw Object.assign(
+      new Error("This account has been suspended. Please contact support."),
+      { code: "ACCOUNT_SUSPENDED" },
+    );
+  }
+
+  const verification = {
+    userId: user.id,
+    email: user.email,
+    phoneNumber: user.phone_number,
+  };
+
+  if (isEmail) {
+    const emailVerified =
+      (await EmailVerificationToken.count({
+        where: { user_id: user.id, used: true },
+      })) > 0;
+    if (!emailVerified) {
+      throw Object.assign(
+        new Error(
+          "Email address is not verified. Please verify your email before logging in.",
+        ),
+        { code: "EMAIL_NOT_VERIFIED", ...verification },
+      );
+    }
+  } else {
+    const phoneVerified =
+      (await PhoneOtp.count({
+        where: { user_id: user.id, used: true },
+      })) > 0;
+    if (!phoneVerified) {
+      throw Object.assign(
+        new Error(
+          "Phone number is not verified. Please verify your phone before logging in.",
+        ),
+        { code: "PHONE_NOT_VERIFIED", ...verification },
+      );
+    }
   }
 
   const roleNames = await getUserRoleNames(user.id);
