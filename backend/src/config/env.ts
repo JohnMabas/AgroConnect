@@ -111,6 +111,32 @@ function parsePositiveInt(
   return n;
 }
 
+function parseEmailVerificationExpirySeconds(): number {
+  const seconds = optionalString(
+    process.env.EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
+  );
+  if (seconds !== undefined) {
+    return parsePositiveInt(
+      "EMAIL_VERIFICATION_EXPIRES_IN_SECONDS",
+      seconds,
+      900,
+    );
+  }
+
+  const minutes = optionalString(
+    process.env.EMAIL_VERIFICATION_EXPIRY_MINUTES,
+  );
+  if (minutes !== undefined) {
+    return parsePositiveInt(
+      "EMAIL_VERIFICATION_EXPIRY_MINUTES",
+      String(Number(minutes) * 60),
+      900,
+    );
+  }
+
+  return 900;
+}
+
 function parseAiProvider(value: string | undefined): "dev" | "openai_compatible" {
   const provider = optionalString(value) ?? "dev";
   if (provider !== "dev" && provider !== "openai_compatible") {
@@ -204,10 +230,14 @@ export const env = Object.freeze({
   ),
 
   // ─── Email verification ─────────────────────────────────────────────────────
-  EMAIL_VERIFICATION_EXPIRES_IN_SECONDS: parsePositiveInt(
-    "EMAIL_VERIFICATION_EXPIRES_IN_SECONDS",
-    process.env.EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
-    86400, // 24 hours
+  // How long an email verification code remains valid. Default: 900 (15 min).
+  // EMAIL_VERIFICATION_EXPIRY_MINUTES is accepted as a convenience alias.
+  EMAIL_VERIFICATION_EXPIRES_IN_SECONDS: parseEmailVerificationExpirySeconds(),
+  // Maximum failed code submissions before a new code must be requested.
+  EMAIL_VERIFICATION_MAX_ATTEMPTS: parsePositiveInt(
+    "EMAIL_VERIFICATION_MAX_ATTEMPTS",
+    process.env.EMAIL_VERIFICATION_MAX_ATTEMPTS,
+    5,
   ),
 
   // ─── SMS provider ────────────────────────────────────────────────────────────
