@@ -331,6 +331,25 @@ export const cooperativeApi = {
       body: JSON.stringify({ notes }),
       headers: { Authorization: `Bearer ${token}` },
     }),
+  adminSuspend: (token: string, id: string, notes: string) =>
+    request(`/cooperatives/admin/${id}/suspend`, {
+      method: "PATCH",
+      body: JSON.stringify({ notes }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateMembershipStatus: (
+    token: string,
+    coopId: string,
+    membershipId: string,
+    status: string,
+  ) =>
+    request(`/cooperatives/${coopId}/memberships/${membershipId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getById: (id: string) =>
+    request(`/cooperatives/${id}`),
 };
 
 export const agentApi = {
@@ -883,6 +902,162 @@ export const pilotApi = {
     ),
 };
 
+// ─── Phase 6: Buyer Requests API ──────────────────────────────────────────────
+
+export interface BuyerRequestData {
+  id: string;
+  buyer_user_id: string;
+  produce_type_id: string | null;
+  produce_category_id: string | null;
+  title: string | null;
+  description: string | null;
+  quantity: number;
+  unit: string;
+  min_target_price: number | null;
+  max_target_price: number | null;
+  currency: string;
+  delivery_location: string | null;
+  required_delivery_after: string | null;
+  required_delivery_before: string | null;
+  expiry_date: string | null;
+  status: "open" | "paused" | "fulfilled" | "cancelled" | "expired";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedBuyerRequestsData {
+  requests: BuyerRequestData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export const buyerRequestsApi = {
+  getMyRequests: (
+    token: string,
+    params: { status?: string; page?: number; limit?: number } = {},
+  ) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set("status", params.status);
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString();
+    return request<{ success: boolean; data: PaginatedBuyerRequestsData }>(
+      `/buyer-requests/me${suffix ? `?${suffix}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+};
+
+// ─── Phase 11: Notifications API ──────────────────────────────────────────────
+
+export interface NotificationData {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  notification_type: string;
+  channel: "in_app" | "email" | "sms";
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  action_url: string | null;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface PaginatedNotificationsData {
+  notifications: NotificationData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  unread_count: number;
+}
+
+export const notificationsApi = {
+  getNotifications: (
+    token: string,
+    params: { unread?: boolean; type?: string; page?: number; limit?: number } = {},
+  ) => {
+    const q = new URLSearchParams();
+    if (params.unread) q.set("unread", "true");
+    if (params.type) q.set("type", params.type);
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString();
+    return request<{ success: boolean; data: PaginatedNotificationsData }>(
+      `/notifications${suffix ? `?${suffix}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+  getUnreadCount: (token: string) =>
+    request<{ success: boolean; data: { unread_count: number } }>(
+      "/notifications/unread-count",
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  markRead: (token: string, id: string) =>
+    request<{ success: boolean; data: { notification: NotificationData } }>(
+      `/notifications/${id}/read`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  markAllRead: (token: string) =>
+    request<{ success: boolean; message: string }>(
+      "/notifications/read-all",
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+};
+
+// ─── Phase 10: Deliveries API ─────────────────────────────────────────────────
+
+export interface DeliveryData {
+  id: string;
+  delivery_reference: string;
+  order_id: string;
+  status: "pending" | "assigned" | "accepted" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled" | "failed";
+  pickup_location: string | null;
+  delivery_location: string | null;
+  produce_description: string | null;
+  quantity: number;
+  unit: string;
+  expected_pickup_date: string | null;
+  expected_delivery_date: string | null;
+  delivery_fee_minor: number | null;
+  currency: string;
+  cancellation_reason: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedDeliveriesData {
+  deliveries: DeliveryData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export const deliveriesApi = {
+  getMyDeliveries: (token: string, params: { page?: number; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString();
+    return request<{ success: boolean; data: PaginatedDeliveriesData }>(
+      `/transporters/my-deliveries${suffix ? `?${suffix}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+};
+
 // ─── Phase 6: Marketplace API ─────────────────────────────────────────────────
 
 export interface MarketplaceListingsParams {
@@ -944,6 +1119,30 @@ export const marketplaceApi = {
    */
   getListing(token: string, id: string): Promise<{ success: boolean; data: { listing: ListingData } }> {
     return request(`/marketplace/listings/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  /**
+   * Discover open buyer requests.
+   */
+  getRequests(token: string, params: MarketplaceListingsParams = {}): Promise<{ success: boolean; data: PaginatedBuyerRequestsData }> {
+    const q = new URLSearchParams();
+    if (params.search) q.set("search", params.search);
+    if (params.location) q.set("location", params.location);
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString();
+    return request(`/marketplace/requests${suffix ? `?${suffix}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  /**
+   * Read a single open buyer request.
+   */
+  getRequest(token: string, id: string): Promise<{ success: boolean; data: { request: BuyerRequestData } }> {
+    return request(`/marketplace/requests/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
