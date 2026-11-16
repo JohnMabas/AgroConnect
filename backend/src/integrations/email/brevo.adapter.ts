@@ -41,11 +41,17 @@ export class BrevoAdapter implements EmailProvider {
         textContent: message.text,
       });
     } catch (err) {
-      // Never log the message body — it may contain verification tokens.
-      const errMsg = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `Brevo email delivery failed for ${message.to}: ${errMsg}`,
-        { cause: err },
+      // Never include the message body or provider response in the error.
+      // Either may contain the verification code. Only a non-sensitive status
+      // code is retained for diagnostics.
+      const status = (err as { status?: unknown }).status;
+      const statusSuffix =
+        typeof status === "number" ? ` (status ${status})` : "";
+      throw Object.assign(
+        new Error(
+          `Brevo email delivery failed for ${message.to}${statusSuffix}.`,
+        ),
+        { code: "EMAIL_DELIVERY_FAILED" },
       );
     }
 
