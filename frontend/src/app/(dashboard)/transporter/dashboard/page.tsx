@@ -1,279 +1,411 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
+import {
+  transporterApi,
+  deliveriesApi,
+  notificationsApi,
+  type DeliveryData,
+  type NotificationData,
+} from "@/lib/api";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { ProfileCompletion } from "@/components/dashboard/profile-completion";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+
+type ApprovalStatus = "pending" | "approved" | "rejected" | "suspended";
+type AvailabilityStatus = "available" | "unavailable" | "suspended";
+
+interface TransporterProfile {
+  id: string;
+  business_name: string | null;
+  contact_phone: string | null;
+  operating_location: string | null;
+  coverage_areas: string[] | null;
+  produce_types: string[] | null;
+  vehicle_type: string | null;
+  availability_status: AvailabilityStatus;
+  approval_status: ApprovalStatus;
+  suspended_reason: string | null;
+}
+
+interface DeliveryStats {
+  assigned: number | null;
+  inProgress: number | null;
+  completed: number | null;
+}
+
+const APPROVAL_INFO: Record<ApprovalStatus, { badge: string; message: string }> = {
+  pending: {
+    badge: "bg-amber-100 text-amber-700",
+    message:
+      "Your transporter profile is under review. You will be notified by SMS or email when approved.",
+  },
+  approved: {
+    badge: "bg-green-100 text-green-700",
+    message: "Your profile is approved. You can now receive delivery assignments.",
+  },
+  rejected: {
+    badge: "bg-red-100 text-red-700",
+    message:
+      "Your transporter application was not approved. Please contact support for assistance.",
+  },
+  suspended: {
+    badge: "bg-gray-100 text-gray-600",
+    message: "Your account has been suspended. Contact support to resolve this.",
+  },
+};
+
+function ComingSoonCard({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="relative flex flex-col rounded-2xl border border-deep-navy/10 bg-white p-5 shadow-sm">
+      <span className="absolute right-3 top-3 rounded-full bg-deep-navy/8 px-2 py-0.5 text-xs font-semibold text-deep-navy/40">
+        Coming soon
+      </span>
+      <h3 className="font-heading text-sm font-bold text-deep-navy/60">{title}</h3>
+      <p className="mt-1 text-xs leading-5 text-deep-navy/40">{description}</p>
+    </div>
+  );
+}
 
 export default function TransporterDashboardPage() {
-  const { user, loading, error } = useDashboardAuth("transporter");
+  const { token, user, loading: authLoading, error: authError } = useDashboardAuth("transporter");
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm text-deep-navy/60">Loading your dashboard…</p>
-      </div>
-    );
-  }
+  const [profile, setProfile] = useState<TransporterProfile | null>(null);
+  const [deliveryStats, setDeliveryStats] = useState<DeliveryStats>({
+    assigned: null,
+    inProgress: null,
+    completed: null,
+  });
+  const [notifications, setNotifications] = useState<NotificationData[] | null>(null);
+  const [recentDeliveries, setRecentDeliveries] = useState<DeliveryData[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm text-red-700">{error}</p>
-        <a
-          href="/login"
-          className="mt-4 block text-sm font-semibold text-agro-green hover:underline"
-        >
-          Return to sign in
-        </a>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!token) return;
 
+    async function load() {
+      try {
+        const [profileRes, deliveriesRes, notifRes] = await Promise.allSettled([
+          transporterApi.getMe(token!) as Promise<{ data: { profile: TransporterProfile } }>,
+          deliveriesApi.getMyDeliveries(token!, { limit: 20 }),
+          notificationsApi.getNotifications(token!, { limit: 5 }),
+        ]);
+
+        if (profileRes.status === "fulfilled") {
+          setProfile(profileRes.value.data.profile);
+        }
+
+        if (deliveriesRes.status === "fulfilled") {
+          const deliveries = deliveriesRes.value.data.deliveries;
+          setRecentDeliveries(deliveries.slice(0, 5));
+          setDeliveryStats({
+            assigned: deliveries.filter(
+              (d) => d.status === "assigned" || d.status === "accepted",
+            ).length,
+            inProgress: deliveries.filter(
+              (d) =>
+                d.status === "picked_up" || d.status === "in_transit",
+            ).length,
+            completed: deliveries.filter(
+              (d) => d.status === "delivered" || d.status === "completed",
+            ).length,
+          });
+        } else {
+          setDeliveryStats({ assigned: 0, inProgress: 0, completed: 0 });
+        }
+
+        if (notifRes.status === "fulfilled") {
+          setNotifications(notifRes.value.data.notifications);
+        } else {
+          setNotifications([]);
+        }
+      } finally {
+        setDataLoading(false);
+      }
+    }
+
+    void load();
+  }, [token]);
+
+  if (authLoading || dataLoading) return <PageSkeleton />;
+  if (authError) return <ErrorCard message={authError} />;
   if (!user) return null;
+
+  const displayName =
+    profile?.business_name ??
+    user.display_name ??
+    user.email ??
+    user.phone_number ??
+    "Transporter";
+
+  const approval = profile?.approval_status ?? "pending";
+  const approvalInfo = APPROVAL_INFO[approval];
+  const isApproved = approval === "approved";
+
+  const completionItems = [
+    { label: "Phone verified", done: user.phone_verified },
+    { label: "Email verified", done: user.email_verified },
+    { label: "Business name set", done: !!profile?.business_name },
+    { label: "Contact phone set", done: !!profile?.contact_phone },
+    { label: "Operating location set", done: !!profile?.operating_location },
+    { label: "Coverage areas set", done: !!(profile?.coverage_areas?.length) },
+    { label: "Vehicle type set", done: !!profile?.vehicle_type },
+    { label: "Profile approved", done: isApproved },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Welcome */}
-      <div>
-        <h1 className="font-heading text-2xl font-extrabold text-deep-navy">
-          Welcome,{" "}
-          {user.display_name ?? user.email ?? user.phone_number ?? "Transporter"}
-        </h1>
-        <p className="mt-1 text-sm text-deep-navy/60">
-          Your AgroConnect transporter dashboard.
-        </p>
-      </div>
-
-      {/* Account status */}
-      <section className="rounded-2xl border border-deep-navy/10 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
-              Account
-            </p>
-            <p className="mt-1 text-sm text-deep-navy">
-              {user.email ?? user.phone_number}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {user.roles.map((role) => (
-                <span
-                  key={role}
-                  className="rounded-full bg-fresh-green/15 px-3 py-1 text-xs font-semibold capitalize text-agro-green"
-                >
-                  {role}
-                </span>
-              ))}
-            </div>
-          </div>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
-              user.status === "active"
-                ? "bg-green-100 text-green-700"
-                : user.status === "suspended"
-                ? "bg-red-100 text-red-700"
-                : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {user.status}
-          </span>
-        </div>
-
-        {/* Verification indicators */}
-        <div className="mt-4 flex flex-wrap gap-3">
-          <div
-            className={`flex items-center gap-1.5 text-xs font-medium ${
-              user.phone_verified ? "text-green-700" : "text-deep-navy/40"
-            }`}
-          >
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                user.phone_verified ? "bg-green-500" : "bg-deep-navy/20"
-              }`}
-            />
-            Phone {user.phone_verified ? "verified" : "unverified"}
-          </div>
-          <div
-            className={`flex items-center gap-1.5 text-xs font-medium ${
-              user.email_verified ? "text-green-700" : "text-deep-navy/40"
-            }`}
-          >
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                user.email_verified ? "bg-green-500" : "bg-deep-navy/20"
-              }`}
-            />
-            Email {user.email_verified ? "verified" : "unverified"}
-          </div>
-        </div>
-      </section>
-
-      {/* Approval notice */}
-      <div className="rounded-2xl border border-harvest-gold/20 bg-harvest-gold/8 px-5 py-4 text-sm text-amber-800">
-        <p className="font-semibold">Awaiting admin approval</p>
-        <p className="mt-1 text-xs text-amber-700">
-          Your transporter profile requires review and approval by an AgroConnect
-          administrator before you can receive delivery requests. You will be
-          notified by SMS or email when your profile is reviewed.
-        </p>
-      </div>
-
-      {/* Coming soon features */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {[
-          {
-            title: "Delivery Requests",
-            description:
-              "Browse and accept delivery requests that match your coverage areas and vehicle capacity.",
-            icon: (
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="1" y="3" width="15" height="13" rx="1" />
-                <path d="M16 8h4l3 5v3h-7V8z" />
-                <circle cx="5.5" cy="18.5" r="2.5" />
-                <circle cx="18.5" cy="18.5" r="2.5" />
-              </svg>
-            ),
-            color: "text-agro-green bg-agro-green/10",
-            soon: true,
-          },
-          {
-            title: "Active Deliveries",
-            description:
-              "Track in-progress deliveries, update status and manage pickup and drop-off.",
-            icon: (
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-            ),
-            color: "text-harvest-gold bg-harvest-gold/10",
-            soon: true,
-          },
-          {
-            title: "Delivery History",
-            description:
-              "View your completed and past deliveries with status and payment records.",
-            icon: (
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-            ),
-            color: "text-deep-navy bg-deep-navy/8",
-            soon: true,
-          },
-          {
-            title: "Transporter Profile",
-            description:
-              "Update your vehicle details, coverage areas and availability status.",
-            icon: (
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            ),
-            color: "text-fresh-green bg-fresh-green/15",
-            soon: false,
-            href: "/profile",
-          },
-        ].map((item) => {
-          const inner = (
-            <>
-              {item.soon && (
-                <span className="absolute right-3 top-3 rounded-full bg-deep-navy/8 px-2 py-0.5 text-xs font-semibold text-deep-navy/50">
-                  Coming soon
-                </span>
-              )}
-              <div
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl ${item.color}`}
-              >
-                {item.icon}
-              </div>
-              <h2 className="mt-3 font-heading text-sm font-extrabold text-deep-navy">
-                {item.title}
-              </h2>
-              <p className="mt-1 text-xs leading-5 text-deep-navy/60">
-                {item.description}
-              </p>
-            </>
-          );
-
-          if (item.href) {
-            return (
-              <Link
-                key={item.title}
-                href={item.href}
-                className="relative flex flex-col rounded-2xl border border-agro-green/20 bg-white p-5 shadow-sm transition-colors hover:border-agro-green/40"
-              >
-                {inner}
-              </Link>
-            );
-          }
-
-          return (
-            <div
-              key={item.title}
-              className="relative flex flex-col rounded-2xl border border-deep-navy/10 bg-white p-5 shadow-sm"
-            >
-              {inner}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Quick links */}
-      <section className="rounded-2xl border border-deep-navy/10 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
-          Quick links
-        </h2>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title={`Welcome, ${displayName}`}
+        description="Your AgroConnect transporter dashboard"
+        action={
           <Link
-            href="/profile"
-            className="rounded-full border border-deep-navy/15 px-4 py-2 text-xs font-semibold text-deep-navy/70 transition-colors hover:border-agro-green/30 hover:text-agro-green"
+            href="/transporter/profile"
+            className="rounded-full bg-agro-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-deep-navy"
           >
             Edit profile
           </Link>
-          <Link
-            href="/"
-            className="rounded-full border border-deep-navy/15 px-4 py-2 text-xs font-semibold text-deep-navy/70 transition-colors hover:border-agro-green/30 hover:text-agro-green"
-          >
-            Back to homepage
-          </Link>
+        }
+      />
+
+      {/* Approval status banner */}
+      <section
+        className={`rounded-xl border px-4 py-4 text-sm ${
+          isApproved
+            ? "border-green-200 bg-green-50"
+            : approval === "rejected" || approval === "suspended"
+            ? "border-red-200 bg-red-50"
+            : "border-amber-200 bg-amber-50"
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${approvalInfo.badge}`}>
+            {approval.charAt(0).toUpperCase() + approval.slice(1)}
+          </span>
+          {isApproved && profile && (
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                profile.availability_status === "available"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {profile.availability_status === "available" ? "Available" : "Unavailable"}
+            </span>
+          )}
+        </div>
+        <p
+          className={`mt-1.5 text-xs ${
+            isApproved
+              ? "text-green-700"
+              : approval === "rejected" || approval === "suspended"
+              ? "text-red-700"
+              : "text-amber-700"
+          }`}
+        >
+          {approvalInfo.message}
+          {approval === "suspended" && profile?.suspended_reason
+            ? ` Reason: ${profile.suspended_reason}`
+            : ""}
+        </p>
+        {isApproved && (
+          <div className="mt-2">
+            <Link
+              href="/transporter/profile"
+              className="text-xs font-semibold text-agro-green hover:underline"
+            >
+              Update availability →
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* Delivery stats */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Assigned deliveries"
+          value={deliveryStats.assigned}
+          accentColor="text-harvest-gold"
+        />
+        <StatCard
+          label="In progress"
+          value={deliveryStats.inProgress}
+          accentColor="text-agro-green"
+        />
+        <StatCard
+          label="Completed"
+          value={deliveryStats.completed}
+          accentColor="text-deep-navy"
+        />
+      </div>
+
+      {/* Profile completion */}
+      <ProfileCompletion items={completionItems} title="Transport profile completion" />
+
+      {/* Quick actions */}
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
+          Quick actions
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            {
+              href: "/transporter/profile",
+              label: "Transport profile",
+              color: "bg-agro-green/10 text-agro-green border-agro-green/20",
+            },
+            {
+              href: "/profile",
+              label: "Account settings",
+              color: "bg-deep-navy/5 text-deep-navy border-deep-navy/15",
+            },
+            {
+              href: "/",
+              label: "Back to homepage",
+              color: "bg-harvest-gold/10 text-amber-700 border-harvest-gold/20",
+            },
+          ].map(({ href, label, color }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-80 ${color}`}
+            >
+              {label}
+            </Link>
+          ))}
         </div>
       </section>
+
+      {/* Recent deliveries */}
+      {recentDeliveries.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
+            Recent deliveries
+          </h2>
+          <div className="rounded-2xl border border-deep-navy/10 bg-white shadow-sm">
+            <ul className="divide-y divide-deep-navy/5">
+              {recentDeliveries.map((d) => (
+                <li key={d.id} className="flex items-start justify-between gap-4 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-deep-navy">
+                      {d.delivery_reference}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-deep-navy/60">
+                      {d.delivery_location ?? "Location not set"}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${
+                      d.status === "completed" || d.status === "delivered"
+                        ? "bg-green-100 text-green-700"
+                        : d.status === "in_transit" || d.status === "picked_up"
+                        ? "bg-agro-green/10 text-agro-green"
+                        : d.status === "cancelled" || d.status === "failed"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {d.status.replace(/_/g, " ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {/* Coming soon */}
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
+          Coming soon
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ComingSoonCard
+            title="Delivery requests"
+            description="Browse and accept delivery requests in your coverage area."
+          />
+          <ComingSoonCard
+            title="Live delivery tracking"
+            description="Update delivery status in real time for buyers and farmers."
+          />
+          <ComingSoonCard
+            title="Delivery history"
+            description="View your complete delivery history and earnings."
+          />
+        </div>
+      </section>
+
+      {/* Recent notifications */}
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
+          Recent notifications
+        </h2>
+        <div className="rounded-2xl border border-deep-navy/10 bg-white shadow-sm">
+          {notifications === null ? (
+            <div className="p-6">
+              <div className="animate-pulse space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-10 rounded-lg bg-deep-navy/5" />
+                ))}
+              </div>
+            </div>
+          ) : notifications.length === 0 ? (
+            <EmptyState
+              title="No notifications yet"
+              description="Delivery assignments and updates will appear here."
+            />
+          ) : (
+            <ul className="divide-y divide-deep-navy/5">
+              {notifications.map((n) => (
+                <li key={n.id} className="flex items-start gap-3 px-5 py-3">
+                  <span
+                    className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+                      n.is_read ? "bg-deep-navy/20" : "bg-agro-green"
+                    }`}
+                    aria-label={n.is_read ? "read" : "unread"}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-deep-navy">{n.title}</p>
+                    <p className="mt-0.5 truncate text-xs text-deep-navy/60">{n.message}</p>
+                  </div>
+                  <time className="shrink-0 text-xs text-deep-navy/40">
+                    {new Date(n.created_at).toLocaleDateString()}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6">
+      <div className="h-8 w-64 rounded-xl bg-deep-navy/10" />
+      <div className="h-16 rounded-xl bg-amber-50" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-24 rounded-2xl bg-white shadow-sm" />
+        ))}
+      </div>
+      <div className="h-32 rounded-2xl bg-white shadow-sm" />
+    </div>
+  );
+}
+
+function ErrorCard({ message }: { message: string }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
+      <p className="text-sm text-red-700">{message}</p>
+      <a href="/login" className="mt-4 block text-sm font-semibold text-agro-green hover:underline">
+        Return to login
+      </a>
     </div>
   );
 }
