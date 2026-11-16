@@ -9,35 +9,16 @@ const COOLDOWN_SECONDS = 60;
 function VerifyEmailForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const tokenFromUrl = params.get("token") ?? "";
   const userId = params.get("user_id") ?? "";
+  const email = params.get("email") ?? "";
 
-  const [token, setToken] = useState(tokenFromUrl);
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const [autoSubmitted, setAutoSubmitted] = useState(false);
-
-  useEffect(() => {
-    if (tokenFromUrl && !success && !autoSubmitted) {
-      void (async () => {
-        setAutoSubmitted(true);
-        setSubmitting(true);
-        try {
-          await authApi.verifyEmail(tokenFromUrl);
-          setSuccess(true);
-          setTimeout(() => router.push("/login?verified=email"), 2000);
-        } catch (err) {
-          setError((err as ApiError).message);
-        } finally {
-          setSubmitting(false);
-        }
-      })();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [resendMessage, setResendMessage] = useState("");
+  const [cooldown, setCooldown] = useState(COOLDOWN_SECONDS);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -45,18 +26,40 @@ function VerifyEmailForm() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
+  if (!userId && !email) {
+    return (
+      <div className="rounded-2xl border border-deep-navy/10 bg-white p-8 text-center shadow-sm">
+        <p className="text-deep-navy/70">
+          Invalid verification link. Please{" "}
+          <a
+            href="/register"
+            className="font-semibold text-agro-green hover:underline"
+          >
+            register again
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!token.trim()) {
-      setError("Please enter the verification code.");
+    setError("");
+    setResendMessage("");
+    if (!/^\d{6}$/.test(code)) {
+      setError("Please enter the 6-digit verification code.");
       return;
     }
-    setError("");
     setSubmitting(true);
     try {
-      await authApi.verifyEmail(token.trim());
+      await authApi.verifyEmail({
+        userId: userId || undefined,
+        email: email || undefined,
+        code,
+      });
       setSuccess(true);
-      setTimeout(() => router.push("/login?verified=email"), 2000);
+      setTimeout(() => router.push("/login?verified=email"), 1500);
     } catch (err) {
       setError((err as ApiError).message);
     } finally {
@@ -65,15 +68,16 @@ function VerifyEmailForm() {
   }
 
   async function handleResend() {
-    if (!userId) {
-      setError("Cannot resend: user ID is missing. Please register again.");
-      return;
-    }
     setResending(true);
     setError("");
+    setResendMessage("");
     try {
-      await authApi.resendEmailVerification(userId);
-      setCooldown(COOLDOWN_SECONDS);
+      const response = (await authApi.resendEmailVerification({
+        userId: userId || undefined,
+        email: email || undefined,
+      })) as { data?: { retry_after_seconds?: number } };
+      setCooldown(response.data?.retry_after_seconds ?? COOLDOWN_SECONDS);
+      setResendMessage("A new verification code has been sent.");
     } catch (err) {
       const apiErr = err as ApiError;
       if (apiErr.status === 429) setCooldown(COOLDOWN_SECONDS);
@@ -106,7 +110,11 @@ function VerifyEmailForm() {
           Verify your email
         </h1>
         <p className="mt-2 text-sm text-deep-navy/60">
-          Check your inbox for a verification link or code, then enter it below.
+          We sent a 6-digit verification code to{" "}
+          <span className="font-semibold text-deep-navy">
+            {email || "your email address"}
+          </span>
+          . Enter it below.
         </p>
       </div>
 
@@ -127,37 +135,55 @@ function VerifyEmailForm() {
               {error}
             </div>
           )}
+          {resendMessage && (
+            <div
+              role="status"
+              className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700"
+            >
+              {resendMessage}
+            </div>
+          )}
           <div>
             <label
-              htmlFor="token"
+              htmlFor="otp"
               className="mb-1.5 block text-sm font-semibold text-deep-navy"
             >
-              Verification code or token
+              Verification code
             </label>
             <input
-              id="token"
-              name="token"
+              id="otp"
+              name="otp"
               type="text"
-              value={token}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              maxLength={6}
+              value={code}
               onChange={(e) => {
-                setToken(e.target.value);
+                const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setCode(v);
                 setError("");
+                setResendMessage("");
               }}
-              placeholder="Paste the code from your email"
-              className="w-full rounded-xl border border-deep-navy/20 bg-white px-4 py-3 font-mono text-sm text-deep-navy placeholder:font-sans placeholder:text-deep-navy/40 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/30"
+              placeholder="123456"
+              aria-describedby="otp-help"
+              className="w-full rounded-xl border border-deep-navy/20 bg-white px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-deep-navy placeholder:text-deep-navy/30 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/30"
             />
+            <p id="otp-help" className="mt-2 text-center text-xs text-deep-navy/50">
+              Paste the entire 6-digit code from your email.
+            </p>
           </div>
           <button
             type="submit"
-            disabled={submitting || !token.trim()}
+            disabled={submitting || code.length !== 6}
             className="w-full rounded-full bg-agro-green px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-deep-navy disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "Verifying…" : "Verify email"}
+            {submitting ? "Verifying…" : "Verify Email"}
           </button>
         </form>
       )}
 
-      {!success && userId && (
+      {!success && (
         <div className="mt-6 text-center text-sm">
           {cooldown > 0 ? (
             <p className="text-deep-navy/50">
@@ -171,7 +197,7 @@ function VerifyEmailForm() {
               disabled={resending}
               className="font-semibold text-agro-green hover:underline disabled:opacity-60"
             >
-              {resending ? "Sending…" : "Resend verification email"}
+              {resending ? "Sending…" : "Resend verification code"}
             </button>
           )}
         </div>
