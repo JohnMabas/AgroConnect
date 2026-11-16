@@ -17,16 +17,12 @@ export const metadata: Metadata = {
   },
 };
 
-// ─── Slideshow — 4 Unsplash photos: farmer, buyer, cooperative, transporter ─
-// All confirmed HTTP 200 on images.unsplash.com CDN before use.
-// All free under the Unsplash License.
+// ─── Slideshow — agricultural photography across the platform ──────────────
 const SLIDES: Slide[] = [
   {
     id: "s1",
-    // Slide 1 — FARMERS: Real farmer harvesting in a lush green farm field
-    // Confirmed CDN 200 OK: photo-1464226184884-fa280b87c399
-    src: "https://images.unsplash.com/photo-1464226184884-fa280b87c399",
-    alt: "Real farmer harvesting crops in a lush green agricultural farm field",
+    src: "https://i.pinimg.com/736x/11/ba/f6/11baf6c33a7078af8800a7a545bc218f.jpg",
+    alt: "Farmer working in an agricultural field",
   },
   {
     id: "s2",
@@ -314,10 +310,9 @@ export default function Home() {
             <div className="grid gap-14 lg:grid-cols-2 lg:items-center">
               <AnimatedSection delay={120} className="order-2 lg:order-1">
                 <div className="relative overflow-hidden rounded-3xl">
-                  {/* Richard Nyoni — Black African farmer in green field */}
                   <Image
-                    src="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=800&q=80"
-                    alt="Black African farmer working in his crops — representing farmer ownership and control"
+                    src="https://i.pinimg.com/736x/06/e7/65/06e765a03d33b72411eee6c18564e224.jpg"
+                    alt="Farmer working in a field — representing farmer ownership and control"
                     width={800}
                     height={500}
                     className="h-80 w-full object-cover object-center"

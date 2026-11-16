@@ -122,26 +122,26 @@ export function HeroSlideshow({ slides, interval = 5500 }: HeroSlideshowProps) {
         className="absolute inset-0 z-20"
         style={{
           background:
-            "linear-gradient(to right, rgba(24,50,75,0.78) 0%, rgba(24,50,75,0.46) 55%, rgba(24,50,75,0.18) 100%)",
+            "linear-gradient(to right, rgba(24,50,75,0.9) 0%, rgba(24,50,75,0.7) 50%, rgba(24,50,75,0.38) 100%)",
         }}
       />
       {/* Bottom vignette behind dot indicators */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 z-20 h-28"
-        style={{ background: "linear-gradient(to top, rgba(24,50,75,0.55), transparent)" }}
+        className="absolute inset-x-0 bottom-0 z-20 h-40"
+        style={{ background: "linear-gradient(to top, rgba(24,50,75,0.75), transparent)" }}
       />
 
       {/* ── Hero text ─────────────────────────────────────────────────── */}
       <div className="absolute inset-0 z-30 flex items-center">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10">
           <div className="max-w-2xl">
-            <h1 className="font-heading text-4xl font-extrabold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h1 className="font-heading text-4xl font-extrabold leading-[1.08] tracking-tight text-white [text-shadow:0_2px_4px_rgba(0,0,0,0.65),0_8px_28px_rgba(0,0,0,0.45)] sm:text-5xl lg:text-6xl">
               Connecting Farmers to{" "}
               <span className="text-fresh-green">Better Market Opportunities.</span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
+            <p className="mt-5 max-w-xl text-base font-medium leading-7 text-white/95 [text-shadow:0_1px_3px_rgba(0,0,0,0.7),0_4px_18px_rgba(0,0,0,0.4)] sm:text-lg sm:leading-8">
               AgroConnect brings farmers, buyers, cooperatives and transporters together in one trusted agricultural marketplace.
             </p>
 
