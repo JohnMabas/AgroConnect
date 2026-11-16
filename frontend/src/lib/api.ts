@@ -128,17 +128,29 @@ export const authApi = {
     });
   },
 
-  verifyEmail(token: string) {
+  verifyEmail(input: { userId?: string; email?: string; code: string }) {
+    const payload: Record<string, string> = { otp: input.code };
+    if (input.userId) payload.user_id = input.userId;
+    if (input.email) payload.email = input.email;
     return request("/auth/verify-email", {
       method: "POST",
-      body: JSON.stringify({ token }),
+      body: JSON.stringify(payload),
     });
   },
 
-  resendEmailVerification(userId: string) {
+  resendEmailVerification(
+    input: { userId?: string; email?: string } | string,
+  ) {
+    const payload: Record<string, string> =
+      typeof input === "string"
+        ? { user_id: input }
+        : {
+            ...(input.userId ? { user_id: input.userId } : {}),
+            ...(input.email ? { email: input.email } : {}),
+          };
     return request("/auth/resend-email-verification", {
       method: "POST",
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify(payload),
     });
   },
 
@@ -815,4 +827,70 @@ export const pilotApi = {
         headers: { Authorization: `Bearer ${token}` },
       },
     ),
+};
+
+// ─── Phase 6: Marketplace API ─────────────────────────────────────────────────
+
+export interface MarketplaceListingsParams {
+  search?: string;
+  category_slug?: string;
+  produce_type_id?: string;
+  location?: string;
+  min_price?: number;
+  max_price?: number;
+  min_quantity?: number;
+  max_quantity?: number;
+  currency?: string;
+  sort?: "newest" | "price_asc" | "price_desc" | "quantity_asc" | "quantity_desc";
+  page?: number;
+  limit?: number;
+}
+
+export interface MarketplaceListingsResponse {
+  success: boolean;
+  data: {
+    listings: ListingData[];
+    total: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+  };
+}
+
+export const marketplaceApi = {
+  /**
+   * Discover published, available listings.
+   * Requires a valid Bearer access token.
+   */
+  getListings(
+    token: string,
+    params: MarketplaceListingsParams = {},
+  ): Promise<MarketplaceListingsResponse> {
+    const q = new URLSearchParams();
+    if (params.search) q.set("search", params.search);
+    if (params.category_slug) q.set("category_slug", params.category_slug);
+    if (params.produce_type_id) q.set("produce_type_id", params.produce_type_id);
+    if (params.location) q.set("location", params.location);
+    if (params.min_price !== undefined) q.set("min_price", String(params.min_price));
+    if (params.max_price !== undefined) q.set("max_price", String(params.max_price));
+    if (params.min_quantity !== undefined) q.set("min_quantity", String(params.min_quantity));
+    if (params.max_quantity !== undefined) q.set("max_quantity", String(params.max_quantity));
+    if (params.currency) q.set("currency", params.currency);
+    if (params.sort) q.set("sort", params.sort);
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString();
+    return request(`/marketplace/listings${suffix ? `?${suffix}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  /**
+   * Read a single published, available listing.
+   */
+  getListing(token: string, id: string): Promise<{ success: boolean; data: { listing: ListingData } }> {
+    return request(`/marketplace/listings/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
 };
