@@ -15,14 +15,49 @@ import { app } from "../src/app.js";
 import { runMigrationsUp } from "../src/database/migrator.js";
 import { runSeedersUp } from "../src/database/seeder.js";
 import { sequelize } from "../src/database/sequelize.js";
+import { setEmailProvider } from "../src/integrations/email/index.js";
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
+
+interface SentEmail {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+const sentEmails: SentEmail[] = [];
+let failNextEmail = false;
+
+const mockEmailProvider = {
+  async sendEmail(message: SentEmail): Promise<void> {
+    if (failNextEmail) {
+      failNextEmail = false;
+      throw new Error("Simulated email delivery failure.");
+    }
+    sentEmails.push(message);
+    await Promise.resolve();
+  },
+};
+
+function latestEmailTo(address: string): SentEmail | undefined {
+  return [...sentEmails].reverse().find((email) => email.to === address);
+}
+
+function extractVerificationCode(text: string): string {
+  const match = text.match(/\b(\d{6})\b/);
+  if (!match || !match[1]) {
+    throw new Error("Verification code not found in email body.");
+  }
+  return match[1];
+}
 
 beforeAll(async () => {
   // Reset schema and run all migrations + role seeder.
   await sequelize.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
   await runMigrationsUp();
   await runSeedersUp();
+  setEmailProvider(mockEmailProvider);
 });
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -233,6 +268,238 @@ describe("POST /api/auth/verify-email", () => {
       .send({});
 
     expect(res.status).toBe(422);
+  });
+});
+
+// ─── Email OTP verification ──────────────────────────────────────────────────
+
+describe("Email OTP verification", () => {
+  const password = "TestPass1!";
+
+  async function registerEmail(email: string) {
+    const res = await request(app).post("/api/auth/register").send({
+      email,
+      password,
+      password_confirm: password,
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.email_verification_pending).toBe(true);
+
+    const message = latestEmailTo(email);
+    expect(message).toBeDefined();
+    expect(message!.subject).toBe("Your AgroConnect Verification Code");
+
+    return {
+      userId: res.body.data.user.id as string,
+      code: extractVerificationCode(message!.text),
+      message: message!,
+    };
+  }
+
+  it("sends a 6-digit code and verifies the email address", async () => {
+    const email = "otp-success@example.com";
+    const { userId, code, message } = await registerEmail(email);
+
+    expect(code).toMatch(/^\d{6}$/);
+    expect(message.text).toContain("Your AgroConnect Verification Code");
+    expect(message.text).toContain("This code expires in 15 minutes.");
+    // No long-lived raw token or token URL is included in the email.
+    expect(message.text).not.toMatch(/[a-f0-9]{64}/i);
+    expect(message.text).not.toContain("/verify-email?token=");
+    expect(message.html).not.toContain("/verify-email?token=");
+
+    const invalidFormat = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: "12345" });
+    expect(invalidFormat.status).toBe(422);
+
+    const res = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ email, otp: code });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.email_verified).toBe(true);
+    expect(res.body.data.user.status).toBe("active");
+
+    // The verified email can now be used to log in.
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ identifier: email, password });
+    expect(login.status).toBe(200);
+    expect(login.body.data.user.email_verified).toBe(true);
+
+    // The same code cannot be replayed.
+    const replay = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ email, otp: code });
+    expect(replay.status).toBe(400);
+    expect(replay.body.error.message).toMatch(/already been used/i);
+  });
+
+  it("verifies using the secure user reference", async () => {
+    const email = "otp-user-id@example.com";
+    const { userId, code } = await registerEmail(email);
+
+    const res = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: code });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.email_verified).toBe(true);
+  });
+
+  it("rejects an incorrect code without marking the email verified", async () => {
+    const email = "otp-wrong@example.com";
+    const { userId, code } = await registerEmail(email);
+    const wrongCode = code === "000000" ? "111111" : "000000";
+
+    const res = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: wrongCode });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/incorrect/i);
+
+    const { EmailVerificationToken, User } = await import(
+      "../src/database/models/index.js"
+    );
+    const record = await EmailVerificationToken.findOne({
+      where: { user_id: userId },
+    });
+    expect(record?.used).toBe(false);
+    const user = await User.findByPk(userId);
+    expect(user?.status).toBe("pending");
+  });
+
+  it("rejects an expired code", async () => {
+    const email = "otp-expired@example.com";
+    const { userId, code } = await registerEmail(email);
+
+    const { EmailVerificationToken } = await import(
+      "../src/database/models/index.js"
+    );
+    await EmailVerificationToken.update(
+      { expires_at: new Date(Date.now() - 60_000) },
+      { where: { user_id: userId } },
+    );
+
+    const res = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: code });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/expired/i);
+  });
+
+  it("enforces the maximum number of verification attempts", async () => {
+    const email = "otp-max-attempts@example.com";
+    const { userId, code } = await registerEmail(email);
+
+    const { EmailVerificationToken } = await import(
+      "../src/database/models/index.js"
+    );
+    const { env } = await import("../src/config/env.js");
+    await EmailVerificationToken.update(
+      { attempts: env.EMAIL_VERIFICATION_MAX_ATTEMPTS },
+      { where: { user_id: userId } },
+    );
+
+    const res = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: code });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/too many/i);
+  });
+
+  it("enforces the resend cooldown", async () => {
+    const email = "otp-cooldown@example.com";
+    const { userId } = await registerEmail(email);
+
+    const res = await request(app)
+      .post("/api/auth/resend-email-verification")
+      .send({ user_id: userId });
+
+    expect(res.status).toBe(429);
+    expect(res.headers["retry-after"]).toBeDefined();
+    expect(latestEmailTo(email)?.subject).toBe(
+      "Your AgroConnect Verification Code",
+    );
+  });
+
+  it("invalidates the previous code when a new code is issued", async () => {
+    const email = "otp-resend@example.com";
+    const { userId, code: oldCode } = await registerEmail(email);
+
+    const { EmailVerificationToken } = await import(
+      "../src/database/models/index.js"
+    );
+    const { env } = await import("../src/config/env.js");
+    await EmailVerificationToken.update(
+      {
+        created_at: new Date(
+          Date.now() - (env.OTP_RESEND_COOLDOWN_SECONDS + 5) * 1000,
+        ),
+      },
+      { where: { user_id: userId } },
+    );
+
+    const resend = await request(app)
+      .post("/api/auth/resend-email-verification")
+      .send({ email });
+    expect(resend.status).toBe(200);
+    expect(resend.body.data.retry_after_seconds).toBe(
+      env.OTP_RESEND_COOLDOWN_SECONDS,
+    );
+
+    const newCode = extractVerificationCode(latestEmailTo(email)!.text);
+    expect(newCode).not.toBe(oldCode);
+    expect(
+      await EmailVerificationToken.count({
+        where: { user_id: userId, used: false },
+      }),
+    ).toBe(1);
+
+    const oldAttempt = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: oldCode });
+    expect(oldAttempt.status).toBe(400);
+
+    const newAttempt = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: newCode });
+    expect(newAttempt.status).toBe(200);
+  });
+
+  it("does not mark the email verified when delivery fails", async () => {
+    const email = "otp-delivery-failure@example.com";
+    failNextEmail = true;
+
+    const res = await request(app).post("/api/auth/register").send({
+      email,
+      password: "TestPass1!",
+      password_confirm: "TestPass1!",
+    });
+
+    expect(res.status).toBe(201);
+    const userId = res.body.data.user.id as string;
+
+    const { EmailVerificationToken, User } = await import(
+      "../src/database/models/index.js"
+    );
+    expect(
+      await EmailVerificationToken.count({ where: { user_id: userId } }),
+    ).toBe(0);
+
+    const verify = await request(app)
+      .post("/api/auth/verify-email")
+      .send({ user_id: userId, otp: "123456" });
+    expect(verify.status).toBe(400);
+
+    const user = await User.findByPk(userId);
+    expect(user?.status).toBe("pending");
   });
 });
 

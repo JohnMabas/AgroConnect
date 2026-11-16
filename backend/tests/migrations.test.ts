@@ -99,6 +99,11 @@ const PHASE_17_TABLES = [
   "voice_call_events",
   "voice_call_sessions",
 ];
+const PHASE_18_TABLES = [
+  "pilot_configurations",
+  "pilot_feedback",
+  "pilot_participants",
+];
 const ALL_TABLES = [
   ...PHASE_2_TABLES,
   ...PHASE_3_TABLES,
@@ -115,6 +120,7 @@ const ALL_TABLES = [
   ...PHASE_14_TABLES,
   ...PHASE_16_TABLES,
   ...PHASE_17_TABLES,
+  ...PHASE_18_TABLES,
 ].sort();
 
 const ALL_MIGRATION_NAMES = [
@@ -158,6 +164,8 @@ const ALL_MIGRATION_NAMES = [
   "20261114000001-create-ai-integrity-recommendations",
   "20261115000001-create-phase16-farmer-protection",
   "20261116000001-create-phase17-telecom-localization",
+  "20261117000001-create-phase18-pilot-readiness",
+  "20261118000001-add-email-verification-otp-fields",
 ];
 
 async function getPublicTables(): Promise<string[]> {
