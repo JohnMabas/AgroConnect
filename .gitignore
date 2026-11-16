@@ -24,7 +24,6 @@ backend/private-uploads/
 backend/private-uploads-test/
 
 # TLS certificates
-backend/certs/*.pem
 !backend/certs/.gitkeep
 
 # Logs
