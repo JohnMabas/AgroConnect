@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authApi, type SafeUser, type ApiError } from "@/lib/api";
+import { type SafeUser } from "@/lib/api";
+import { loadSession, roleHome } from "@/lib/session";
 
 export interface DashboardAuthState {
   token: string | null;
@@ -25,50 +26,24 @@ export function useDashboardAuth(requiredRole?: string): DashboardAuthState {
 
   useEffect(() => {
     async function init() {
-      const stored = sessionStorage.getItem("access_token");
-      if (!stored) {
-        router.replace("/login");
-        return;
-      }
-
-      let currentToken = stored;
-
       try {
-        const res = await authApi.me(currentToken);
-        const me = res.data.user;
-
-        // Role-gating
-        if (requiredRole && !me.roles.includes(requiredRole)) {
-          router.replace("/profile");
+        const session = await loadSession();
+        if (!session) {
+          router.replace("/login");
           return;
         }
 
-        setToken(currentToken);
-        setUser(me);
-      } catch (err) {
-        const apiErr = err as ApiError;
-        if (apiErr.status === 401) {
-          // Try refresh
-          try {
-            const refreshRes = await authApi.refresh();
-            currentToken = refreshRes.data.access_token;
-            sessionStorage.setItem("access_token", currentToken);
-            const me = refreshRes.data.user;
-
-            if (requiredRole && !me.roles.includes(requiredRole)) {
-              router.replace("/profile");
-              return;
-            }
-
-            setToken(currentToken);
-            setUser(me);
-          } catch {
-            sessionStorage.removeItem("access_token");
-            router.replace("/login");
-          }
-        } else {
-          setError(apiErr.message ?? "Failed to load session.");
+        if (requiredRole && !session.user.roles.includes(requiredRole)) {
+          router.replace(roleHome(session.user));
+          return;
         }
+
+        setToken(session.token);
+        setUser(session.user);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to load session.",
+        );
       } finally {
         setLoading(false);
       }

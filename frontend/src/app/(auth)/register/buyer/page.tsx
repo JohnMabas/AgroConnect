@@ -93,6 +93,7 @@ export default function BuyerRegisterPage() {
         email: form.email || undefined,
         password: form.password,
         password_confirm: form.password_confirm,
+        role: "buyer",
       });
       const { user, phone_otp_pending, email_verification_pending } = result.data;
       if (phone_otp_pending) router.push(`/verify-phone?user_id=${user.id}`);

@@ -4,6 +4,11 @@ import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
+import { completePendingProfile, getPendingProfile } from "@/lib/pending-profile";
+import {
+  resolvePostLoginPath,
+  storeAccessToken,
+} from "@/lib/session";
 
 function EyeOpen() {
   return (
@@ -26,6 +31,7 @@ function LoginForm() {
   const params = useSearchParams();
   const registered = params.get("registered") === "1";
   const verified = params.get("verified");
+  const reset = params.get("reset") === "1";
   const redirect = params.get("redirect") ?? "/account";
 
   const [identifier, setIdentifier] = useState("");
@@ -38,6 +44,7 @@ function LoginForm() {
     if (registered) return "Account created! Verify your contact details then sign in.";
     if (verified === "phone") return "Phone verified! Sign in to access your account.";
     if (verified === "email") return "Email verified! Sign in to access your account.";
+    if (reset) return "Password reset successful! Sign in with your new password.";
     return null;
   }
 
@@ -49,11 +56,39 @@ function LoginForm() {
 
     setSubmitting(true);
     try {
-      const result = await authApi.login({ identifier: identifier.trim(), password });
-      sessionStorage.setItem("access_token", result.data.access_token);
-      router.push(redirect);
+      const result = await authApi.login({
+        identifier: identifier.trim(),
+        password,
+      });
+      const { user, access_token } = result.data;
+      storeAccessToken(access_token);
+
+      const pendingBefore = getPendingProfile();
+      const pendingResult = await completePendingProfile(access_token);
+      if (pendingResult.attempted && !pendingResult.completed) {
+        sessionStorage.setItem(
+          "profile_setup_error",
+          pendingResult.error ??
+            `We could not finish your ${pendingBefore?.kind ?? "account"} profile setup.`,
+        );
+      }
+
+      router.push(resolvePostLoginPath(user, redirect));
     } catch (err) {
-      setError((err as ApiError).message);
+      const apiErr = err as ApiError;
+      if (apiErr.status === 401 && apiErr.data?.user_id) {
+        const userId = String(apiErr.data.user_id);
+        if (apiErr.message.toLowerCase().includes("email")) {
+          const email = apiErr.data.email ? String(apiErr.data.email) : "";
+          router.push(
+            `/verify-email?user_id=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}`,
+          );
+          return;
+        }
+        router.push(`/verify-phone?user_id=${encodeURIComponent(userId)}`);
+        return;
+      }
+      setError(apiErr.message);
     } finally {
       setSubmitting(false);
     }
@@ -141,10 +176,12 @@ function LoginForm() {
 
       <div className="mt-6 text-center">
         <p className="text-xs text-deep-navy/45">
-          Forgot your password?{" "}
-          <span className="text-deep-navy/55">
-            Password reset is not yet available. Contact support if needed.
-          </span>
+          <Link
+            href="/forgot-password"
+            className="font-semibold text-agro-green hover:underline"
+          >
+            Forgot your password?
+          </Link>
         </p>
       </div>
 

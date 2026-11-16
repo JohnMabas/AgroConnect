@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
+import { storePendingProfile } from "@/lib/pending-profile";
 
 const VEHICLE_TYPES = [
   "Motorcycle",
@@ -31,7 +32,9 @@ interface FormState {
   email: string;
   password: string;
   password_confirm: string;
+  business_name: string;
   vehicle_type: string;
+  vehicle_registration_number: string;
   operating_state: string;
   additional_states: string;
   capacity_description: string;
@@ -44,7 +47,9 @@ const INIT: FormState = {
   email: "",
   password: "",
   password_confirm: "",
+  business_name: "",
   vehicle_type: "",
+  vehicle_registration_number: "",
   operating_state: "",
   additional_states: "",
   capacity_description: "",
@@ -79,9 +84,14 @@ export default function TransporterRegisterPage() {
   function validate() {
     const e: typeof errors = {};
     if (!form.display_name.trim()) e.display_name = "Full name is required.";
-    if (!form.phone_number && !form.email) {
-      e.phone_number = "Provide at least a phone number or email.";
-      e.email = "Provide at least a phone number or email.";
+    if (!form.phone_number.trim()) {
+      e.phone_number = "A contact phone number is required for transporters.";
+    }
+    if (!form.business_name.trim()) {
+      e.business_name = "Business or transport name is required.";
+    }
+    if (!form.operating_state) {
+      e.operating_state = "Select your primary operating state.";
     }
     if (!form.password) e.password = "Password is required.";
     else if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
@@ -96,13 +106,33 @@ export default function TransporterRegisterPage() {
     if (!validate()) return;
     setSubmitting(true);
     try {
+      const coverageAreas = [
+        form.operating_state,
+        ...form.additional_states
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ].filter(Boolean);
+
       const result = await authApi.register({
         display_name: form.display_name.trim() || undefined,
         phone_number: form.phone_number || undefined,
         email: form.email || undefined,
         password: form.password,
         password_confirm: form.password_confirm,
+        role: "transporter",
       });
+
+      storePendingProfile("transporter", {
+        business_name: form.business_name.trim(),
+        contact_phone: form.phone_number.trim(),
+        operating_location: form.operating_state,
+        coverage_areas: coverageAreas,
+        vehicle_type: form.vehicle_type || undefined,
+        vehicle_registration_number:
+          form.vehicle_registration_number.trim() || undefined,
+      });
+
       const { user, phone_otp_pending, email_verification_pending } = result.data;
       if (phone_otp_pending) router.push(`/verify-phone?user_id=${user.id}`);
       else if (email_verification_pending)

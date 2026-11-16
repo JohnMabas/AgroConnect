@@ -7,6 +7,7 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly errors?: Array<{ field: string; message: string }>,
+    public readonly data?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -38,6 +39,7 @@ async function request<T>(
       res.status,
       body?.error?.message ?? body?.message ?? "An error occurred.",
       body?.errors,
+      body?.data,
     );
   }
 
@@ -71,12 +73,19 @@ export interface SafeUser {
   created_at: string;
 }
 
+export type SelfRegistrationRole =
+  | "farmer"
+  | "buyer"
+  | "cooperative"
+  | "transporter";
+
 export interface RegisterPayload {
   display_name?: string;
   phone_number?: string;
   email?: string;
   password: string;
   password_confirm: string;
+  role?: SelfRegistrationRole;
 }
 
 export interface RegisterResponse {
@@ -154,6 +163,32 @@ export const authApi = {
     });
   },
 
+  forgotPassword(identifier: string) {
+    return request<{
+      success: boolean;
+      message: string;
+      data: { retry_after_seconds: number };
+    }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ identifier }),
+    });
+  },
+
+  resetPassword(payload: {
+    identifier: string;
+    code: string;
+    password: string;
+    password_confirm: string;
+  }) {
+    return request<{ success: boolean; message: string }>(
+      "/auth/reset-password",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
   login(payload: LoginPayload): Promise<LoginResponse> {
     return request("/auth/login", {
       method: "POST",
@@ -220,6 +255,25 @@ export const farmerApi = {
   updateMe: (token: string, data: object) =>
     request("/farmers/profile/me", {
       method: "PUT",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};
+
+export const transporterApi = {
+  create: (token: string, data: object) =>
+    request("/transporters/profile", {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getMe: (token: string) =>
+    request("/transporters/profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateMe: (token: string, data: object) =>
+    request("/transporters/profile", {
+      method: "PATCH",
       body: JSON.stringify(data),
       headers: { Authorization: `Bearer ${token}` },
     }),

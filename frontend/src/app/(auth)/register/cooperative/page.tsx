@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
+import { storePendingProfile } from "@/lib/pending-profile";
 
 const AG_FOCUS = [
   "Cereals & Grains",
@@ -126,20 +127,16 @@ export default function CooperativeRegisterPage() {
         email: form.admin.email || undefined,
         password: form.admin.password,
         password_confirm: form.admin.password_confirm,
+        role: "cooperative",
       });
 
       const { user } = regResult.data;
 
+      storePendingProfile("cooperative", { ...form.coop });
+
       // 2. If verification is required, we can't create the coop yet.
       // We'll direct to verification first.
       if (regResult.data.phone_otp_pending || regResult.data.email_verification_pending) {
-        // Store coop data to submit after verification (session storage)
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(
-            "pending_cooperative",
-            JSON.stringify({ ...form.coop, user_id: user.id }),
-          );
-        }
         const userId = user.id;
         if (regResult.data.phone_otp_pending) {
           router.push(`/verify-phone?user_id=${userId}&next=cooperative`);

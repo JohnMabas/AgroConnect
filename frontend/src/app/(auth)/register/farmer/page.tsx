@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
+import { storePendingProfile } from "@/lib/pending-profile";
 
 const FARMING_CATEGORIES = [
   "Cereals & Grains",
@@ -98,7 +99,22 @@ export default function FarmerRegisterPage() {
         email: form.email || undefined,
         password: form.password,
         password_confirm: form.password_confirm,
+        role: "farmer",
       });
+
+      storePendingProfile("farmer", {
+        farm_location: [
+          form.community,
+          form.local_government_area,
+          form.state_or_region,
+        ]
+          .filter(Boolean)
+          .join(", "),
+        primary_produce_interests: form.farming_category
+          ? [form.farming_category]
+          : [],
+      });
+
       const { user, phone_otp_pending, email_verification_pending } = result.data;
       if (phone_otp_pending) {
         router.push(`/verify-phone?user_id=${user.id}`);

@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
         hostname: "cdn.pixabay.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "i.pinimg.com",
+        pathname: "/**",
+      },
     ],
   },
 };
