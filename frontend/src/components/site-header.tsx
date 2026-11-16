@@ -2,46 +2,64 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 
-const navigation = [
-  { label: "Produce", href: "/produce" },
-  { label: "Why AgroConnect", href: "#why" },
-  { label: "Who it's for", href: "#audience" },
-  { label: "How it works", href: "#how-it-works" },
+const navLinks = [
+  { label: "Home", href: "/" },
+  { label: "Marketplace", href: "/marketplace" },
+  { label: "How It Works", href: "/how-it-works" },
+  { label: "Farmers", href: "/farmers" },
+  { label: "Buyers", href: "/buyers" },
+  { label: "Cooperatives", href: "/cooperatives" },
 ];
 
 export function SiteHeader() {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-deep-navy/10 bg-soft-bg/90 backdrop-blur-md">
-      <div className="mx-auto flex h-18 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
+        {/* Logo */}
         <Link
           href="/"
-          className="rounded-lg"
+          className="rounded-lg shrink-0"
           aria-label="AgroConnect home"
           onClick={() => setIsOpen(false)}
         >
           <Logo />
         </Link>
 
-        <nav aria-label="Main navigation" className="hidden md:block">
-          <ul className="flex items-center gap-8">
-            {navigation.map((item) => (
+        {/* Desktop nav */}
+        <nav aria-label="Main navigation" className="hidden lg:block">
+          <ul className="flex items-center gap-1">
+            {navLinks.map((item) => (
               <li key={item.href}>
-                <a
+                <Link
                   href={item.href}
-                  className="rounded-md text-sm font-semibold text-deep-navy/75 transition-colors hover:text-agro-green"
+                  className={[
+                    "rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
+                    isActive(item.href)
+                      ? "bg-agro-green/10 text-agro-green"
+                      : "text-deep-navy/70 hover:text-agro-green hover:bg-agro-green/8",
+                  ].join(" ")}
+                  aria-current={isActive(item.href) ? "page" : undefined}
                 >
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
+        {/* Desktop actions */}
+        <div className="hidden items-center gap-3 lg:flex shrink-0">
           <Link
             href="/login"
             className="text-sm font-semibold text-deep-navy/70 transition-colors hover:text-agro-green"
@@ -52,13 +70,14 @@ export function SiteHeader() {
             href="/register"
             className="inline-flex items-center justify-center rounded-full bg-agro-green px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-deep-navy"
           >
-            Get started
+            Get Started
           </Link>
         </div>
 
+        {/* Mobile hamburger */}
         <button
           type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-deep-navy/15 text-deep-navy md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-deep-navy/15 text-deep-navy lg:hidden"
           aria-expanded={isOpen}
           aria-controls="mobile-navigation"
           aria-label={isOpen ? "Close menu" : "Open menu"}
@@ -67,7 +86,7 @@ export function SiteHeader() {
           <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
-            className="h-6 w-6"
+            className="h-5 w-5"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -82,25 +101,33 @@ export function SiteHeader() {
         </button>
       </div>
 
-      {isOpen ? (
+      {/* Mobile nav */}
+      {isOpen && (
         <nav
           id="mobile-navigation"
           aria-label="Mobile navigation"
-          className="border-t border-deep-navy/10 bg-soft-bg px-5 py-4 md:hidden"
+          className="border-t border-deep-navy/10 bg-soft-bg px-5 py-4 lg:hidden"
         >
-          <ul className="flex flex-col gap-1">
-            {navigation.map((item) => (
+          <ul className="flex flex-col gap-0.5">
+            {navLinks.map((item) => (
               <li key={item.href}>
-                <a
+                <Link
                   href={item.href}
-                  className="block rounded-lg px-3 py-3 text-base font-semibold text-deep-navy/80 transition-colors hover:bg-white hover:text-agro-green"
+                  className={[
+                    "block rounded-lg px-3 py-3 text-base font-semibold transition-colors",
+                    isActive(item.href)
+                      ? "bg-agro-green/10 text-agro-green"
+                      : "text-deep-navy/80 hover:bg-white hover:text-agro-green",
+                  ].join(" ")}
+                  aria-current={isActive(item.href) ? "page" : undefined}
                   onClick={() => setIsOpen(false)}
                 >
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
-            <li className="pt-2 border-t border-deep-navy/10 mt-2">
+
+            <li className="mt-2 border-t border-deep-navy/10 pt-2">
               <Link
                 href="/login"
                 className="block rounded-lg px-3 py-3 text-base font-semibold text-deep-navy/80 transition-colors hover:bg-white hover:text-agro-green"
@@ -112,15 +139,15 @@ export function SiteHeader() {
             <li>
               <Link
                 href="/register"
-                className="flex items-center justify-center rounded-full bg-agro-green px-5 py-3 text-base font-semibold text-white"
+                className="flex items-center justify-center rounded-full bg-agro-green px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-deep-navy"
                 onClick={() => setIsOpen(false)}
               >
-                Get started
+                Get Started
               </Link>
             </li>
           </ul>
         </nav>
-      ) : null}
+      )}
     </header>
   );
 }
