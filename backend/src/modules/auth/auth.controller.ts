@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import type { ZodError } from "zod";
+import { env } from "../../config/env.js";
 import {
   RegisterSchema,
   VerifyPhoneSchema,
@@ -178,7 +179,14 @@ export async function verifyEmail(
       return;
     }
 
-    const result = await verifyUserEmail(parsed.data.token);
+    const result = await verifyUserEmail({
+      userId: parsed.data.user_id,
+      email: parsed.data.email,
+      otp: parsed.data.otp,
+      code: parsed.data.code,
+      verification_code: parsed.data.verification_code,
+      token: parsed.data.token,
+    });
     res.json({
       success: true,
       message: "Email address verified.",
@@ -210,8 +218,17 @@ export async function resendEmailVerify(
       return;
     }
 
-    await resendEmailVerification(parsed.data.user_id);
-    res.json({ success: true, message: "Verification email sent." });
+    await resendEmailVerification({
+      userId: parsed.data.user_id,
+      email: parsed.data.email,
+    });
+    res.json({
+      success: true,
+      message: "Verification code sent.",
+      data: {
+        retry_after_seconds: env.OTP_RESEND_COOLDOWN_SECONDS,
+      },
+    });
   } catch (err) {
     const e = err as Error & { code?: string; retryAfterSeconds?: number };
     if (e.code === "EMAIL_VERIFY_COOLDOWN") {

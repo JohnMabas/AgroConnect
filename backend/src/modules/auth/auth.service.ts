@@ -14,7 +14,8 @@ import {
 } from "../../services/password.service.js";
 import { issueAndSendPhoneOtp, verifyPhoneOtp } from "../../services/otp.service.js";
 import {
-  issueEmailVerificationToken,
+  issueEmailVerificationCode,
+  verifyEmailCode,
   verifyEmailToken,
 } from "../../services/email-verification.service.js";
 import {
@@ -142,9 +143,14 @@ export async function registerUser(
 
   if (email) {
     try {
-      await issueEmailVerificationToken(user.id, email);
+      await issueEmailVerificationCode(user.id, email);
       result.email_verification_pending = true;
-    } catch {
+    } catch (error) {
+      console.warn(
+        `[AUTH] Failed to deliver email verification for user ${user.id}: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`,
+      );
       // Non-fatal: the user can resend the verification email.
       result.email_verification_pending = true;
     }
@@ -238,19 +244,45 @@ export async function resendPhoneOtp(
 
 // ─── Email verification ───────────────────────────────────────────────────────
 
+export interface VerifyEmailInput {
+  userId?: string;
+  email?: string;
+  otp?: string;
+  code?: string;
+  verification_code?: string;
+  token?: string;
+}
+
 export async function verifyUserEmail(
-  rawToken: string,
+  input: VerifyEmailInput,
 ): Promise<{ user: SafeUser }> {
-  const result = await verifyEmailToken(rawToken);
+  const submittedCode =
+    input.otp ?? input.code ?? input.verification_code ?? input.token ?? "";
+
+  // Legacy verification links only carried a token and no account identifier.
+  const result =
+    input.userId === undefined && input.email === undefined
+      ? await verifyEmailToken(submittedCode)
+      : await verifyEmailCode({
+          userId: input.userId,
+          email: input.email,
+          code: submittedCode,
+        });
 
   if (!result.success) {
     const messages: Record<string, string> = {
-      not_found: "Verification link is invalid or has already been used.",
-      expired: "Verification link has expired. Please request a new one.",
-      used: "Verification link has already been used.",
+      not_found:
+        "Verification code is invalid or has expired. Please request a new one.",
+      expired: "Verification code has expired. Please request a new one.",
+      used: "This verification code has already been used. Please request a new one.",
+      max_attempts:
+        "Too many incorrect attempts. Please request a new verification code.",
+      invalid: "Incorrect verification code. Please check and try again.",
+      email_mismatch:
+        "The verification code does not match this email address.",
     };
     throw Object.assign(
-      new Error(messages[result.reason] ?? "Invalid verification token."),
+      new Error(messages[result.reason] ?? "Invalid verification code."),
       { code: "EMAIL_TOKEN_INVALID", reason: result.reason },
     );
   }
@@ -281,14 +313,27 @@ export async function verifyUserEmail(
   return { user: safeUser };
 }
 
-export async function resendEmailVerification(userId: string): Promise<void> {
-  const user = await User.findByPk(userId);
+export async function resendEmailVerification(
+  input: { userId?: string; email?: string } | string,
+): Promise<void> {
+  let user: User | null = null;
+
+  if (typeof input === "string") {
+    user = await User.findByPk(input);
+  } else if (input.userId !== undefined) {
+    user = await User.findByPk(input.userId);
+  } else if (input.email !== undefined) {
+    user = await User.findOne({
+      where: { email: normalizeEmail(input.email) },
+    });
+  }
+
   if (!user || !user.email) {
     throw Object.assign(new Error("User not found or has no email address."), {
       code: "NOT_FOUND",
     });
   }
-  await issueEmailVerificationToken(userId, user.email);
+  await issueEmailVerificationCode(user.id, user.email);
 }
 
 // ─── Login ────────────────────────────────────────────────────────────────────

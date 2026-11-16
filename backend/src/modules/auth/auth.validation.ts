@@ -63,17 +63,69 @@ export const ResendPhoneOtpSchema = z.object({
 
 export type ResendPhoneOtpInput = z.infer<typeof ResendPhoneOtpSchema>;
 
-export const VerifyEmailSchema = z.object({
-  token: z.string().trim().min(1, "Token is required."),
-});
+const emailCodeField = z
+  .string()
+  .trim()
+  .length(6, "Verification code must be exactly 6 digits.")
+  .regex(/^\d{6}$/, "Verification code must be exactly 6 digits.");
+
+export const VerifyEmailSchema = z
+  .object({
+    user_id: z.string().uuid("Invalid user ID.").optional(),
+    email: emailField.optional(),
+    otp: emailCodeField.optional(),
+    code: emailCodeField.optional(),
+    verification_code: emailCodeField.optional(),
+    // Legacy long-token field: accepted only so invalid old links receive a
+    // normal verification error instead of a validation crash.
+    token: z.string().trim().min(1).max(512).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.user_id === undefined &&
+      data.email === undefined &&
+      data.token === undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide the account email or user ID.",
+        path: ["email"],
+      });
+    }
+    if (
+      data.otp === undefined &&
+      data.code === undefined &&
+      data.verification_code === undefined &&
+      data.token === undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Verification code is required.",
+        path: ["otp"],
+      });
+    }
+  });
 
 export type VerifyEmailInput = z.infer<typeof VerifyEmailSchema>;
 
-export const ResendEmailVerificationSchema = z.object({
-  user_id: z.string().uuid("Invalid user ID."),
-});
+export const ResendEmailVerificationSchema = z
+  .object({
+    user_id: z.string().uuid("Invalid user ID.").optional(),
+    email: emailField.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.user_id === undefined && data.email === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide the account email or user ID.",
+        path: ["email"],
+      });
+    }
+  });
 
-export type ResendEmailVerificationInput = z.infer<typeof ResendEmailVerificationSchema>;
+export type ResendEmailVerificationInput = z.infer<
+  typeof ResendEmailVerificationSchema
+>;
 
 export const LoginSchema = z.object({
   identifier: z
