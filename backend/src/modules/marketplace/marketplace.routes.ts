@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate } from "../../middleware/authenticate.js";
+import { authenticate, optionalAuthenticate } from "../../middleware/authenticate.js";
 import {
   listMarketplaceListingsHandler,
   getMarketplaceListingHandler,
@@ -10,14 +10,15 @@ import {
 export function createMarketplaceRouter(): Router {
   const router = Router();
 
-  // All marketplace discovery requires authentication so that future phases can
-  // personalise results and apply account-level visibility rules safely.
-  router.use(authenticate);
+  // Listing discovery is public — unauthenticated visitors can browse produce.
+  // A valid token is accepted and attached to req.user when present so future
+  // phases can personalise results, but it is not required.
+  router.get("/listings", optionalAuthenticate, listMarketplaceListingsHandler);
+  router.get("/listings/:id", optionalAuthenticate, getMarketplaceListingHandler);
 
-  router.get("/listings", listMarketplaceListingsHandler);
-  router.get("/listings/:id", getMarketplaceListingHandler);
-  router.get("/requests", listMarketplaceBuyerRequestsHandler);
-  router.get("/requests/:id", getMarketplaceBuyerRequestHandler);
+  // Buyer-request discovery still requires authentication.
+  router.get("/requests", authenticate, listMarketplaceBuyerRequestsHandler);
+  router.get("/requests/:id", authenticate, getMarketplaceBuyerRequestHandler);
 
   return router;
 }
