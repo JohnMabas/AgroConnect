@@ -909,18 +909,32 @@ export interface BuyerRequestData {
   buyer_user_id: string;
   produce_type_id: string | null;
   produce_category_id: string | null;
-  title: string | null;
-  description: string | null;
-  quantity: number;
+  requested_quantity: number;
   unit: string;
-  min_target_price: number | null;
-  max_target_price: number | null;
+  preferred_location: string | null;
+  country: string | null;
+  state_or_region: string | null;
+  local_government_area: string | null;
+  community: string | null;
+  target_price_per_unit: number | null;
   currency: string;
-  delivery_location: string | null;
-  required_delivery_after: string | null;
-  required_delivery_before: string | null;
-  expiry_date: string | null;
+  additional_requirements: string | null;
+  required_delivery_date: string | null;
+  expiry_date: string;
   status: "open" | "paused" | "fulfilled" | "cancelled" | "expired";
+  is_active: boolean;
+  produce_type?: {
+    id: string;
+    category_id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    image_url: string | null;
+    is_active: boolean;
+    category?: ProduceCategoryData;
+  };
+  produce_category?: ProduceCategoryData;
+  buyer?: { id: string; display_name: string | null };
   created_at: string;
   updated_at: string;
 }
@@ -933,7 +947,132 @@ export interface PaginatedBuyerRequestsData {
   total_pages: number;
 }
 
+export interface BuyerRequestsListParams {
+  search?: string;
+  category_slug?: string;
+  produce_type_id?: string;
+  location?: string;
+  min_quantity?: number;
+  max_quantity?: number;
+  min_target_price?: number;
+  max_target_price?: number;
+  required_delivery_after?: string;
+  required_delivery_before?: string;
+  sort?: "newest" | "delivery_soonest";
+  page?: number;
+  limit?: number;
+}
+
+export interface CreateBuyerRequestPayload {
+  produce_type_id?: string | null;
+  produce_category_id?: string | null;
+  requested_quantity: number;
+  unit: string;
+  preferred_location?: string | null;
+  country?: string | null;
+  state_or_region?: string | null;
+  local_government_area?: string | null;
+  community?: string | null;
+  target_price_per_unit?: number | null;
+  currency?: string;
+  additional_requirements?: string | null;
+  required_delivery_date?: string | null;
+  expiry_date: string;
+}
+
 export const buyerRequestsApi = {
+  /** List open buyer requests (public — no token required) */
+  list: (
+    token: string | null | undefined,
+    params: BuyerRequestsListParams = {},
+  ) => {
+    const q = new URLSearchParams();
+    if (params.search) q.set("search", params.search);
+    if (params.category_slug) q.set("category_slug", params.category_slug);
+    if (params.produce_type_id) q.set("produce_type_id", params.produce_type_id);
+    if (params.location) q.set("location", params.location);
+    if (params.min_quantity !== undefined) q.set("min_quantity", String(params.min_quantity));
+    if (params.max_quantity !== undefined) q.set("max_quantity", String(params.max_quantity));
+    if (params.min_target_price !== undefined) q.set("min_target_price", String(params.min_target_price));
+    if (params.max_target_price !== undefined) q.set("max_target_price", String(params.max_target_price));
+    if (params.required_delivery_after) q.set("required_delivery_after", params.required_delivery_after);
+    if (params.required_delivery_before) q.set("required_delivery_before", params.required_delivery_before);
+    if (params.sort) q.set("sort", params.sort);
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return request<{ success: boolean; data: PaginatedBuyerRequestsData }>(
+      `/buyer-requests${suffix ? `?${suffix}` : ""}`,
+      { headers },
+    );
+  },
+
+  /** Get a single buyer request by ID (open requests are public) */
+  getById: (
+    token: string | null | undefined,
+    id: string,
+  ) => {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return request<{ success: boolean; data: { request: BuyerRequestData } }>(
+      `/buyer-requests/${id}`,
+      { headers },
+    );
+  },
+
+  /** Create a new buyer request (requires auth) */
+  create: (token: string, data: CreateBuyerRequestPayload) =>
+    request<{ success: boolean; message: string; data: { request: BuyerRequestData } }>(
+      "/buyer-requests",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+
+  /** Update an owned open/paused request */
+  update: (token: string, id: string, data: Partial<CreateBuyerRequestPayload>) =>
+    request<{ success: boolean; message: string; data: { request: BuyerRequestData } }>(
+      `/buyer-requests/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+
+  /** Pause an open request */
+  pause: (token: string, id: string) =>
+    request<{ success: boolean; message: string; data: { request: BuyerRequestData } }>(
+      `/buyer-requests/${id}/pause`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  /** Reopen a paused request */
+  reopen: (token: string, id: string) =>
+    request<{ success: boolean; message: string; data: { request: BuyerRequestData } }>(
+      `/buyer-requests/${id}/reopen`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  /** Mark a request as fulfilled */
+  fulfill: (token: string, id: string) =>
+    request<{ success: boolean; message: string; data: { request: BuyerRequestData } }>(
+      `/buyer-requests/${id}/fulfill`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  /** Cancel a request */
+  cancel: (token: string, id: string) =>
+    request<{ success: boolean; message: string; data: { request: BuyerRequestData } }>(
+      `/buyer-requests/${id}/cancel`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  /** Get the authenticated user's own requests */
   getMyRequests: (
     token: string,
     params: { status?: string; page?: number; limit?: number } = {},
