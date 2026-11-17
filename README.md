@@ -1916,3 +1916,53 @@ All future work must follow [`skills.md`](./skills.md). In summary:
 - Never expose secrets, connection strings or certificate contents.
 - Review changes before finishing.
 - Wait for approval before starting another phase.
+
+
+## Frontend Phase 4 — Marketplace, Produce Listings and Inventory
+
+Frontend Phase 4 delivers a complete agricultural marketplace with public
+listing discovery, farmer produce management and inventory visibility.
+
+### Pages added or updated
+
+| Route | Description |
+| --- | --- |
+| `/marketplace` | Public marketplace discovery — real listings, full filters, no login required |
+| `/marketplace/[listingId]` | Public listing detail — images, quantities, pricing, location, seller name |
+| `/farmer/produce` | Farmer produce management — status tabs, inline inventory, lifecycle actions |
+| `/farmer/listings` | Enhanced with status filter tabs, count badges and pagination |
+
+### Key behaviour
+
+**Public marketplace.** Unauthenticated visitors can browse all published
+listings, search by name, filter by category, produce type, location and price
+range, and sort by newest or price. A sign-in invite appears at the top and a
+CTA card appears below results. No sample data is shown.
+
+**Listing detail without login.** Visiting `/marketplace/[listingId]` shows the
+full listing — images, price, quantities, location and farmer name — to any
+visitor. The Contact Farmer button is replaced with a Sign In / Register prompt
+for guests.
+
+**Farmer produce management.** `/farmer/produce` shows a farmer's own listings
+with available, reserved and sold quantities per card, status filter tabs with
+live counts, publish/pause/resume/close/delete actions and a direct link to the
+marketplace view for published listings.
+
+**Available From warning.** Both the create and edit listing forms now show a
+yellow warning when a farmer sets a future Available From date, explaining that
+the listing will be hidden from marketplace discovery until that date.
+
+### Backend change
+
+`GET /marketplace/listings` and `GET /marketplace/listings/:id` switched from
+`authenticate` to `optionalAuthenticate`. A valid token is still accepted and
+attached to `req.user` when present; unauthenticated requests are allowed
+through without it. Buyer-request endpoints remain behind `authenticate`.
+
+### Test results
+
+- 27 frontend unit tests — all pass.
+- 48 backend integration checks — all pass.
+- 24 unauthenticated-access integration checks — all pass.
+- Production build: 42 routes, no errors.
