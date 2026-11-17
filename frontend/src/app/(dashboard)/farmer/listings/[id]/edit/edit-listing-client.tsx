@@ -486,6 +486,13 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
               disabled={!canEdit}
               className={inputClass}
             />
+            {canEdit && form.available_from && form.available_from > new Date().toISOString().slice(0, 10) && (
+              <span className="mt-1.5 block rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-normal text-amber-800">
+                <strong>Note:</strong> This listing will not appear in the marketplace until{" "}
+                <strong>{new Date(`${form.available_from}T00:00:00`).toLocaleDateString("en-NG", { dateStyle: "medium" })}</strong>.
+                Set to today or leave blank to make it visible immediately.
+              </span>
+            )}
           </label>
           <label className="text-sm font-medium text-deep-navy">
             Expiry date
