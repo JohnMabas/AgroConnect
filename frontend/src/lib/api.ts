@@ -1089,10 +1089,11 @@ export interface MarketplaceListingsResponse {
 export const marketplaceApi = {
   /**
    * Discover published, available listings.
-   * Requires a valid Bearer access token.
+   * Token is optional — unauthenticated visitors can browse.
+   * When a valid token is supplied it is forwarded for future personalisation.
    */
   getListings(
-    token: string,
+    token: string | null | undefined,
     params: MarketplaceListingsParams = {},
   ): Promise<MarketplaceListingsResponse> {
     const q = new URLSearchParams();
@@ -1109,18 +1110,22 @@ export const marketplaceApi = {
     if (params.page) q.set("page", String(params.page));
     if (params.limit) q.set("limit", String(params.limit));
     const suffix = q.toString();
-    return request(`/marketplace/listings${suffix ? `?${suffix}` : ""}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return request(`/marketplace/listings${suffix ? `?${suffix}` : ""}`, { headers });
   },
 
   /**
    * Read a single published, available listing.
+   * Token is optional — unauthenticated visitors can read listing details.
    */
-  getListing(token: string, id: string): Promise<{ success: boolean; data: { listing: ListingData } }> {
-    return request(`/marketplace/listings/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  getListing(
+    token: string | null | undefined,
+    id: string,
+  ): Promise<{ success: boolean; data: { listing: ListingData } }> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return request(`/marketplace/listings/${id}`, { headers });
   },
 
   /**
