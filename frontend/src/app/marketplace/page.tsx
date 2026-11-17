@@ -2,15 +2,17 @@
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import {
   marketplaceApi,
   produceApi,
+  mediaUrl,
   type ListingData,
   type ProduceCategoryData,
+  type ProduceTypeData,
   type ApiError,
 } from "@/lib/api";
 import { Pagination, EmptyState, Alert } from "@/components/ui";
@@ -24,106 +26,7 @@ const SORT_OPTIONS = [
 ];
 
 const PAGE_LIMIT = 12;
-
-// Illustrative sample data shown to unauthenticated visitors
-const SAMPLE_LISTINGS: ListingData[] = [
-  {
-    id: "sample-1",
-    farmer_user_id: "u1",
-    produce_type_id: "pt1",
-    title: "Fresh Yellow Maize — Plateau State",
-    description: "High quality yellow maize freshly harvested.",
-    variety: "Yellow Maize",
-    grade: "Grade A",
-    quantity: 5000,
-    available_quantity: 4200,
-    reserved_quantity: 800,
-    sold_quantity: 0,
-    unit: "kg",
-    packaging_description: "50 kg bags",
-    price_per_unit: 350,
-    currency: "NGN",
-    country: "Nigeria",
-    state_or_region: "Plateau State",
-    local_government_area: "Jos North",
-    community: "Jos",
-    collection_location: "Jos Main Market",
-    status: "published",
-    is_available: true,
-    harvest_date: "2026-10-15",
-    available_from: "2026-11-01",
-    expiry_date: "2027-04-01",
-    produce_type: { id: "pt1", category_id: "c1", name: "Yellow Maize", slug: "yellow-maize", description: null, image_url: null, is_active: true },
-    farmer: { id: "u1", display_name: "Aminu Musa" },
-    images: [],
-    created_at: "2026-11-01T00:00:00Z",
-    updated_at: "2026-11-01T00:00:00Z",
-  },
-  {
-    id: "sample-2",
-    farmer_user_id: "u2",
-    produce_type_id: "pt2",
-    title: "Irish Potatoes — Bokkos LGA",
-    description: "Fresh Irish potatoes from Bokkos highlands.",
-    variety: "Irish Potato",
-    grade: "Grade A",
-    quantity: 2000,
-    available_quantity: 2000,
-    reserved_quantity: 0,
-    sold_quantity: 0,
-    unit: "kg",
-    packaging_description: "25 kg bags",
-    price_per_unit: 280,
-    currency: "NGN",
-    country: "Nigeria",
-    state_or_region: "Plateau State",
-    local_government_area: "Bokkos",
-    community: "Bokkos",
-    collection_location: "Bokkos Farm Gate",
-    status: "published",
-    is_available: true,
-    harvest_date: "2026-10-20",
-    available_from: "2026-11-02",
-    expiry_date: "2027-02-01",
-    produce_type: { id: "pt2", category_id: "c2", name: "Irish Potato", slug: "irish-potato", description: null, image_url: null, is_active: true },
-    farmer: { id: "u2", display_name: "Grace Dung" },
-    images: [],
-    created_at: "2026-11-02T00:00:00Z",
-    updated_at: "2026-11-02T00:00:00Z",
-  },
-  {
-    id: "sample-3",
-    farmer_user_id: "u3",
-    produce_type_id: "pt3",
-    title: "Fresh Tomatoes — Jos South",
-    description: "Ripe, firm tomatoes ready for processing or retail.",
-    variety: "Roma Tomato",
-    grade: "Grade B",
-    quantity: 1500,
-    available_quantity: 1200,
-    reserved_quantity: 300,
-    sold_quantity: 0,
-    unit: "kg",
-    packaging_description: "Loose/baskets",
-    price_per_unit: 420,
-    currency: "NGN",
-    country: "Nigeria",
-    state_or_region: "Plateau State",
-    local_government_area: "Jos South",
-    community: "Bukuru",
-    collection_location: "Bukuru Market",
-    status: "published",
-    is_available: true,
-    harvest_date: "2026-11-05",
-    available_from: "2026-11-05",
-    expiry_date: "2026-12-01",
-    produce_type: { id: "pt3", category_id: "c3", name: "Roma Tomato", slug: "roma-tomato", description: null, image_url: null, is_active: true },
-    farmer: { id: "u3", display_name: "Ramatu Yakubu" },
-    images: [],
-    created_at: "2026-11-05T00:00:00Z",
-    updated_at: "2026-11-05T00:00:00Z",
-  },
-];
+const DEBOUNCE_MS = 400;
 
 function formatCurrency(amount: number, currency: string) {
   if (currency === "NGN") return `₦${amount.toLocaleString()}`;
@@ -132,21 +35,40 @@ function formatCurrency(amount: number, currency: string) {
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
 
-function ListingCard({
-  listing,
-  isSample,
-}: {
-  listing: ListingData;
-  isSample?: boolean;
-}) {
+function ListingCard({ listing }: { listing: ListingData }) {
   const availPct =
     listing.quantity > 0
-      ? Math.round((listing.available_quantity / listing.quantity) * 100)
+      ? Math.min(
+          100,
+          Math.round((listing.available_quantity / listing.quantity) * 100),
+        )
       : 0;
+
+  const primary =
+    listing.images?.find((img) => img.is_primary) ?? listing.images?.[0];
 
   return (
     <article className="flex flex-col rounded-2xl border border-deep-navy/8 bg-white shadow-sm shadow-deep-navy/5 transition-shadow hover:shadow-md hover:shadow-deep-navy/8">
-      <div className="h-1.5 rounded-t-2xl bg-agro-green" />
+      {/* Image */}
+      <div className="aspect-[4/3] w-full overflow-hidden rounded-t-2xl bg-soft-bg">
+        {primary ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={mediaUrl(primary.image_url)}
+            alt={listing.title}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className="flex h-full items-center justify-center text-5xl"
+            aria-hidden="true"
+          >
+            🌾
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -156,9 +78,11 @@ function ListingCard({
             {listing.produce_type && (
               <p className="mt-0.5 text-xs text-deep-navy/50">
                 {listing.produce_type.name}
-                {listing.variety && listing.variety !== listing.produce_type.name
+                {listing.variety &&
+                  listing.variety !== listing.produce_type.name
                   ? ` · ${listing.variety}`
                   : ""}
+                {listing.grade ? ` · ${listing.grade}` : ""}
               </p>
             )}
           </div>
@@ -182,18 +106,34 @@ function ListingCard({
 
         <div className="mt-3 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-deep-navy/50">
-            <span>{listing.available_quantity.toLocaleString()} {listing.unit} available</span>
+            <span>
+              {listing.available_quantity.toLocaleString()} {listing.unit} available
+            </span>
             <span>{availPct}%</span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bg">
-            <div className="h-full rounded-full bg-fresh-green transition-all" style={{ width: `${availPct}%` }} role="presentation" />
+            <div
+              className="h-full rounded-full bg-fresh-green transition-all"
+              style={{ width: `${availPct}%` }}
+              role="presentation"
+            />
           </div>
         </div>
 
         {listing.state_or_region && (
           <p className="mt-3 flex items-center gap-1.5 text-xs text-deep-navy/55">
-            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+              <circle cx="12" cy="10" r="3" />
             </svg>
             {listing.local_government_area
               ? `${listing.local_government_area}, ${listing.state_or_region}`
@@ -201,25 +141,18 @@ function ListingCard({
           </p>
         )}
         {listing.farmer?.display_name && (
-          <p className="mt-1.5 text-xs text-deep-navy/45">by {listing.farmer.display_name}</p>
+          <p className="mt-1.5 text-xs text-deep-navy/45">
+            by {listing.farmer.display_name}
+          </p>
         )}
 
-        <div className="mt-4 flex-1 flex items-end">
-          {isSample ? (
-            <Link
-              href="/login?redirect=/marketplace"
-              className="w-full rounded-full border border-agro-green/30 py-2.5 text-center text-sm font-semibold text-agro-green transition-colors hover:bg-agro-green hover:text-white"
-            >
-              Sign in to view
-            </Link>
-          ) : (
-            <Link
-              href={`/marketplace/${listing.id}`}
-              className="w-full rounded-full bg-agro-green py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-deep-navy"
-            >
-              View Details
-            </Link>
-          )}
+        <div className="mt-4 flex flex-1 items-end">
+          <Link
+            href={`/marketplace/${listing.id}`}
+            className="w-full rounded-full bg-agro-green py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-deep-navy"
+          >
+            View Details
+          </Link>
         </div>
       </div>
     </article>
@@ -230,11 +163,11 @@ function ListingSkeleton() {
   return (
     <div className="rounded-2xl border border-deep-navy/8 bg-white p-5">
       <div className="animate-pulse space-y-4">
+        <div className="aspect-[4/3] rounded-xl bg-deep-navy/8" />
         <div className="h-4 w-3/4 rounded bg-deep-navy/8" />
         <div className="h-3 w-1/2 rounded bg-deep-navy/6" />
         <div className="h-6 w-1/3 rounded bg-deep-navy/8" />
         <div className="h-2 w-full rounded bg-deep-navy/6" />
-        <div className="h-3 w-2/3 rounded bg-deep-navy/6" />
         <div className="h-9 w-full rounded-full bg-deep-navy/8" />
       </div>
     </div>
@@ -244,29 +177,49 @@ function ListingSkeleton() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MarketplacePage() {
-  // Lazy initializer reads sessionStorage only on the client (never during SSR)
-  const [token, setToken] = useState<string | null>(() =>
+  // Read token from sessionStorage — may be null for guests
+  const [token] = useState<string | null>(() =>
     typeof window !== "undefined" ? sessionStorage.getItem("access_token") : null,
   );
-  const [tokenChecked] = useState(typeof window !== "undefined");
 
   const [categories, setCategories] = useState<ProduceCategoryData[]>([]);
+  const [produceTypes, setProduceTypes] = useState<ProduceTypeData[]>([]);
   const [listings, setListings] = useState<ListingData[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // start loading immediately
   const [catLoading, setCatLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Filter state
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categorySlug, setCategorySlug] = useState("");
+  const [produceTypeId, setProduceTypeId] = useState("");
   const [location, setLocation] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [sort, setSort] = useState<"newest" | "price_asc" | "price_desc" | "quantity_asc" | "quantity_desc">("newest");
+  const [minQuantity, setMinQuantity] = useState("");
+  const [maxQuantity, setMaxQuantity] = useState("");
+  const [sort, setSort] = useState<
+    "newest" | "price_asc" | "price_desc" | "quantity_asc" | "quantity_desc"
+  >("newest");
 
-  // Load categories (public endpoint — no auth needed)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [search]);
+
+  // Load categories (always public)
   useEffect(() => {
     produceApi
       .getCategories()
@@ -275,18 +228,35 @@ export default function MarketplacePage() {
       .finally(() => setCatLoading(false));
   }, []);
 
+  // Load produce types when category changes
+  useEffect(() => {
+    if (!categorySlug) {
+      setProduceTypes([]);
+      setProduceTypeId("");
+      return;
+    }
+    produceApi
+      .getTypes({ category_slug: categorySlug })
+      .then((res) => setProduceTypes(res.data.types))
+      .catch(() => setProduceTypes([]));
+    setProduceTypeId("");
+  }, [categorySlug]);
+
+  // Fetch listings — token is optional (null for guests)
   const fetchListings = useCallback(
     async (pg: number) => {
-      if (!token) return;
       setLoading(true);
       setError("");
       try {
         const res = await marketplaceApi.getListings(token, {
-          search: search || undefined,
+          search: debouncedSearch || undefined,
           category_slug: categorySlug || undefined,
+          produce_type_id: produceTypeId || undefined,
           location: location || undefined,
           min_price: minPrice ? Number(minPrice) : undefined,
           max_price: maxPrice ? Number(maxPrice) : undefined,
+          min_quantity: minQuantity ? Number(minQuantity) : undefined,
+          max_quantity: maxQuantity ? Number(maxQuantity) : undefined,
           sort,
           page: pg,
           limit: PAGE_LIMIT,
@@ -297,42 +267,58 @@ export default function MarketplacePage() {
         setPage(pg);
       } catch (err) {
         const e = err as ApiError;
-        if (e.status === 401) {
-          setToken(null);
-          sessionStorage.removeItem("access_token");
-        } else {
-          setError(e.message || "Failed to load listings.");
-        }
+        setError(e.message || "Failed to load listings.");
       } finally {
         setLoading(false);
       }
     },
-    [token, search, categorySlug, location, minPrice, maxPrice, sort],
+    [
+      token,
+      debouncedSearch,
+      categorySlug,
+      produceTypeId,
+      location,
+      minPrice,
+      maxPrice,
+      minQuantity,
+      maxQuantity,
+      sort,
+    ],
   );
 
-  // Trigger fetch when token or key filters change.
-  // The file-level eslint-disable at the top covers this pattern legitimately —
-  // fetchListings is async and all its setState calls happen after awaiting.
+  // Initial load + refetch when key filters change
   useEffect(() => {
-    if (!token) return;
     fetchListings(1).catch(() => undefined);
-  }, [token, sort, categorySlug]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, debouncedSearch, categorySlug, produceTypeId, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleSearch(e: React.FormEvent) {
+  function handleFilterSubmit(e: React.FormEvent) {
     e.preventDefault();
     fetchListings(1).catch(() => undefined);
   }
 
   function handleClearFilters() {
     setSearch("");
+    setDebouncedSearch("");
     setCategorySlug("");
+    setProduceTypeId("");
+    setProduceTypes([]);
     setLocation("");
     setMinPrice("");
     setMaxPrice("");
+    setMinQuantity("");
+    setMaxQuantity("");
     setSort("newest");
   }
 
-  const isAuthenticated = tokenChecked && !!token;
+  const hasActiveFilters =
+    search ||
+    categorySlug ||
+    produceTypeId ||
+    location ||
+    minPrice ||
+    maxPrice ||
+    minQuantity ||
+    maxQuantity;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -341,30 +327,40 @@ export default function MarketplacePage() {
         {/* Page hero */}
         <div className="border-b border-deep-navy/10 bg-white">
           <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-agro-green">Marketplace</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-agro-green">
+              Marketplace
+            </p>
             <h1 className="mt-2 font-heading text-3xl font-extrabold tracking-tight text-deep-navy sm:text-4xl">
-              Fresh Produce from Verified Farmers
+              Discover Fresh Produce from Nigerian Farmers
             </h1>
             <p className="mt-3 max-w-2xl text-base text-deep-navy/60">
-              Discover agricultural produce available for purchase across Nigeria. Connect with farmers, negotiate offers and arrange delivery.
+              Find quality agricultural produce, connect with farmers and
+              discover better opportunities in one marketplace.
             </p>
           </div>
         </div>
 
-        {/* Auth banner */}
-        {!isAuthenticated && (
-          <div className="border-b border-harvest-gold/30 bg-harvest-gold/10">
-            <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-5 py-4 sm:px-8 lg:px-10">
-              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-amber-700" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <p className="flex-1 text-sm text-amber-800">
-                <span className="font-semibold">Sign in to browse live marketplace listings.</span>{" "}
-                Sample listings shown below are illustrative only.
+        {/* Soft sign-in invite for guests — not a hard gate */}
+        {!token && (
+          <div className="border-b border-agro-green/15 bg-agro-green/5">
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-5 py-3.5 sm:px-8 lg:px-10">
+              <p className="flex-1 text-sm text-deep-navy/70">
+                <span className="font-semibold text-agro-green">Browse freely.</span>{" "}
+                Sign in or register to contact farmers and make purchases.
               </p>
               <div className="flex shrink-0 gap-3">
-                <Link href="/login?redirect=/marketplace" className="rounded-full bg-agro-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-deep-navy">Sign in</Link>
-                <Link href="/register" className="rounded-full border border-agro-green/30 px-4 py-2 text-xs font-semibold text-agro-green transition-colors hover:bg-agro-green/10">Register</Link>
+                <Link
+                  href="/login?redirect=/marketplace"
+                  className="rounded-full bg-agro-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-deep-navy"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-full border border-agro-green/30 px-4 py-2 text-xs font-semibold text-agro-green transition-colors hover:bg-agro-green/10"
+                >
+                  Register
+                </Link>
               </div>
             </div>
           </div>
@@ -372,31 +368,91 @@ export default function MarketplacePage() {
 
         <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           <div className="lg:flex lg:gap-8">
-            {/* Sidebar */}
-            <aside className="mb-6 w-full lg:mb-0 lg:w-64 lg:shrink-0">
-              <form onSubmit={handleSearch} className="rounded-2xl border border-deep-navy/8 bg-white p-5 shadow-sm">
-                <h2 className="font-heading text-sm font-bold text-deep-navy">Filter Listings</h2>
+            {/* Sidebar filters */}
+            <aside className="mb-6 w-full lg:mb-0 lg:w-72 lg:shrink-0">
+              <form
+                onSubmit={handleFilterSubmit}
+                className="rounded-2xl border border-deep-navy/8 bg-white p-5 shadow-sm"
+              >
+                <h2 className="font-heading text-sm font-bold text-deep-navy">
+                  Filter Listings
+                </h2>
 
+                {/* Search */}
                 <div className="mt-4">
-                  <label htmlFor="search" className="mb-1.5 block text-xs font-semibold text-deep-navy/70">Search</label>
-                  <input id="search" type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Maize, tomatoes…"
-                    className="w-full rounded-xl border border-deep-navy/20 bg-white px-3.5 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20" />
+                  <label
+                    htmlFor="search"
+                    className="mb-1.5 block text-xs font-semibold text-deep-navy/70"
+                  >
+                    Search
+                  </label>
+                  <div className="relative">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-deep-navy/35"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input
+                      id="search"
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Maize, tomatoes, rice…"
+                      className="w-full rounded-xl border border-deep-navy/20 bg-white py-2.5 pl-9 pr-3.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20"
+                    />
+                  </div>
                 </div>
 
+                {/* Category */}
                 <div className="mt-4">
-                  <p className="mb-2 text-xs font-semibold text-deep-navy/70">Category</p>
+                  <p className="mb-2 text-xs font-semibold text-deep-navy/70">
+                    Category
+                  </p>
                   {catLoading ? (
-                    <div className="space-y-2">{[1, 2, 3].map((n) => <div key={n} className="h-8 animate-pulse rounded-lg bg-deep-navy/8" />)}</div>
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((n) => (
+                        <div
+                          key={n}
+                          className="h-8 animate-pulse rounded-lg bg-deep-navy/8"
+                        />
+                      ))}
+                    </div>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => setCategorySlug("")}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${!categorySlug ? "bg-agro-green text-white" : "border border-deep-navy/15 text-deep-navy/60 hover:border-agro-green/40 hover:text-agro-green"}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategorySlug("");
+                          setProduceTypeId("");
+                          setProduceTypes([]);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          !categorySlug
+                            ? "bg-agro-green text-white"
+                            : "border border-deep-navy/15 text-deep-navy/60 hover:border-agro-green/40 hover:text-agro-green"
+                        }`}
+                      >
                         All
                       </button>
                       {categories.map((cat) => (
-                        <button key={cat.slug} type="button" onClick={() => setCategorySlug(cat.slug)}
-                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${categorySlug === cat.slug ? "bg-agro-green text-white" : "border border-deep-navy/15 text-deep-navy/60 hover:border-agro-green/40 hover:text-agro-green"}`}>
+                        <button
+                          key={cat.slug}
+                          type="button"
+                          onClick={() => setCategorySlug(cat.slug)}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            categorySlug === cat.slug
+                              ? "bg-agro-green text-white"
+                              : "border border-deep-navy/15 text-deep-navy/60 hover:border-agro-green/40 hover:text-agro-green"
+                          }`}
+                        >
                           {cat.name}
                         </button>
                       ))}
@@ -404,105 +460,256 @@ export default function MarketplacePage() {
                   )}
                 </div>
 
+                {/* Produce type sub-filter */}
+                {produceTypes.length > 0 && (
+                  <div className="mt-4">
+                    <label
+                      htmlFor="produce-type"
+                      className="mb-1.5 block text-xs font-semibold text-deep-navy/70"
+                    >
+                      Produce type
+                    </label>
+                    <select
+                      id="produce-type"
+                      value={produceTypeId}
+                      onChange={(e) => setProduceTypeId(e.target.value)}
+                      className="w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2.5 text-sm text-deep-navy outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20"
+                    >
+                      <option value="">All types</option>
+                      {produceTypes.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Location */}
                 <div className="mt-4">
-                  <label htmlFor="location" className="mb-1.5 block text-xs font-semibold text-deep-navy/70">Location</label>
-                  <input id="location" type="text" value={location} onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Jos, Plateau…"
-                    className="w-full rounded-xl border border-deep-navy/20 bg-white px-3.5 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20" />
+                  <label
+                    htmlFor="location"
+                    className="mb-1.5 block text-xs font-semibold text-deep-navy/70"
+                  >
+                    Location
+                  </label>
+                  <input
+                    id="location"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Jos, Plateau, Kaduna…"
+                    className="w-full rounded-xl border border-deep-navy/20 bg-white px-3.5 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20"
+                  />
                 </div>
 
+                {/* Price range */}
                 <div className="mt-4">
-                  <p className="mb-1.5 text-xs font-semibold text-deep-navy/70">Price range (₦ per unit)</p>
+                  <p className="mb-1.5 text-xs font-semibold text-deep-navy/70">
+                    Price range (₦ per unit)
+                  </p>
                   <div className="flex gap-2">
-                    <input type="number" min="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="Min"
-                      className="w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20" />
-                    <input type="number" min="0" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Max"
-                      className="w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20" />
+                    <input
+                      type="number"
+                      min="0"
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                      placeholder="Min"
+                      aria-label="Minimum price"
+                      className="w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      placeholder="Max"
+                      aria-label="Maximum price"
+                      className="w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Quantity range */}
+                <div className="mt-4">
+                  <p className="mb-1.5 text-xs font-semibold text-deep-navy/70">
+                    Quantity range (units)
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      value={minQuantity}
+                      onChange={(e) => setMinQuantity(e.target.value)}
+                      placeholder="Min"
+                      aria-label="Minimum quantity"
+                      className="w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={maxQuantity}
+                      onChange={(e) => setMaxQuantity(e.target.value)}
+                      placeholder="Max"
+                      aria-label="Maximum quantity"
+                      className="w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2.5 text-sm text-deep-navy placeholder:text-deep-navy/35 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/20"
+                    />
                   </div>
                 </div>
 
                 <div className="mt-5 flex gap-2">
-                  <button type="submit" className="flex-1 rounded-full bg-agro-green py-2.5 text-sm font-semibold text-white transition-colors hover:bg-deep-navy">
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-full bg-agro-green py-2.5 text-sm font-semibold text-white transition-colors hover:bg-deep-navy"
+                  >
                     Apply Filters
                   </button>
-                  <button type="button" onClick={handleClearFilters}
-                    className="rounded-full border border-deep-navy/15 px-4 py-2.5 text-sm font-semibold text-deep-navy/60 transition-colors hover:border-agro-green/40 hover:text-agro-green">
-                    Clear
-                  </button>
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={handleClearFilters}
+                      className="rounded-full border border-deep-navy/15 px-4 py-2.5 text-sm font-semibold text-deep-navy/60 transition-colors hover:border-agro-green/40 hover:text-agro-green"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </form>
             </aside>
 
             {/* Listings area */}
             <div className="min-w-0 flex-1">
+              {/* Results bar */}
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-deep-navy/60">
-                  {isAuthenticated
-                    ? loading ? "Loading…" : `${total.toLocaleString()} listing${total !== 1 ? "s" : ""} found`
-                    : "Sample listings — sign in for live data"}
+                  {loading
+                    ? "Loading…"
+                    : `${total.toLocaleString()} listing${total !== 1 ? "s" : ""} found`}
                 </p>
-                {isAuthenticated && (
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="sort" className="text-xs font-semibold text-deep-navy/60">Sort:</label>
-                    <select id="sort" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}
-                      className="rounded-xl border border-deep-navy/20 bg-white px-3 py-2 text-sm text-deep-navy outline-none transition-colors focus:border-agro-green">
-                      {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="sort"
+                    className="text-xs font-semibold text-deep-navy/60"
+                  >
+                    Sort:
+                  </label>
+                  <select
+                    id="sort"
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as typeof sort)}
+                    className="rounded-xl border border-deep-navy/20 bg-white px-3 py-2 text-sm text-deep-navy outline-none transition-colors focus:border-agro-green"
+                  >
+                    {SORT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {error && <Alert variant="error" className="mb-5">{error}</Alert>}
+              {error && (
+                <Alert variant="error" className="mb-5">
+                  {error}
+                </Alert>
+              )}
 
+              {/* Loading skeletons */}
               {loading && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 6 }).map((_, i) => <ListingSkeleton key={i} />)}
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <ListingSkeleton key={i} />
+                  ))}
                 </div>
               )}
 
-              {isAuthenticated && !loading && listings.length > 0 && (
+              {/* Results */}
+              {!loading && listings.length > 0 && (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {listings.map((l) => <ListingCard key={l.id} listing={l} />)}
+                    {listings.map((l) => (
+                      <ListingCard key={l.id} listing={l} />
+                    ))}
                   </div>
                   <div className="mt-8">
-                    <Pagination page={page} totalPages={totalPages} onPageChange={(p) => fetchListings(p).catch(() => undefined)} />
+                    <Pagination
+                      page={page}
+                      totalPages={totalPages}
+                      onPageChange={(p) =>
+                        fetchListings(p).catch(() => undefined)
+                      }
+                    />
                   </div>
                 </>
               )}
 
-              {isAuthenticated && !loading && listings.length === 0 && !error && (
+              {/* Empty */}
+              {!loading && listings.length === 0 && !error && (
                 <EmptyState
-                  icon={<svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" /></svg>}
-                  title="No listings found"
-                  description="Try adjusting your search or filters to discover more produce."
+                  icon={
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-8 w-8"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+                      <line x1="7" y1="7" x2="7.01" y2="7" />
+                    </svg>
+                  }
+                  title={
+                    hasActiveFilters
+                      ? "No listings match your filters"
+                      : "No listings available yet"
+                  }
+                  description={
+                    hasActiveFilters
+                      ? "Try adjusting your search or filters to discover more produce."
+                      : "Check back soon — farmers are adding produce."
+                  }
                   action={
-                    <button type="button" onClick={handleClearFilters}
-                      className="rounded-full border border-agro-green/30 px-5 py-2.5 text-sm font-semibold text-agro-green transition-colors hover:bg-agro-green hover:text-white">
-                      Clear all filters
-                    </button>
+                    hasActiveFilters ? (
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="rounded-full border border-agro-green/30 px-5 py-2.5 text-sm font-semibold text-agro-green transition-colors hover:bg-agro-green hover:text-white"
+                      >
+                        Clear all filters
+                      </button>
+                    ) : undefined
                   }
                 />
               )}
 
-              {!isAuthenticated && (
-                <>
-                  <div className="mb-4 rounded-xl border border-harvest-gold/20 bg-harvest-gold/8 px-4 py-3 text-xs text-amber-800">
-                    <span className="font-semibold">Illustrative examples only.</span>{" "}
-                    These are not real farmer listings. Sign in to browse the live marketplace.
+              {/* Guest CTA at bottom of results */}
+              {!loading && !token && listings.length > 0 && (
+                <div className="mt-10 rounded-2xl border border-agro-green/20 bg-agro-green/5 p-8 text-center">
+                  <p className="font-heading text-lg font-bold text-deep-navy">
+                    Ready to contact a farmer?
+                  </p>
+                  <p className="mt-2 text-sm text-deep-navy/60">
+                    Create a free account to message farmers directly, make
+                    offers and arrange purchases.
+                  </p>
+                  <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                    <Link
+                      href="/register"
+                      className="rounded-full bg-agro-green px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-deep-navy"
+                    >
+                      Create Free Account
+                    </Link>
+                    <Link
+                      href="/login?redirect=/marketplace"
+                      className="rounded-full border border-agro-green/30 px-6 py-3 text-sm font-bold text-agro-green transition-colors hover:bg-agro-green hover:text-white"
+                    >
+                      Sign In
+                    </Link>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {SAMPLE_LISTINGS.map((l) => <ListingCard key={l.id} listing={l} isSample />)}
-                  </div>
-                  <div className="mt-10 rounded-2xl border border-agro-green/20 bg-agro-green/5 p-8 text-center">
-                    <p className="font-heading text-lg font-bold text-deep-navy">Ready to access the live marketplace?</p>
-                    <p className="mt-2 text-sm text-deep-navy/60">Sign in or create an account to browse real farmer listings, filter by produce type and connect with suppliers.</p>
-                    <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                      <Link href="/login?redirect=/marketplace" className="rounded-full bg-agro-green px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-deep-navy">Sign In</Link>
-                      <Link href="/register" className="rounded-full border border-agro-green/30 px-6 py-3 text-sm font-bold text-agro-green transition-colors hover:bg-agro-green hover:text-white">Create Account</Link>
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
             </div>
           </div>
