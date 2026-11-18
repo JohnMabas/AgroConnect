@@ -14,6 +14,8 @@ export class FarmerProfile extends Model<
   declare id: CreationOptional<string>;
   declare user_id: string;
   declare farm_name: CreationOptional<string | null>;
+  declare farm_image_url: CreationOptional<string | null>;
+  declare farm_image_public_id: CreationOptional<string | null>;
   declare farming_experience_years: CreationOptional<number | null>;
   declare farm_location: CreationOptional<string | null>;
   declare farm_size: CreationOptional<number | null>;
@@ -40,6 +42,14 @@ FarmerProfile.init(
     },
     farm_name: {
       type: DataTypes.STRING(200),
+      allowNull: true,
+    },
+    farm_image_url: {
+      type: DataTypes.STRING(512),
+      allowNull: true,
+    },
+    farm_image_public_id: {
+      type: DataTypes.STRING(512),
       allowNull: true,
     },
     farming_experience_years: {

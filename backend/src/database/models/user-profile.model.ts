@@ -17,6 +17,7 @@ export class UserProfile extends Model<
   declare last_name: CreationOptional<string | null>;
   declare display_name: CreationOptional<string | null>;
   declare profile_image_url: CreationOptional<string | null>;
+  declare profile_image_public_id: CreationOptional<string | null>;
   declare country: CreationOptional<string | null>;
   declare state_or_region: CreationOptional<string | null>;
   declare local_government_area: CreationOptional<string | null>;
@@ -50,6 +51,10 @@ UserProfile.init(
       allowNull: true,
     },
     profile_image_url: {
+      type: DataTypes.STRING(512),
+      allowNull: true,
+    },
+    profile_image_public_id: {
       type: DataTypes.STRING(512),
       allowNull: true,
     },

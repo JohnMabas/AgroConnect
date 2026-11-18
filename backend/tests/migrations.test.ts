@@ -105,6 +105,7 @@ const PHASE_18_TABLES = [
   "pilot_feedback",
   "pilot_participants",
 ];
+const MESSAGE_MEDIA_TABLES = ["call_sessions", "message_attachments"];
 const ALL_TABLES = [
   ...PHASE_2_TABLES,
   ...PHASE_3_TABLES,
@@ -122,6 +123,7 @@ const ALL_TABLES = [
   ...PHASE_16_TABLES,
   ...PHASE_17_TABLES,
   ...PHASE_18_TABLES,
+  ...MESSAGE_MEDIA_TABLES,
 ].sort();
 
 const ALL_MIGRATION_NAMES = [
@@ -168,6 +170,11 @@ const ALL_MIGRATION_NAMES = [
   "20261117000001-create-phase18-pilot-readiness",
   "20261118000001-add-email-verification-otp-fields",
   "20261119000001-create-password-reset-tokens",
+  "20261120000001-extend-messages-for-media",
+  "20261120000002-create-message-attachments",
+  "20261120000003-create-call-sessions",
+  "20261120000004-add-cloudinary-fields-to-message-attachments",
+  "20261121000001-add-public-image-fields",
 ];
 
 async function getPublicTables(): Promise<string[]> {
