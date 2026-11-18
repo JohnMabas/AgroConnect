@@ -207,6 +207,46 @@ export default function FarmerDashboardPage() {
         </div>
       </section>
 
+      {/* Buyer Demand section */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-deep-navy/50">Buyer Demand</h2>
+          <Link href="/farmer/buyer-requests" className="text-xs font-semibold text-agro-green hover:underline">View all →</Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { href: "/farmer/buyer-requests", title: "Discover Requests", desc: "Find buyers looking for your produce and respond with offers.", color: "border-agro-green/20 bg-agro-green/5" },
+            { href: "/buyer-requests", title: "Public Demand Board", desc: "See all open buyer requests across the marketplace.", color: "border-deep-navy/10 bg-white" },
+            { href: "/marketplace", title: "Marketplace", desc: "Browse all published listings and understand market pricing.", color: "border-harvest-gold/20 bg-harvest-gold/5" },
+          ].map(({ href, title, desc, color }) => (
+            <Link key={href} href={href} className={`flex flex-col rounded-2xl border p-5 shadow-sm transition-shadow hover:shadow-md ${color}`}>
+              <p className="font-heading text-sm font-bold text-deep-navy">{title}</p>
+              <p className="mt-1 text-xs leading-5 text-deep-navy/55">{desc}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Buyer Demand section */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-deep-navy/50">Buyer Demand</h2>
+          <Link href="/farmer/buyer-requests" className="text-xs font-semibold text-agro-green hover:underline">Discover requests →</Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { href: "/farmer/buyer-requests", title: "Discover Requests", desc: "Find buyers looking for your produce and respond with offers.", color: "border-agro-green/20 bg-agro-green/5" },
+            { href: "/buyer-requests", title: "Public Demand Board", desc: "Browse all open buyer requests across the marketplace.", color: "border-deep-navy/10 bg-white" },
+            { href: "/marketplace", title: "Browse Marketplace", desc: "See all published listings and understand current pricing.", color: "border-harvest-gold/20 bg-harvest-gold/5" },
+          ].map(({ href, title, desc, color }) => (
+            <Link key={href} href={href} className={`flex flex-col rounded-2xl border p-5 shadow-sm transition-shadow hover:shadow-md ${color}`}>
+              <p className="font-heading text-sm font-bold text-deep-navy">{title}</p>
+              <p className="mt-1 text-xs leading-5 text-deep-navy/55">{desc}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* Coming soon features */}
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
