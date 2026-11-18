@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { authenticate, requireRoles } from "../../middleware/authenticate.js";
-import { getProfile, createProfile, updateProfile } from "./farmers.controller.js";
+import {
+  getProfile,
+  createProfile,
+  updateProfile,
+  uploadFarmImageHandler,
+  deleteFarmImageHandler,
+} from "./farmers.controller.js";
 import {
   addEvidenceHandler,
   approveHandler,
@@ -18,6 +24,7 @@ import {
   revokeRelationshipHandler,
 } from "../farmer-protection/farmer-protection.controller.js";
 import { uploadVerificationDocument } from "../verifications/verification-document.upload.js";
+import { uploadSinglePublicImage } from "../uploads/public-image.upload.middleware.js";
 
 export function createFarmersRouter(): Router {
   const router = Router();
@@ -30,6 +37,15 @@ export function createFarmersRouter(): Router {
 
   // PUT /api/farmers/profile/me — update my farmer profile
   router.put("/profile/me", authenticate, updateProfile);
+
+  router.post(
+    "/profile/me/image",
+    authenticate,
+    uploadSinglePublicImage(),
+    uploadFarmImageHandler,
+  );
+
+  router.delete("/profile/me/image", authenticate, deleteFarmImageHandler);
 
   // Phase 16 — farmer-controlled agent access, approvals and complaints.
   router.get(

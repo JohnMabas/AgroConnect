@@ -4,6 +4,8 @@ export interface FarmerProfileData {
   id: string;
   user_id: string;
   farm_name: string | null;
+  farm_image_url: string | null;
+  farm_image_public_id: string | null;
   farming_experience_years: number | null;
   farm_location: string | null;
   farm_size: number | null;

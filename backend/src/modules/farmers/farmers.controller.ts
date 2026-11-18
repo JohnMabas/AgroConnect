@@ -5,7 +5,10 @@ import {
   getMyFarmerProfile,
   createFarmerProfile,
   updateFarmerProfile,
+  setFarmImage,
+  deleteFarmImage,
 } from "./farmers.service.js";
+import { handleImageServiceError } from "../uploads/public-image.controller.js";
 
 function zodErrorToFields(err: ZodError) {
   return err.errors.map((e) => ({
@@ -106,5 +109,41 @@ export async function updateProfile(
       return;
     }
     next(err);
+  }
+}
+
+export async function uploadFarmImageHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: "Authentication required." } });
+      return;
+    }
+
+    const profile = await setFarmImage(req.user.sub, req.file);
+    res.json({ success: true, message: "Farm image uploaded.", data: { profile } });
+  } catch (err) {
+    handleImageServiceError(err, res, next);
+  }
+}
+
+export async function deleteFarmImageHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: "Authentication required." } });
+      return;
+    }
+
+    const profile = await deleteFarmImage(req.user.sub);
+    res.json({ success: true, message: "Farm image removed.", data: { profile } });
+  } catch (err) {
+    handleImageServiceError(err, res, next);
   }
 }

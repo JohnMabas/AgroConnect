@@ -3,6 +3,9 @@ import {
   CooperativeMembership,
   CooperativeProfile,
 } from "../../database/models/index.js";
+import { publicImageStorage } from "../../integrations/storage/index.js";
+import { validatePublicImageUpload } from "../uploads/public-image.validation.js";
+import { deletePublicImageBestEffort } from "../uploads/public-image.cleanup.js";
 import type { UpsertFarmerProfileInput } from "./farmers.validation.js";
 import type { FarmerProfileData, FarmerVerificationStatus } from "./farmers.types.js";
 
@@ -23,6 +26,8 @@ export function buildFarmerProfileData(
     id: profile.id,
     user_id: profile.user_id,
     farm_name: profile.farm_name ?? null,
+    farm_image_url: profile.farm_image_url ?? null,
+    farm_image_public_id: profile.farm_image_public_id ?? null,
     farming_experience_years: profile.farming_experience_years ?? null,
     farm_location: profile.farm_location ?? null,
     farm_size: profile.farm_size != null ? Number(profile.farm_size) : null,
@@ -107,6 +112,51 @@ export async function updateFarmerProfile(
   }
 
   await profile.update(data);
+
+  return buildFarmerProfileData(profile);
+}
+
+export async function setFarmImage(
+  userId: string,
+  file: Express.Multer.File | undefined,
+): Promise<FarmerProfileData> {
+  const profile = await FarmerProfile.findOne({ where: { user_id: userId } });
+  if (!profile) {
+    throw Object.assign(new Error("Farmer profile not found."), { code: "NOT_FOUND" });
+  }
+
+  const detected = validatePublicImageUpload(file);
+  const stored = await publicImageStorage.saveImage({
+    folder: "farms",
+    buffer: file!.buffer,
+    mimeType: detected.mimeType,
+    extension: detected.extension,
+    ownerId: userId,
+  });
+
+  const previousPublicId = profile.farm_image_public_id;
+  try {
+    await profile.update({
+      farm_image_url: stored.imageUrl,
+      farm_image_public_id: stored.publicId,
+    });
+  } catch (err) {
+    await deletePublicImageBestEffort(stored.publicId, "farm replacement");
+    throw err;
+  }
+  await deletePublicImageBestEffort(previousPublicId, "farm");
+  return buildFarmerProfileData(profile);
+}
+
+export async function deleteFarmImage(userId: string): Promise<FarmerProfileData> {
+  const profile = await FarmerProfile.findOne({ where: { user_id: userId } });
+  if (!profile) {
+    throw Object.assign(new Error("Farmer profile not found."), { code: "NOT_FOUND" });
+  }
+
+  const previousPublicId = profile.farm_image_public_id;
+  await profile.update({ farm_image_url: null, farm_image_public_id: null });
+  await deletePublicImageBestEffort(previousPublicId, "farm");
 
   return buildFarmerProfileData(profile);
 }
