@@ -2,13 +2,11 @@
 
 import { Suspense, useState, useEffect, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
 
 const COOLDOWN_SECONDS = 60;
 
 function ForgotPasswordForm() {
-  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");

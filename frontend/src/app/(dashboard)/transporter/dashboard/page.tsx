@@ -10,6 +10,7 @@ import {
   type DeliveryData,
   type NotificationData,
 } from "@/lib/api";
+import { mapNotificationActionUrl } from "@/lib/messaging";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ProfileCompletion } from "@/components/dashboard/profile-completion";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -359,23 +360,37 @@ export default function TransporterDashboardPage() {
             />
           ) : (
             <ul className="divide-y divide-deep-navy/5">
-              {notifications.map((n) => (
-                <li key={n.id} className="flex items-start gap-3 px-5 py-3">
-                  <span
-                    className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
-                      n.is_read ? "bg-deep-navy/20" : "bg-agro-green"
-                    }`}
-                    aria-label={n.is_read ? "read" : "unread"}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-deep-navy">{n.title}</p>
-                    <p className="mt-0.5 truncate text-xs text-deep-navy/60">{n.message}</p>
-                  </div>
-                  <time className="shrink-0 text-xs text-deep-navy/40">
-                    {new Date(n.created_at).toLocaleDateString()}
-                  </time>
-                </li>
-              ))}
+              {notifications.map((n) => {
+                const href = mapNotificationActionUrl(n.action_url);
+                const body = (
+                  <>
+                    <span
+                      className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+                        n.is_read ? "bg-deep-navy/20" : "bg-agro-green"
+                      }`}
+                      aria-label={n.is_read ? "read" : "unread"}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-deep-navy">{n.title}</p>
+                      <p className="mt-0.5 truncate text-xs text-deep-navy/60">{n.message}</p>
+                    </div>
+                    <time className="shrink-0 text-xs text-deep-navy/40">
+                      {new Date(n.created_at).toLocaleDateString()}
+                    </time>
+                  </>
+                );
+                return (
+                  <li key={n.id} className="px-5 py-3">
+                    {href ? (
+                      <Link href={href} className="flex items-start gap-3 hover:opacity-75">
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className="flex items-start gap-3">{body}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
