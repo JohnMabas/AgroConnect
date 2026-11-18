@@ -1,5 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
-import { listCategories, listTypes, getTypeById } from "./produce.service.js";
+import {
+  listCategories,
+  listTypes,
+  getTypeById,
+  setProduceTypeImage,
+  deleteProduceTypeImage,
+} from "./produce.service.js";
+import { handleImageServiceError } from "../uploads/public-image.controller.js";
 
 // ─── GET /api/produce/categories ─────────────────────────────────────────────
 
@@ -58,5 +65,43 @@ export async function getTypeByIdHandler(
       return;
     }
     next(err);
+  }
+}
+
+export async function setTypeImageHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const typeId = req.params["id"] as string | undefined;
+    if (!typeId) {
+      res.status(400).json({ success: false, error: { message: "Produce type ID required." } });
+      return;
+    }
+
+    const type = await setProduceTypeImage(typeId, req.file);
+    res.json({ success: true, message: "Produce image uploaded.", data: { type } });
+  } catch (err) {
+    handleImageServiceError(err, res, next);
+  }
+}
+
+export async function deleteTypeImageHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const typeId = req.params["id"] as string | undefined;
+    if (!typeId) {
+      res.status(400).json({ success: false, error: { message: "Produce type ID required." } });
+      return;
+    }
+
+    const type = await deleteProduceTypeImage(typeId);
+    res.json({ success: true, message: "Produce image removed.", data: { type } });
+  } catch (err) {
+    handleImageServiceError(err, res, next);
   }
 }

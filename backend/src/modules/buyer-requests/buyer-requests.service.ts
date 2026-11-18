@@ -70,6 +70,7 @@ function buildProduceTypeData(row: ProduceTypeRow) {
     slug: row.slug,
     description: row.description ?? null,
     image_url: row.image_url ?? null,
+    public_id: row.public_id ?? null,
     is_active: row.is_active ?? true,
     category: row.category ? buildProduceCategoryData(row.category) : undefined,
     created_at: row.created_at!,

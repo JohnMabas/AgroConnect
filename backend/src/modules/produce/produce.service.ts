@@ -2,6 +2,9 @@ import {
   ProduceCategory,
   ProduceType,
 } from "../../database/models/index.js";
+import { publicImageStorage } from "../../integrations/storage/index.js";
+import { validatePublicImageUpload } from "../uploads/public-image.validation.js";
+import { deletePublicImageBestEffort } from "../uploads/public-image.cleanup.js";
 import type { ProduceCategoryData, ProduceTypeData } from "./produce.types.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,6 +31,7 @@ function buildTypeData(
     slug: row.slug,
     description: row.description ?? null,
     image_url: row.image_url ?? null,
+    public_id: row.public_id ?? null,
     is_active: row.is_active ?? true,
     category: row.category ? buildCategoryData(row.category) : undefined,
     created_at: row.created_at!,
@@ -105,4 +109,50 @@ export async function getTypeById(id: string): Promise<ProduceTypeData> {
   }
 
   return buildTypeData(type as ProduceType & { category?: ProduceCategory });
+}
+
+export async function setProduceTypeImage(
+  typeId: string,
+  file: Express.Multer.File | undefined,
+): Promise<ProduceTypeData> {
+  const type = await ProduceType.findByPk(typeId);
+  if (!type) {
+    throw Object.assign(new Error("Produce type not found."), { code: "NOT_FOUND" });
+  }
+
+  const detected = validatePublicImageUpload(file);
+  const stored = await publicImageStorage.saveImage({
+    folder: "produce",
+    buffer: file!.buffer,
+    mimeType: detected.mimeType,
+    extension: detected.extension,
+  });
+
+  const previousPublicId = type.public_id;
+  try {
+    await type.update({
+      image_url: stored.imageUrl,
+      public_id: stored.publicId,
+    });
+  } catch (err) {
+    await deletePublicImageBestEffort(stored.publicId, "produce replacement");
+    throw err;
+  }
+  await deletePublicImageBestEffort(previousPublicId, "produce");
+  return buildTypeData(type);
+}
+
+export async function deleteProduceTypeImage(
+  typeId: string,
+): Promise<ProduceTypeData> {
+  const type = await ProduceType.findByPk(typeId);
+  if (!type) {
+    throw Object.assign(new Error("Produce type not found."), { code: "NOT_FOUND" });
+  }
+
+  const previousPublicId = type.public_id;
+  await type.update({ image_url: null, public_id: null });
+  await deletePublicImageBestEffort(previousPublicId, "produce");
+
+  return buildTypeData(type);
 }

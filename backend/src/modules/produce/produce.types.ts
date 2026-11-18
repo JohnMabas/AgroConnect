@@ -15,6 +15,7 @@ export interface ProduceTypeData {
   slug: string;
   description: string | null;
   image_url: string | null;
+  public_id: string | null;
   is_active: boolean;
   category?: ProduceCategoryData;
   created_at: Date;
