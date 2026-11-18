@@ -2,6 +2,26 @@
 // Falls back to localhost for development.
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
+/**
+ * Build an absolute API URL from an API path, server-relative path, or absolute URL.
+ * Normalizes duplicate `/api` prefixes when API_BASE already includes `/api`.
+ */
+export function buildApiUrl(pathOrUrl: string): string {
+  if (/^https?:\/\//i.test(pathOrUrl) || pathOrUrl.startsWith("blob:") || pathOrUrl.startsWith("data:")) {
+    return pathOrUrl;
+  }
+
+  const base = API_BASE.replace(/\/+$/, "");
+  let path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
+
+  // Avoid .../api/api/... when the backend returns a path that already starts with /api.
+  if (base.endsWith("/api") && path.startsWith("/api/")) {
+    path = path.slice(4);
+  }
+
+  return `${base}${path}`;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -1288,6 +1308,419 @@ export const marketplaceApi = {
   getRequest(token: string, id: string): Promise<{ success: boolean; data: { request: BuyerRequestData } }> {
     return request(`/marketplace/requests/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
+// ─── Messaging API ─────────────────────────────────────────────────────────────
+
+export const MESSAGE_MAX_LENGTH = 4000;
+export const MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+export const MESSAGE_MEDIA_MAX_AUDIO_SIZE_BYTES = 10 * 1024 * 1024;
+export const MESSAGE_MEDIA_MAX_ATTACHMENTS_PER_MESSAGE = 5;
+
+export type MessageStatus = "sent" | "delivered" | "read";
+export type MessageType = "text" | "image" | "audio" | "media";
+
+export interface MessageAttachmentData {
+  id: string;
+  message_id: string;
+  conversation_id: string;
+  attachment_type: "image" | "audio";
+  mime_type: string;
+  file_name: string;
+  file_size_bytes: number;
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  download_url: string;
+  created_at: string;
+}
+
+export interface MessageData {
+  id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  content: string;
+  message_type: MessageType;
+  status: MessageStatus;
+  delivered_at: string | null;
+  read_at: string | null;
+  sender?: { id: string; display_name: string | null };
+  attachments?: MessageAttachmentData[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationParticipantData {
+  user_id: string;
+  display_name: string | null;
+  last_read_at: string | null;
+  joined_at: string;
+}
+
+export interface ConversationListingSummary {
+  id: string;
+  title: string;
+  status: string;
+  farmer_user_id: string;
+}
+
+export interface ConversationBuyerRequestSummary {
+  id: string;
+  status: string;
+  buyer_user_id: string;
+}
+
+export type ConversationStatus = "active" | "archived" | "blocked";
+
+export interface ConversationData {
+  id: string;
+  created_by_user_id: string;
+  listing_id: string | null;
+  buyer_request_id: string | null;
+  status: ConversationStatus;
+  last_message_at: string | null;
+  participants: ConversationParticipantData[];
+  listing?: ConversationListingSummary;
+  buyer_request?: ConversationBuyerRequestSummary;
+  last_message?: MessageData;
+  unread_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedConversationsData {
+  conversations: ConversationData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface PaginatedMessagesData {
+  messages: MessageData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface UnreadCountData {
+  total_unread: number;
+  conversations: Array<{ conversation_id: string; unread_count: number }>;
+}
+
+export interface MarkReadResult {
+  conversation_id: string;
+  reader_user_id: string;
+  read_at: string;
+  message_ids: string[];
+  participant_user_ids: string[];
+}
+
+export interface CreateConversationPayload {
+  participant_user_id: string;
+  listing_id?: string | null;
+  buyer_request_id?: string | null;
+}
+
+export const messagingApi = {
+  listConversations(
+    token: string,
+    params: {
+      status?: ConversationStatus | "all";
+      page?: number;
+      limit?: number;
+    } = {},
+  ): Promise<{ success: boolean; data: PaginatedConversationsData }> {
+    const q = new URLSearchParams();
+    if (params.status) q.set("status", params.status);
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString();
+    return request(`/conversations${suffix ? `?${suffix}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  getConversation(
+    token: string,
+    id: string,
+  ): Promise<{ success: boolean; data: { conversation: ConversationData } }> {
+    return request(`/conversations/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  createConversation(
+    token: string,
+    payload: CreateConversationPayload,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: { conversation: ConversationData };
+  }> {
+    return request("/conversations", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listMessages(
+    token: string,
+    conversationId: string,
+    params: {
+      page?: number;
+      limit?: number;
+      before?: string;
+      order?: "asc" | "desc";
+    } = {},
+  ): Promise<{ success: boolean; data: PaginatedMessagesData }> {
+    const q = new URLSearchParams();
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    if (params.before) q.set("before", params.before);
+    if (params.order) q.set("order", params.order);
+    const suffix = q.toString();
+    return request(`/conversations/${conversationId}/messages${suffix ? `?${suffix}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  sendMessage(
+    token: string,
+    conversationId: string,
+    content: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: { message: MessageData };
+  }> {
+    return request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content, message_type: "text" }),
+    });
+  },
+
+  sendMessageWithAttachments(
+    token: string,
+    conversationId: string,
+    payload: { content?: string; message_type?: MessageType; files?: File[] },
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: { message: MessageData };
+  }> {
+    const files = payload.files ?? [];
+    if (files.length === 0) {
+      return this.sendMessage(token, conversationId, payload.content ?? "");
+    }
+    const form = new FormData();
+    if ((payload.content ?? "").length > 0) {
+      form.append("content", payload.content ?? "");
+    }
+    if (payload.message_type) {
+      form.append("message_type", payload.message_type);
+    }
+    for (const file of files) {
+      form.append("attachments", file);
+    }
+    return request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+  },
+
+  async downloadAttachment(
+    token: string,
+    downloadUrl: string,
+  ): Promise<Blob> {
+    const url = buildApiUrl(downloadUrl);
+    const res = await fetch(url, {
+      credentials: "include",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(
+        res.status,
+        body?.error?.message ?? body?.message ?? "Unable to load attachment.",
+        body?.errors,
+        body?.data,
+      );
+    }
+    return res.blob();
+  },
+
+  markRead(
+    token: string,
+    conversationId: string,
+    messageId?: string,
+  ): Promise<{ success: boolean; message: string; data: MarkReadResult }> {
+    return request(`/conversations/${conversationId}/read`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(messageId ? { message_id: messageId } : {}),
+    });
+  },
+
+  unarchiveConversation(
+    token: string,
+    id: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: { conversation: ConversationData };
+  }> {
+    return request(`/conversations/${id}/unarchive`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  getUnreadCount(token: string): Promise<{ success: boolean; data: UnreadCountData }> {
+    return request("/messages/unread-count", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
+
+// ─── Calls API (WebRTC signaling support) ─────────────────────────────────────
+
+export type CallType = "audio" | "video";
+export type CallStatus =
+  | "ringing"
+  | "accepted"
+  | "rejected"
+  | "ended"
+  | "missed"
+  | "cancelled"
+  | "failed";
+
+export interface CallParticipantSummary {
+  id: string;
+  display_name: string | null;
+}
+
+export interface CallData {
+  id: string;
+  conversation_id: string;
+  caller_user_id: string;
+  callee_user_id: string;
+  call_type: CallType;
+  status: CallStatus;
+  initiated_at: string;
+  accepted_at: string | null;
+  ended_at: string | null;
+  ended_by_user_id: string | null;
+  end_reason: string | null;
+  duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+  caller?: CallParticipantSummary;
+  callee?: CallParticipantSummary;
+}
+
+export interface IceServerConfig {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+export interface CallConfigData {
+  iceServers: IceServerConfig[];
+  turnConfigured: boolean;
+}
+
+export interface PaginatedCallsData {
+  calls: CallData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export const callsApi = {
+  getConfig(token: string): Promise<{ success: boolean; data: CallConfigData }> {
+    return request("/calls/config", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  create(
+    token: string,
+    payload: { conversation_id: string; callee_user_id: string; call_type: CallType },
+  ): Promise<{ success: boolean; data: { call: CallData } }> {
+    return request("/calls", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  list(
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      status?: CallStatus;
+      conversation_id?: string;
+    } = {},
+  ): Promise<{ success: boolean; data: PaginatedCallsData }> {
+    const q = new URLSearchParams();
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    if (params.status) q.set("status", params.status);
+    if (params.conversation_id) q.set("conversation_id", params.conversation_id);
+    const suffix = q.toString();
+    return request(`/calls${suffix ? `?${suffix}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  get(token: string, id: string): Promise<{ success: boolean; data: { call: CallData } }> {
+    return request(`/calls/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  accept(
+    token: string,
+    id: string,
+  ): Promise<{ success: boolean; data: { call: CallData } }> {
+    return request(`/calls/${id}/accept`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({}),
+    });
+  },
+
+  reject(
+    token: string,
+    id: string,
+    reason?: string,
+  ): Promise<{ success: boolean; data: { call: CallData } }> {
+    return request(`/calls/${id}/reject`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(reason ? { reason } : {}),
+    });
+  },
+
+  end(
+    token: string,
+    id: string,
+    reason?: string,
+  ): Promise<{ success: boolean; data: { call: CallData } }> {
+    return request(`/calls/${id}/end`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(reason ? { reason } : {}),
     });
   },
 };

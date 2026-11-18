@@ -40,6 +40,30 @@ export function clearAccessToken(): void {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
 }
 
+export interface AccessTokenClaims {
+  sub?: string;
+  roles?: string[];
+}
+
+/** Read non-sensitive claims from the locally stored access token. */
+export function getAccessTokenClaims(token: string | null): AccessTokenClaims | null {
+  if (!token) return null;
+  try {
+    const segment = token.split(".")[1];
+    if (!segment) return null;
+    const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const claims = JSON.parse(atob(padded)) as AccessTokenClaims;
+    return claims;
+  } catch {
+    return null;
+  }
+}
+
+export function getUserIdFromToken(token: string | null): string | null {
+  return getAccessTokenClaims(token)?.sub ?? null;
+}
+
 export function primaryRole(user: SafeUser): string | undefined {
   return ROLE_PRIORITY.find((role) => user.roles.includes(role));
 }
