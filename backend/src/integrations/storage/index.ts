@@ -1,20 +1,16 @@
 import { env } from "../../config/env.js";
 import { LocalImageStorageAdapter } from "./local-storage.adapter.js";
 import { LocalPrivateDocumentStorageAdapter } from "./local-private-document.adapter.js";
-import { LocalPrivateMessageMediaStorageAdapter } from "./local-private-message-media.adapter.js";
+import { LocalStorageService } from "./local-storage.driver.js";
+import { CloudinaryStorageService } from "./cloudinary-storage.driver.js";
 import type {
   ImageStorageAdapter,
   PrivateDocumentStorageAdapter,
+  StorageService,
 } from "./storage.interface.js";
-import type { PrivateMessageMediaStorageAdapter } from "./local-private-message-media.adapter.js";
 
 /**
  * Active image storage adapter.
- *
- * Only local filesystem storage is configured at this stage. Replace this
- * factory with an object-storage adapter (for example S3/R2) when production
- * credentials and a bucket are provisioned. Never expose storage credentials
- * to the frontend.
  */
 export const imageStorage: ImageStorageAdapter = new LocalImageStorageAdapter(
   env.UPLOAD_STORAGE_PATH,
@@ -31,17 +27,26 @@ export const privateDocumentStorage: PrivateDocumentStorageAdapter =
   );
 
 /**
- * Private message media storage. This must never be exposed through a public
- * static path.
+ * Private message media storage. Driver selected by STORAGE_DRIVER.
+ * Files/objects remain private and are only served through authorized backend
+ * streaming endpoints.
  */
-export const privateMessageMediaStorage: PrivateMessageMediaStorageAdapter =
-  new LocalPrivateMessageMediaStorageAdapter(env.MESSAGE_MEDIA_STORAGE_PATH);
+export const messageStorage: StorageService & {
+  saveMedia?: Function;
+  readMedia?: Function;
+  deleteMedia?: Function;
+} =
+  env.STORAGE_DRIVER === "cloudinary"
+    ? new CloudinaryStorageService()
+    : new LocalStorageService(env.LOCAL_UPLOAD_DIR);
+
+// Backwards-compatible export name used by existing messaging code paths.
+export const privateMessageMediaStorage = messageStorage as any;
 
 export type {
   ImageStorageAdapter,
   PrivateDocumentStorageAdapter,
   StoredPrivateDocument,
+  StorageService,
+  StorageStreamResult,
 } from "./storage.interface.js";
-export type {
-  PrivateMessageMediaStorageAdapter,
-} from "./local-private-message-media.adapter.js";
