@@ -44,6 +44,7 @@ import * as createPasswordResetTokens from "./20261119000001-create-password-res
 import * as extendMessagesForMedia from "./20261120000001-extend-messages-for-media.js";
 import * as createMessageAttachments from "./20261120000002-create-message-attachments.js";
 import * as createCallSessions from "./20261120000003-create-call-sessions.js";
+import * as addCloudinaryFieldsToMessageAttachments from "./20261120000004-add-cloudinary-fields-to-message-attachments.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -205,5 +206,9 @@ export const migrations = [
   {
     name: "20261120000003-create-call-sessions",
     ...createCallSessions,
+  },
+  {
+    name: "20261120000004-add-cloudinary-fields-to-message-attachments",
+    ...addCloudinaryFieldsToMessageAttachments,
   },
 ];

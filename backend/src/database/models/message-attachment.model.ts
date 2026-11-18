@@ -8,6 +8,7 @@ import {
 import { sequelize } from "../sequelize.js";
 
 export type MessageAttachmentType = "image" | "audio";
+export type MessageAttachmentResourceType = "image" | "video" | "raw";
 
 export class MessageAttachment extends Model<
   InferAttributes<MessageAttachment>,
@@ -25,6 +26,8 @@ export class MessageAttachment extends Model<
   declare duration_seconds: CreationOptional<number | null>;
   declare width: CreationOptional<number | null>;
   declare height: CreationOptional<number | null>;
+  declare resource_type: CreationOptional<MessageAttachmentResourceType | null>;
+  declare public_id: CreationOptional<string | null>;
   declare created_at: CreationOptional<Date>;
   declare updated_at: CreationOptional<Date>;
 }
@@ -78,6 +81,14 @@ MessageAttachment.init(
     },
     height: {
       type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    resource_type: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    public_id: {
+      type: DataTypes.STRING(512),
       allowNull: true,
     },
     created_at: {
