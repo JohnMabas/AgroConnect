@@ -41,6 +41,9 @@ import * as createPhase17TelecomLocalization from "./20261116000001-create-phase
 import * as createPhase18PilotReadiness from "./20261117000001-create-phase18-pilot-readiness.js";
 import * as addEmailVerificationOtpFields from "./20261118000001-add-email-verification-otp-fields.js";
 import * as createPasswordResetTokens from "./20261119000001-create-password-reset-tokens.js";
+import * as extendMessagesForMedia from "./20261120000001-extend-messages-for-media.js";
+import * as createMessageAttachments from "./20261120000002-create-message-attachments.js";
+import * as createCallSessions from "./20261120000003-create-call-sessions.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -190,5 +193,17 @@ export const migrations = [
   {
     name: "20261119000001-create-password-reset-tokens",
     ...createPasswordResetTokens,
+  },
+  {
+    name: "20261120000001-extend-messages-for-media",
+    ...extendMessagesForMedia,
+  },
+  {
+    name: "20261120000002-create-message-attachments",
+    ...createMessageAttachments,
+  },
+  {
+    name: "20261120000003-create-call-sessions",
+    ...createCallSessions,
   },
 ];
