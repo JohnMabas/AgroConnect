@@ -5,12 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { signOut } from "@/lib/session";
+import { useMessaging } from "@/components/messaging/messaging-provider";
 import type { SafeUser } from "@/lib/api";
 
 interface NavLink {
   href: string;
   label: string;
   icon?: React.ReactNode;
+  unreadIndicator?: boolean;
 }
 
 interface SidebarProps {
@@ -43,6 +45,7 @@ function primaryRole(user: SafeUser): string {
 export function Sidebar({ user, navLinks, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { unreadTotal } = useMessaging();
   const [loggingOut, setLoggingOut] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -112,8 +115,9 @@ export function Sidebar({ user, navLinks, onClose }: SidebarProps) {
 
       {/* Nav links */}
       <nav aria-label="Dashboard navigation" className="flex-1 overflow-y-auto py-3 px-2">
-        {navLinks.map(({ href, label, icon }) => {
+        {navLinks.map(({ href, label, icon, unreadIndicator }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const unread = unreadIndicator ? unreadTotal : 0;
           return (
             <Link
               key={href}
@@ -125,11 +129,17 @@ export function Sidebar({ user, navLinks, onClose }: SidebarProps) {
                   : "text-deep-navy/70 hover:bg-soft-bg hover:text-deep-navy"
               }`}
               aria-current={active ? "page" : undefined}
+              aria-label={unread > 0 ? `${label}, ${unread} unread` : undefined}
             >
               {icon && (
                 <span className="shrink-0" aria-hidden="true">{icon}</span>
               )}
-              {!collapsed && <span>{label}</span>}
+              {!collapsed && <span className="flex-1">{label}</span>}
+              {unread > 0 && (
+                <span className="flex min-w-5 items-center justify-center rounded-full bg-agro-green px-1.5 text-[10px] font-bold leading-5 text-white">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </Link>
           );
         })}

@@ -1,11 +1,14 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import { signOut } from "@/lib/session";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { MobileNav, HamburgerButton } from "@/components/dashboard/mobile-nav";
+import { MessagingProvider } from "@/components/messaging/messaging-provider";
+import { CallManagerProvider } from "@/components/messaging/call-manager";
+import { MessageNavIndicator } from "@/components/messaging/message-nav-indicator";
 import type { SafeUser } from "@/lib/api";
 
 // Nav links per role — the first matching role wins.
@@ -292,7 +295,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, error } = useDashboardAuth();
+  const router = useRouter();
+  const { token, user, loading, error } = useDashboardAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [profileSetupError, setProfileSetupError] = useState("");
@@ -338,90 +342,109 @@ export default function DashboardLayout({
     );
   }
 
-  const navLinks = getNavLinks(user);
+  const navLinks = [
+    ...getNavLinks(user),
+    {
+      href: "/messages",
+      label: "Messages",
+      unreadIndicator: true,
+      icon: (
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+          <path d="M3 4a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2H3zm0 2h14l-7 5-7-5z" />
+        </svg>
+      ),
+    },
+  ];
   const displayName = user.display_name ?? user.email ?? user.phone_number ?? "User";
 
   return (
-    <div className="flex min-h-screen bg-soft-bg">
-      {/* Skip link */}
-      <a href="#dashboard-main" className="skip-link">
-        Skip to main content
-      </a>
+    <MessagingProvider token={token} userId={user.id}>
+      <CallManagerProvider token={token} userId={user.id}>
+      <div className="flex min-h-screen bg-soft-bg">
+        {/* Skip link */}
+        <a href="#dashboard-main" className="skip-link">
+          Skip to main content
+        </a>
 
-      {/* Sidebar — desktop only */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
-        <Sidebar user={user} navLinks={navLinks} />
-      </div>
+        {/* Sidebar — desktop only */}
+        <div className="hidden lg:flex lg:flex-shrink-0">
+          <Sidebar user={user} navLinks={navLinks} />
+        </div>
 
-      {/* Mobile drawer */}
-      <Suspense fallback={null}>
-        <MobileNav
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          user={user}
-          navLinks={navLinks}
-        />
-      </Suspense>
+        {/* Mobile drawer */}
+        <Suspense fallback={null}>
+          <MobileNav
+            open={mobileOpen}
+            onClose={() => setMobileOpen(false)}
+            user={user}
+            navLinks={navLinks}
+          />
+        </Suspense>
 
-      {/* Main column */}
-      <div className="flex flex-1 flex-col min-w-0">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-deep-navy/10 bg-white/95 px-4 backdrop-blur-md sm:px-6">
-          <HamburgerButton onClick={() => setMobileOpen(true)} />
+        {/* Main column */}
+        <div className="flex flex-1 flex-col min-w-0">
+          {/* Top bar */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-deep-navy/10 bg-white/95 px-4 backdrop-blur-md sm:px-6">
+            <HamburgerButton onClick={() => setMobileOpen(true)} />
 
-          {/* Spacer */}
-          <div className="flex-1" />
+            {/* Spacer */}
+            <div className="flex-1" />
 
-          {/* User display name */}
-          <span className="hidden text-sm font-semibold text-deep-navy/70 sm:block">
-            {displayName}
-          </span>
+            {/* Messages */}
+            <MessageNavIndicator />
 
-          {/* Sign out */}
-          <button
-            type="button"
-            onClick={async () => {
-              setLoggingOut(true);
-              await signOut();
-              window.location.href = "/login";
-            }}
-            disabled={loggingOut}
-            className="inline-flex items-center gap-1.5 rounded-full border border-deep-navy/20 px-4 py-2 text-sm font-semibold text-deep-navy/70 transition-colors hover:border-red-400 hover:text-red-600 disabled:opacity-60"
-          >
-            {loggingOut ? "Signing out…" : "Sign out"}
-          </button>
-        </header>
+            {/* User display name */}
+            <span className="hidden text-sm font-semibold text-deep-navy/70 sm:block">
+              {displayName}
+            </span>
 
-        {/* Page content */}
-        <main id="dashboard-main" className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl">
-            {profileSetupError && (
-              <div
-                role="alert"
-                className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-              >
-                <p>
-                  You are signed in, but your profile setup could not be
-                  completed: {profileSetupError}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setProfileSetupError("")}
-                  className="shrink-0 font-semibold text-amber-800 hover:underline"
+            {/* Sign out */}
+            <button
+              type="button"
+              onClick={async () => {
+                setLoggingOut(true);
+                await signOut();
+                router.replace("/login");
+              }}
+              disabled={loggingOut}
+              className="inline-flex items-center gap-1.5 rounded-full border border-deep-navy/20 px-4 py-2 text-sm font-semibold text-deep-navy/70 transition-colors hover:border-red-400 hover:text-red-600 disabled:opacity-60"
+            >
+              {loggingOut ? "Signing out…" : "Sign out"}
+            </button>
+          </header>
+
+          {/* Page content */}
+          <main id="dashboard-main" className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-5xl">
+              {profileSetupError && (
+                <div
+                  role="alert"
+                  className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
                 >
-                  Dismiss
-                </button>
-              </div>
-            )}
-            {children}
-          </div>
-        </main>
+                  <p>
+                    You are signed in, but your profile setup could not be
+                    completed: {profileSetupError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setProfileSetupError("")}
+                    className="shrink-0 font-semibold text-amber-800 hover:underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+              {children}
+            </div>
+          </main>
 
-        {/* Footer */}
-        <footer className="border-t border-deep-navy/10 py-4 text-center text-xs text-deep-navy/40">
-          &copy; 2026 AgroConnect. All rights reserved.
-        </footer>
+          {/* Footer */}
+          <footer className="border-t border-deep-navy/10 py-4 text-center text-xs text-deep-navy/40">
+            &copy; 2026 AgroConnect. All rights reserved.
+          </footer>
+        </div>
       </div>
-    </div>
+      </CallManagerProvider>
+    </MessagingProvider>
   );
 }

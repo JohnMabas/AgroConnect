@@ -8,6 +8,7 @@ interface NavLink {
   href: string;
   label: string;
   icon?: React.ReactNode;
+  unreadIndicator?: boolean;
 }
 
 interface MobileNavProps {
