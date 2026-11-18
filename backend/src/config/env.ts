@@ -425,6 +425,32 @@ export const env = Object.freeze({
     }
     return raw;
   })(),
+  PUBLIC_IMAGE_STORAGE_DRIVER: ((): "local" | "cloudinary" => {
+    const raw = (
+      optionalString(process.env.PUBLIC_IMAGE_STORAGE_DRIVER) ??
+      optionalString(process.env.STORAGE_DRIVER) ??
+      "local"
+    ).toLowerCase();
+    if (raw !== "local" && raw !== "cloudinary") {
+      throw new Error(
+        'Invalid PUBLIC_IMAGE_STORAGE_DRIVER. Expected "local" or "cloudinary".',
+      );
+    }
+    if (raw === "cloudinary") {
+      for (const key of [
+        "CLOUDINARY_CLOUD_NAME",
+        "CLOUDINARY_API_KEY",
+        "CLOUDINARY_API_SECRET",
+      ] as const) {
+        if (!optionalString(process.env[key])) {
+          throw new Error(
+            `Missing required environment variable ${key} when PUBLIC_IMAGE_STORAGE_DRIVER=cloudinary.`,
+          );
+        }
+      }
+    }
+    return raw;
+  })(),
   // Local private storage root (development/default). Legacy message keys like
   // "messages/<conversationId>/<messageId>/<file>" are resolved under this dir.
   LOCAL_UPLOAD_DIR:
@@ -438,6 +464,8 @@ export const env = Object.freeze({
   CLOUDINARY_API_SECRET: optionalString(process.env.CLOUDINARY_API_SECRET),
   CLOUDINARY_FOLDER:
     optionalString(process.env.CLOUDINARY_FOLDER) ?? "agroconnect/messages",
+  CLOUDINARY_PUBLIC_FOLDER:
+    optionalString(process.env.CLOUDINARY_PUBLIC_FOLDER) ?? "agroconnect",
   // Global upload ceiling in MiB used for message attachments; falls back to the
   // larger of the per-type attachment limits when not explicitly set.
   MAX_UPLOAD_SIZE_MB: parsePositiveInt(

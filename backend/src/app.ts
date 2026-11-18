@@ -122,8 +122,9 @@ export function createApp(
 
   // Local development image storage. Production should use the object-storage
   // adapter instead; Render's filesystem is ephemeral.
+  const uploadPublicPrefix = `/${env.UPLOAD_PUBLIC_PREFIX.replace(/^\/+|\/+$/g, "")}`;
   app.use(
-    env.UPLOAD_PUBLIC_PREFIX,
+    uploadPublicPrefix,
     express.static(path.resolve(env.UPLOAD_STORAGE_PATH), {
       index: false,
       dotfiles: "deny",
