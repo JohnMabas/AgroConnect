@@ -24,6 +24,16 @@ export interface StoredPrivateMessageMedia {
   publicId: string;
 }
 
+interface CloudinaryUploadResult {
+  public_id?: string;
+  bytes?: number;
+}
+
+interface CloudinaryErrorShape {
+  http_code?: number;
+  error?: { http_code?: number };
+}
+
 function inferResourceType(
   mimeType: string,
   explicit?: "image" | "video" | "raw",
@@ -67,7 +77,7 @@ export class CloudinaryStorageService implements StorageService {
     const folder = env.CLOUDINARY_FOLDER;
     const uploadPublicId = options?.publicId ?? key;
 
-    const result = await new Promise<any>((resolve, reject) => {
+    const result = await new Promise<CloudinaryUploadResult | undefined>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
           resource_type: resourceType,
@@ -191,7 +201,9 @@ export class CloudinaryStorageService implements StorageService {
       );
     }
 
-    const nodeStream = Readable.fromWeb(res.body as any);
+    const nodeStream = Readable.fromWeb(
+      res.body as unknown as import("node:stream/web").ReadableStream,
+    );
     return {
       stream: nodeStream,
       contentType,
@@ -215,8 +227,9 @@ export class CloudinaryStorageService implements StorageService {
         type: "authenticated",
       });
       return true;
-    } catch (error: any) {
-      const status = error?.http_code ?? error?.error?.http_code;
+    } catch (error: unknown) {
+      const cloudinaryError = error as CloudinaryErrorShape;
+      const status = cloudinaryError.http_code ?? cloudinaryError.error?.http_code;
       if (status === 404) return false;
       throw error;
     }
@@ -235,8 +248,9 @@ export class CloudinaryStorageService implements StorageService {
         type: "authenticated",
         invalidate: true,
       });
-    } catch (error: any) {
-      const status = error?.http_code ?? error?.error?.http_code;
+    } catch (error: unknown) {
+      const cloudinaryError = error as CloudinaryErrorShape;
+      const status = cloudinaryError.http_code ?? cloudinaryError.error?.http_code;
       if (status === 404) return;
       throw error;
     }

@@ -1,6 +1,25 @@
 import { resolve4 } from "node:dns/promises";
 import { afterAll } from "vitest";
 
+const DNS_LOOKUP_TIMEOUT_MS = 5_000;
+
+async function resolveIPv4WithTimeout(
+  hostname: string,
+  timeoutMs: number,
+): Promise<string[]> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      resolve4(hostname),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("DNS_LOOKUP_TIMEOUT")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
 if (testDatabaseUrl === undefined || testDatabaseUrl.trim() === "") {
@@ -38,7 +57,10 @@ const testDatabaseSslCaPath = process.env.TEST_DB_SSL_CA_PATH;
 const testHostname = parsedUrl.hostname;
 if (testHostname) {
   try {
-    const addresses = await resolve4(testHostname);
+    const addresses = await resolveIPv4WithTimeout(
+      testHostname,
+      DNS_LOOKUP_TIMEOUT_MS,
+    );
     const ipv4 = addresses[0];
     if (ipv4 !== undefined && ipv4 !== testHostname) {
       const resolved = new URL(testDatabaseUrl);
@@ -51,7 +73,6 @@ if (testHostname) {
       process.env.DATABASE_URL = testDatabaseUrl;
     }
   } catch {
-    // Resolution failed; use original URL and hope the network handles it.
     process.env.DATABASE_URL = testDatabaseUrl;
   }
 } else {

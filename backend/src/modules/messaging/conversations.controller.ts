@@ -412,15 +412,21 @@ export async function downloadMessageAttachmentHandler(
     }
 
     await pipeline(result.stream, res);
-  } catch (err: any) {
+  } catch (err: unknown) {
     const attachmentId = req.params["attachmentId"];
-    const code = err?.code as string | undefined;
+    const error = err as {
+      code?: string;
+      message?: string;
+      status?: number;
+      http_code?: number;
+    };
+    const code = error.code;
 
     if (code === "NOT_FOUND" || code === "STORAGE_NOT_FOUND") {
       const message =
         code === "STORAGE_NOT_FOUND"
           ? "Attachment file is unavailable."
-          : err?.message || "Attachment not found.";
+          : error.message || "Attachment not found.";
       res.status(404).json({ success: false, error: { message } });
       return;
     }
@@ -434,12 +440,12 @@ export async function downloadMessageAttachmentHandler(
       attachmentId,
       conversationId: req.params["id"],
       messageId: req.params["messageId"],
-      code: err?.code,
-      message: err?.message,
-      status: err?.status,
+      code: error.code,
+      message: error.message,
+      status: error.status,
     });
 
-    if (code === "STORAGE_ERROR" || err?.http_code || err?.status) {
+    if (code === "STORAGE_ERROR" || error.http_code || error.status) {
       res.status(500).json({ success: false, error: { message: "Could not access attachment storage." } });
       return;
     }

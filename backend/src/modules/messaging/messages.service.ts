@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Op, type Order } from "sequelize";
+import { Op, type InferCreationAttributes, type Order } from "sequelize";
 import { env } from "../../config/env.js";
 import {
   Conversation,
@@ -220,8 +220,8 @@ export async function sendMessage(
           attachment.attachment_type,
         );
         let storageKey: string;
-        let publicId: string | null = null;
-        let storedResourceType: "image" | "video" | "raw" = resourceType;
+        let publicId: string | null;
+        let storedResourceType: "image" | "video" | "raw";
 
         if (env.STORAGE_DRIVER === "cloudinary") {
           // Keep storage_key as a consistent logical key; store Cloudinary
@@ -244,8 +244,13 @@ export async function sendMessage(
             publicId,
           });
         } else {
-          const saver = messageStorage as any;
-          const stored = await saver.saveMedia({
+          if (!messageStorage.saveMedia) {
+            throw serviceError(
+              "Private media storage is not supported by this driver.",
+              "INVALID_OPERATION",
+            );
+          }
+          const stored = await messageStorage.saveMedia({
             conversationId,
             messageId,
             buffer: attachment.buffer,
@@ -272,7 +277,7 @@ export async function sendMessage(
             height: attachment.height,
             resource_type: storedResourceType,
             public_id: publicId,
-          } as any,
+          } as InferCreationAttributes<MessageAttachment>,
           { transaction },
         );
       }
@@ -529,9 +534,9 @@ export async function getMessageAttachmentForDownload(
   }
 
   const resourceType =
-    (row as any).resource_type ??
+    row.resource_type ??
     (row.attachment_type === "image" ? "image" : "video");
-  const publicId = (row as any).public_id ?? row.storage_key;
+  const publicId = row.public_id ?? row.storage_key;
 
   try {
     const result = await messageStorage.getStream(row.storage_key, range, {
@@ -548,8 +553,9 @@ export async function getMessageAttachmentForDownload(
       range: result.range,
       acceptsRanges: result.acceptsRanges,
     };
-  } catch (error: any) {
-    const code = error?.code as string | undefined;
+  } catch (error: unknown) {
+    const storageError = error as { code?: string };
+    const code = storageError.code;
     if (code === "ENOENT" || code === "STORAGE_NOT_FOUND") {
       throw serviceError("Attachment file is unavailable.", "STORAGE_NOT_FOUND");
     }
