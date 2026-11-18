@@ -9,6 +9,7 @@ export type NotificationType =
   | "offer_withdrawn"
   | "offer_expired"
   | "new_message"
+  | "call_missed"
   | "order_created"
   | "order_cancelled"
   | "payment_successful"

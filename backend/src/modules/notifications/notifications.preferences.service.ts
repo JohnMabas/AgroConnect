@@ -79,6 +79,7 @@ export function isCategoryEnabled(
     case "offer_expired":
       return preference.offers_enabled;
     case "new_message":
+    case "call_missed":
       return preference.messages_enabled;
     case "order_created":
     case "order_cancelled":

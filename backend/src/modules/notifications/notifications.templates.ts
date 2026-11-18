@@ -100,9 +100,17 @@ function subjectFor(
     case "new_message":
       return {
         title: "New message",
-        message: `${actor(variables)} sent you a new message${
-          variables.message ? `: ${variables.message}` : "."
-        }`,
+        message:
+          variables.message && /^sent (an? )?(image|voice message|attachment)$/i.test(variables.message.trim())
+            ? `${actor(variables)} ${variables.message.trim()}.`
+            : `${actor(variables)} sent you a new message${
+                variables.message ? `: ${variables.message}` : "."
+              }`,
+      };
+    case "call_missed":
+      return {
+        title: "Missed call",
+        message: `You missed a ${humanize(variables.action_type)} call from ${actor(variables)}.`,
       };
     case "order_created":
       return {

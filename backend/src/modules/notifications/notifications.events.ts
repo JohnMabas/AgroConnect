@@ -78,6 +78,18 @@ async function handleMessageCreated(
   event: MessageCreatedEvent,
 ): Promise<void> {
   const senderName = event.message.sender?.display_name ?? null;
+  const content = event.message.content?.trim() ?? "";
+  let preview = content.slice(0, 200);
+  if (!preview) {
+    const attachments = event.message.attachments ?? [];
+    if (attachments.some((a) => a.attachment_type === "image")) {
+      preview = "sent an image";
+    } else if (attachments.some((a) => a.attachment_type === "audio")) {
+      preview = "sent a voice message";
+    } else if (attachments.length > 0) {
+      preview = "sent an attachment";
+    }
+  }
 
   for (const recipientId of new Set(event.participant_user_ids)) {
     if (recipientId === event.message.sender_user_id) {
@@ -88,7 +100,7 @@ async function handleMessageCreated(
       notification_type: "new_message",
       variables: {
         actor_name: senderName,
-        message: event.message.content.slice(0, 200),
+        message: preview || undefined,
       },
       related_entity_type: "conversation",
       related_entity_id: event.conversation_id,
