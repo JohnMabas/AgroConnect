@@ -2,29 +2,18 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
-import { farmerApi, type ApiError } from "@/lib/api";
+import {
+  farmerApi,
+  mediaUrl,
+  type ApiError,
+  type FarmerProfileData,
+  type FarmerVerificationStatus,
+  type FarmSizeUnit,
+} from "@/lib/api";
+import { SingleImageUpload } from "@/components/uploads/single-image-upload";
 
-type VerificationStatus = "unverified" | "pending" | "verified" | "rejected";
-type FarmSizeUnit = "hectares" | "acres" | "plots";
-
-interface FarmerProfile {
-  id: string;
-  farm_name: string | null;
-  farming_experience_years: number | null;
-  farm_location: string | null;
-  farm_size: number | null;
-  farm_size_unit: FarmSizeUnit | null;
-  farming_description: string | null;
-  primary_produce_interests: string[] | null;
-  verification_status: VerificationStatus;
-  cooperative_memberships?: CoopMembership[];
-}
-
-interface CoopMembership {
-  id: string;
-  status: string;
-  cooperative?: { id: string; cooperative_name: string };
-}
+type VerificationStatus = FarmerVerificationStatus;
+type FarmerProfile = FarmerProfileData;
 
 interface FarmerFormData {
   farm_name: string;
@@ -125,6 +114,28 @@ export default function FarmerProfilePage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setSuccess("");
     setSaveError("");
+  }
+
+  async function handleFarmImageUpload(
+    file: File,
+    onProgress: (percent: number) => void,
+  ): Promise<string> {
+    if (!token) throw new Error("You must be signed in to upload a farm photo.");
+    const res = (await farmerApi.uploadImage(token, file, onProgress)) as {
+      data: { profile: FarmerProfile };
+    };
+    setProfile(res.data.profile);
+    setSuccess("Farm photo updated.");
+    return res.data.profile.farm_image_url ?? "";
+  }
+
+  async function handleFarmImageRemove() {
+    if (!token) throw new Error("You must be signed in to remove a farm photo.");
+    const res = (await farmerApi.deleteImage(token)) as {
+      data: { profile: FarmerProfile };
+    };
+    setProfile(res.data.profile);
+    setSuccess("Farm photo removed.");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -337,6 +348,27 @@ export default function FarmerProfilePage() {
         </form>
       </section>
 
+      {!isNew && profile && (
+        <section className="rounded-2xl border border-deep-navy/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-5 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
+            Farm Photo
+          </h2>
+          <SingleImageUpload
+            value={mediaUrl(profile.farm_image_url)}
+            onChange={(url) =>
+              setProfile((prev) =>
+                prev ? { ...prev, farm_image_url: url || null } : prev,
+              )
+            }
+            upload={handleFarmImageUpload}
+            remove={handleFarmImageRemove}
+            label="Farm image"
+            alt="Farm"
+            disabled={!token || saving}
+          />
+        </section>
+      )}
+
       {/* Cooperative memberships */}
       {!isNew && profile?.cooperative_memberships && (
         <section className="rounded-2xl border border-deep-navy/10 bg-white p-6 shadow-sm">
@@ -357,11 +389,11 @@ export default function FarmerProfilePage() {
             <ul className="space-y-2">
               {profile.cooperative_memberships.map((m) => (
                 <li
-                  key={m.id}
+                  key={m.cooperative_id}
                   className="flex items-center justify-between rounded-xl border border-deep-navy/10 px-4 py-3"
                 >
                   <span className="text-sm font-medium text-deep-navy">
-                    {m.cooperative?.cooperative_name ?? "Unknown cooperative"}
+                    {m.cooperative_name ?? "Unknown cooperative"}
                   </span>
                   <StatusBadge status={m.status} />
                 </li>

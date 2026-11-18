@@ -3,7 +3,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
-import { profileApi, type UserProfileData, type ApiError } from "@/lib/api";
+import { profileApi, mediaUrl, type UserProfileData, type ApiError } from "@/lib/api";
+import { SingleImageUpload } from "@/components/uploads/single-image-upload";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ProfileCompletion } from "@/components/dashboard/profile-completion";
 
@@ -18,6 +19,7 @@ const EMPTY: UserProfileData = {
   first_name: null,
   last_name: null,
   display_name: null,
+  profile_image_url: null,
   country: null,
   state_or_region: null,
   local_government_area: null,
@@ -79,6 +81,7 @@ export default function BuyerProfilePage() {
   const { token, user, loading: authLoading, error: authError } = useDashboardAuth("buyer");
 
   const [form, setForm] = useState<Record<string, string>>(nullToStr(EMPTY));
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -90,6 +93,7 @@ export default function BuyerProfilePage() {
       try {
         const res = await profileApi.getMe(token!);
         setForm(nullToStr(res.data.profile));
+        setProfileImageUrl(res.data.profile.profile_image_url ?? null);
       } catch {
         // Profile not yet created — keep empty form
       } finally {
@@ -103,6 +107,24 @@ export default function BuyerProfilePage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setSuccess("");
     setSaveError("");
+  }
+
+  async function handleImageUpload(
+    file: File,
+    onProgress: (percent: number) => void,
+  ): Promise<string> {
+    if (!token) throw new Error("You must be signed in to upload a photo.");
+    const res = await profileApi.uploadImage(token, file, onProgress);
+    setProfileImageUrl(res.data.profile.profile_image_url ?? null);
+    setSuccess("Profile photo updated.");
+    return res.data.profile.profile_image_url ?? "";
+  }
+
+  async function handleImageRemove() {
+    if (!token) throw new Error("You must be signed in to remove a photo.");
+    const res = await profileApi.deleteImage(token);
+    setProfileImageUrl(res.data.profile.profile_image_url ?? null);
+    setSuccess("Profile photo removed.");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -220,6 +242,22 @@ export default function BuyerProfilePage() {
 
       {/* Profile completion */}
       <ProfileCompletion items={completionItems} title="Profile completion" />
+
+      {/* Profile photo */}
+      <section className="rounded-2xl border border-deep-navy/10 bg-white p-6 shadow-sm">
+        <h2 className="mb-5 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
+          Profile Photo
+        </h2>
+        <SingleImageUpload
+          value={mediaUrl(profileImageUrl)}
+          onChange={setProfileImageUrl}
+          upload={handleImageUpload}
+          remove={handleImageRemove}
+          label="Profile picture"
+          alt="Profile picture"
+          disabled={!token || saving}
+        />
+      </section>
 
       {/* Edit form */}
       <section className="rounded-2xl border border-deep-navy/10 bg-white p-6 shadow-sm">

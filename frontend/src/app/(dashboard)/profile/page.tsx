@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
-import { profileApi, type UserProfileData, type ApiError } from "@/lib/api";
+import { profileApi, mediaUrl, type UserProfileData, type ApiError } from "@/lib/api";
+import { SingleImageUpload } from "@/components/uploads/single-image-upload";
 import Link from "next/link";
 
 const LANGUAGES = [
@@ -16,6 +17,7 @@ const EMPTY_FORM: UserProfileData = {
   first_name: "",
   last_name: "",
   display_name: "",
+  profile_image_url: null,
   country: "",
   state_or_region: "",
   local_government_area: "",
@@ -28,6 +30,7 @@ function nullToEmpty(p: UserProfileData): UserProfileData {
     first_name: p.first_name ?? "",
     last_name: p.last_name ?? "",
     display_name: p.display_name ?? "",
+    profile_image_url: p.profile_image_url ?? null,
     country: p.country ?? "",
     state_or_region: p.state_or_region ?? "",
     local_government_area: p.local_government_area ?? "",
@@ -66,6 +69,24 @@ export default function ProfilePage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setSuccess("");
     setSaveError("");
+  }
+
+  async function handleImageUpload(
+    file: File,
+    onProgress: (percent: number) => void,
+  ): Promise<string> {
+    if (!token) throw new Error("You must be signed in to upload a photo.");
+    const res = await profileApi.uploadImage(token, file, onProgress);
+    setForm((prev) => ({ ...prev, ...nullToEmpty(res.data.profile) }));
+    setSuccess("Profile photo updated.");
+    return res.data.profile.profile_image_url ?? "";
+  }
+
+  async function handleImageRemove() {
+    if (!token) throw new Error("You must be signed in to remove a photo.");
+    const res = await profileApi.deleteImage(token);
+    setForm((prev) => ({ ...prev, ...nullToEmpty(res.data.profile) }));
+    setSuccess("Profile photo removed.");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -145,6 +166,23 @@ export default function ProfilePage() {
           </div>
         </section>
       )}
+
+      <section className="rounded-2xl border border-deep-navy/10 bg-white p-6 shadow-sm">
+        <h2 className="mb-5 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
+          Profile Photo
+        </h2>
+        <SingleImageUpload
+          value={mediaUrl(form.profile_image_url)}
+          onChange={(url) =>
+            setForm((prev) => ({ ...prev, profile_image_url: url || null }))
+          }
+          upload={handleImageUpload}
+          remove={handleImageRemove}
+          label="Profile picture"
+          alt="Profile picture"
+          disabled={!token || saving}
+        />
+      </section>
 
       {/* Profile form */}
       <section className="rounded-2xl border border-deep-navy/10 bg-white p-6 shadow-sm">
