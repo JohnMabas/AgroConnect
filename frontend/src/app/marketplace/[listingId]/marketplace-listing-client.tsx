@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { marketplaceApi, mediaUrl, type ListingData, type ApiError } from "@/lib/api";
+import { detailImageUrl, thumbnailImageUrl } from "@/lib/cloudinary";
 import { getUserIdFromToken } from "@/lib/session";
 import { resolveConversationForContext } from "@/lib/messaging";
 import { SiteHeader } from "@/components/site-header";
@@ -350,7 +351,7 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
                   {currentImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={mediaUrl(currentImage.image_url)}
+                      src={detailImageUrl(mediaUrl(currentImage.image_url))}
                       alt={listing.title}
                       className="h-full w-full object-cover"
                     />
@@ -381,7 +382,7 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={mediaUrl(img.image_url)}
+                            src={thumbnailImageUrl(mediaUrl(img.image_url))}
                             alt=""
                             className="h-full w-full object-cover"
                           />

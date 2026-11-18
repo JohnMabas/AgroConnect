@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { mediaUrl, type ListingData } from "@/lib/api";
+import { thumbnailImageUrl } from "@/lib/cloudinary";
 import { StatusBadge } from "./status-badge";
 import { QuantityDisplay } from "./quantity-display";
 
@@ -47,7 +48,7 @@ export function ListingCard({ listing, busy, onAction }: ListingCardProps) {
             {primary ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={mediaUrl(primary.image_url)}
+                src={thumbnailImageUrl(mediaUrl(primary.image_url))}
                 alt={listing.title}
                 className="h-full w-full object-cover"
               />

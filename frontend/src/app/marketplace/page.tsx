@@ -15,6 +15,7 @@ import {
   type ProduceTypeData,
   type ApiError,
 } from "@/lib/api";
+import { cardImageUrl } from "@/lib/cloudinary";
 import { Pagination, EmptyState, Alert } from "@/components/ui";
 
 const SORT_OPTIONS = [
@@ -54,7 +55,7 @@ function ListingCard({ listing }: { listing: ListingData }) {
         {primary ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={mediaUrl(primary.image_url)}
+            src={cardImageUrl(mediaUrl(primary.image_url))}
             alt={listing.title}
             className="h-full w-full object-cover"
             loading="lazy"

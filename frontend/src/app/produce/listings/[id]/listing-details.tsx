@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { listingsApi, mediaUrl, type ListingData } from "@/lib/api";
+import { detailImageUrl, thumbnailImageUrl } from "@/lib/cloudinary";
 import { StatusBadge } from "@/components/listings/status-badge";
 
 function formatMoney(value: number, currency: string): string {
@@ -92,7 +93,7 @@ export default function ListingDetailsPage({ listingId }: { listingId: string })
             {image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={mediaUrl(image.image_url)}
+                src={detailImageUrl(mediaUrl(image.image_url))}
                 alt={listing.title}
                 className="h-full w-full object-cover"
               />
@@ -123,7 +124,7 @@ export default function ListingDetailsPage({ listingId }: { listingId: string })
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={mediaUrl(item.image_url)}
+                      src={thumbnailImageUrl(mediaUrl(item.image_url))}
                       alt=""
                       className="h-full w-full object-cover"
                     />

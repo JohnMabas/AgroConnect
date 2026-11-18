@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   produceApi,
+  mediaUrl,
   type ProduceCategoryData,
   type ProduceTypeData,
 } from "@/lib/api";
+import { cardImageUrl } from "@/lib/cloudinary";
+import { getAccessTokenClaims } from "@/lib/session";
+import { SingleImageUpload } from "@/components/uploads/single-image-upload";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,8 +33,7 @@ export default function ProduceCataloguePage() {
   const [error, setError] = useState("");
   const [selectedSlug, setSelectedSlug] = useState<string>("all");
   const [search, setSearch] = useState("");
-  // Derive auth status from sessionStorage on mount (read-only, no setter needed)
-  const isLoggedIn = !!getToken();
+  const [token] = useState<string | null>(() => getToken());
 
   useEffect(() => {
     async function load() {
@@ -49,6 +52,9 @@ export default function ProduceCataloguePage() {
     }
     void load();
   }, []);
+
+  const isLoggedIn = !!token;
+  const isAdmin = getAccessTokenClaims(token)?.roles?.includes("admin") ?? false;
 
   // Client-side filter
   const filtered = types.filter((t) => {
@@ -151,7 +157,19 @@ export default function ProduceCataloguePage() {
         ) : (
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((type) => (
-              <ProduceCard key={type.id} type={type} />
+              <ProduceCard
+                key={type.id}
+                type={type}
+                token={token}
+                isAdmin={isAdmin}
+                onUpdate={(updated) =>
+                  setTypes((prev) =>
+                    prev.map((item) =>
+                      item.id === updated.id ? updated : item,
+                    ),
+                  )
+                }
+              />
             ))}
           </ul>
         )}
@@ -162,7 +180,31 @@ export default function ProduceCataloguePage() {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function ProduceCard({ type }: { type: ProduceTypeData }) {
+interface ProduceCardProps {
+  type: ProduceTypeData;
+  token: string | null;
+  isAdmin: boolean;
+  onUpdate: (type: ProduceTypeData) => void;
+}
+
+async function uploadTypeImage(
+  token: string,
+  type: ProduceTypeData,
+  file: File,
+  onProgress: (percent: number) => void,
+  onUpdate: (type: ProduceTypeData) => void,
+): Promise<string> {
+  const res = await produceApi.uploadImage(token, type.id, file, onProgress);
+  onUpdate(res.data.type);
+  return res.data.type.image_url ?? "";
+}
+
+function ProduceCard({
+  type,
+  token,
+  isAdmin,
+  onUpdate,
+}: ProduceCardProps) {
   return (
     <li className="rounded-2xl border border-deep-navy/10 bg-white shadow-sm overflow-hidden transition-shadow hover:shadow-md">
       {/* Image */}
@@ -170,7 +212,7 @@ function ProduceCard({ type }: { type: ProduceTypeData }) {
         {type.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={type.image_url}
+            src={cardImageUrl(mediaUrl(type.image_url))}
             alt={type.name}
             className="h-full w-full object-cover"
           />
@@ -202,6 +244,24 @@ function ProduceCard({ type }: { type: ProduceTypeData }) {
         >
           Filter catalogue →
         </Link>
+
+        {isAdmin && token && (
+          <div className="mt-4 border-t border-deep-navy/10 pt-4">
+            <SingleImageUpload
+              value={mediaUrl(type.image_url)}
+              onChange={() => undefined}
+              upload={(file, onProgress) =>
+                uploadTypeImage(token, type, file, onProgress, onUpdate)
+              }
+              remove={async () => {
+                const res = await produceApi.deleteImage(token, type.id);
+                onUpdate(res.data.type);
+              }}
+              label="Catalogue image"
+              alt={`${type.name} catalogue image`}
+            />
+          </div>
+        )}
       </div>
     </li>
   );
