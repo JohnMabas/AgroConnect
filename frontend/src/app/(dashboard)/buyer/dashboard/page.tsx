@@ -21,18 +21,6 @@ interface BuyerStats {
   cancelledRequests: number | null;
 }
 
-function ComingSoonCard({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="relative flex flex-col rounded-2xl border border-deep-navy/10 bg-white p-5 shadow-sm">
-      <span className="absolute right-3 top-3 rounded-full bg-deep-navy/8 px-2 py-0.5 text-xs font-semibold text-deep-navy/40">
-        Coming soon
-      </span>
-      <h3 className="font-heading text-sm font-bold text-deep-navy/60">{title}</h3>
-      <p className="mt-1 text-xs leading-5 text-deep-navy/40">{description}</p>
-    </div>
-  );
-}
-
 export default function BuyerDashboardPage() {
   const { token, user, loading: authLoading, error: authError } = useDashboardAuth("buyer");
 
@@ -159,19 +147,34 @@ export default function BuyerDashboardPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
-              href: "/buyer/profile",
-              label: "Edit my profile",
+              href: "/buyer-requests/new",
+              label: "Post a Request",
               color: "bg-agro-green/10 text-agro-green border-agro-green/20",
             },
             {
-              href: "/profile",
-              label: "Account settings",
+              href: "/buyer/my-requests",
+              label: "My Requests",
               color: "bg-deep-navy/5 text-deep-navy border-deep-navy/15",
             },
             {
-              href: "/",
-              label: "Back to homepage",
+              href: "/marketplace",
+              label: "Browse Marketplace",
+              color: "bg-fresh-green/10 text-agro-green border-fresh-green/20",
+            },
+            {
+              href: "/buyer-requests",
+              label: "All Buyer Requests",
               color: "bg-harvest-gold/10 text-amber-700 border-harvest-gold/20",
+            },
+            {
+              href: "/buyer/profile",
+              label: "Edit Profile",
+              color: "bg-deep-navy/5 text-deep-navy border-deep-navy/15",
+            },
+            {
+              href: "/profile",
+              label: "Account Settings",
+              color: "bg-deep-navy/5 text-deep-navy border-deep-navy/15",
             },
           ].map(({ href, label, color }) => (
             <Link
@@ -185,28 +188,23 @@ export default function BuyerDashboardPage() {
         </div>
       </section>
 
-      {/* Coming soon features */}
+      {/* Buyer Requests section */}
       <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
-          Coming soon
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <ComingSoonCard
-            title="Browse Marketplace"
-            description="Discover produce listings from farmers and cooperatives."
-          />
-          <ComingSoonCard
-            title="Buyer Requests"
-            description="Post what you need and let farmers come to you."
-          />
-          <ComingSoonCard
-            title="Offers & Orders"
-            description="Negotiate, accept offers and track your orders."
-          />
-          <ComingSoonCard
-            title="Messages"
-            description="Communicate directly with farmers and cooperatives."
-          />
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-deep-navy/50">Buyer Requests</h2>
+          <Link href="/buyer/my-requests" className="text-xs font-semibold text-agro-green hover:underline">View all →</Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { href: "/buyer-requests/new", title: "Post a Request", desc: "Tell farmers exactly what produce you need and receive offers.", color: "border-agro-green/20 bg-agro-green/5" },
+            { href: "/buyer/my-requests", title: "My Requests", desc: "Manage your active requests, pause or mark them as fulfilled.", color: "border-deep-navy/10 bg-white" },
+            { href: "/buyer-requests", title: "Browse All Requests", desc: "See all open buyer requests across the marketplace.", color: "border-harvest-gold/20 bg-harvest-gold/5" },
+          ].map(({ href, title, desc, color }) => (
+            <Link key={href} href={href} className={`flex flex-col rounded-2xl border p-5 shadow-sm transition-shadow hover:shadow-md ${color}`}>
+              <p className="font-heading text-sm font-bold text-deep-navy">{title}</p>
+              <p className="mt-1 text-xs leading-5 text-deep-navy/55">{desc}</p>
+            </Link>
+          ))}
         </div>
       </section>
 
