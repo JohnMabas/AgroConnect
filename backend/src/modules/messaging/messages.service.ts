@@ -1,16 +1,22 @@
+import { randomUUID } from "node:crypto";
 import { Op, type Order } from "sequelize";
+import { env } from "../../config/env.js";
 import {
   Conversation,
   ConversationParticipant,
   Message,
+  MessageAttachment,
   User,
   sequelize,
 } from "../../database/models/index.js";
+import { privateMessageMediaStorage } from "../../integrations/storage/index.js";
 import {
   assertConversationParticipant,
+  buildMessageAttachmentData,
   buildMessageData,
   serviceError,
 } from "./messaging.helpers.js";
+import { detectMessageAttachment } from "./message-attachment.validation.js";
 import type {
   SendMessageInput,
   ListMessagesQuery,
@@ -19,18 +25,38 @@ import type {
 import type {
   MarkDeliveredResult,
   MarkReadResult,
+  MessageAttachmentData,
   MessageData,
   MessageStatus,
+  MessageType,
   PaginatedMessages,
   SendMessageResult,
   UnreadCountData,
 } from "./messaging.types.js";
 
-type MessageRow = Message & { sender?: User };
+type AttachmentRow = MessageAttachment;
+type MessageRow = Message & { sender?: User; attachments?: AttachmentRow[] };
+
+export interface PreparedMessageAttachment {
+  buffer: Buffer;
+  originalName: string;
+  attachment_type: "image" | "audio";
+  mime_type: string;
+  extension: string;
+  file_size_bytes: number;
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+}
+
+const messageIncludes = [
+  { model: User, as: "sender", attributes: ["id", "display_name"] },
+  { model: MessageAttachment, as: "attachments" },
+];
 
 async function loadMessage(id: string): Promise<MessageData> {
   const row = (await Message.findByPk(id, {
-    include: [{ model: User, as: "sender", attributes: ["id", "display_name"] }],
+    include: messageIncludes,
   })) as MessageRow | null;
 
   if (!row) {
@@ -40,51 +66,159 @@ async function loadMessage(id: string): Promise<MessageData> {
   return buildMessageData(row);
 }
 
+export function prepareUploadedAttachments(
+  files: Express.Multer.File[],
+): PreparedMessageAttachment[] {
+  if (files.length > env.MESSAGE_MEDIA_MAX_ATTACHMENTS_PER_MESSAGE) {
+    throw serviceError(
+      `A message can include at most ${env.MESSAGE_MEDIA_MAX_ATTACHMENTS_PER_MESSAGE} attachments.`,
+      "INVALID_OPERATION",
+    );
+  }
+
+  return files.map((file) => {
+    const detected = detectMessageAttachment(file.buffer);
+    if (!detected) {
+      throw serviceError("Unsupported or invalid attachment content.", "INVALID_MEDIA");
+    }
+
+    const maxSize =
+      detected.attachment_type === "image"
+        ? env.MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES
+        : env.MESSAGE_MEDIA_MAX_AUDIO_SIZE_BYTES;
+    if (file.size > maxSize) {
+      throw serviceError("Attachment exceeds the maximum allowed file size.", "INVALID_MEDIA");
+    }
+
+    const safeName = (file.originalname || `${detected.attachment_type}.${detected.extension}`)
+      .replace(/[\r\n\t]/g, " ")
+      .slice(0, 255);
+
+    return {
+      buffer: file.buffer,
+      originalName: safeName,
+      attachment_type: detected.attachment_type,
+      mime_type: detected.mime_type,
+      extension: detected.extension,
+      file_size_bytes: file.size,
+      duration_seconds: null,
+      width: null,
+      height: null,
+    };
+  });
+}
+
+function inferMessageType(
+  content: string,
+  requested: string | undefined,
+  attachments: PreparedMessageAttachment[],
+): MessageType {
+  if (attachments.length === 0) return "text";
+  const hasImage = attachments.some((a) => a.attachment_type === "image");
+  const hasAudio = attachments.some((a) => a.attachment_type === "audio");
+  let inferred: MessageType = "media";
+  if (hasImage && !hasAudio) inferred = content ? "media" : "image";
+  if (hasAudio && !hasImage) inferred = content ? "media" : "audio";
+  if (hasImage && hasAudio) inferred = "media";
+
+  if (
+    requested === "text" ||
+    requested === "image" ||
+    requested === "audio" ||
+    requested === "media"
+  ) {
+    // Preserve explicit intent when compatible; fall back to inferred.
+    if (attachments.length === 0) return "text";
+    return requested;
+  }
+  return inferred;
+}
+
 export async function sendMessage(
   userId: string,
   conversationId: string,
   input: SendMessageInput,
+  attachments: PreparedMessageAttachment[] = [],
 ): Promise<SendMessageResult> {
-  const content = input.content.trim();
+  const content = (input.content ?? "").trim();
+  if (attachments.length === 0 && content.length === 0) {
+    throw serviceError("Message content cannot be blank.", "INVALID_OPERATION");
+  }
+
+  const messageType = inferMessageType(content, input.message_type, attachments);
   let participantIds: string[] = [];
-  let messageId = "";
+  const messageId = randomUUID();
+  const storedKeys: string[] = [];
 
-  await sequelize.transaction(async (transaction) => {
-    const access = await assertConversationParticipant(
-      conversationId,
-      userId,
-      transaction,
-    );
-
-    if (access.conversation.status !== "active") {
-      throw serviceError(
-        "Messages can only be sent to active conversations.",
-        "INVALID_OPERATION",
+  try {
+    await sequelize.transaction(async (transaction) => {
+      const access = await assertConversationParticipant(
+        conversationId,
+        userId,
+        transaction,
       );
-    }
 
-    participantIds = access.participantIds;
+      if (access.conversation.status !== "active") {
+        throw serviceError(
+          "Messages can only be sent to active conversations.",
+          "INVALID_OPERATION",
+        );
+      }
 
-    const message = await Message.create(
-      {
-        conversation_id: conversationId,
-        sender_user_id: userId,
-        content,
-        message_type: input.message_type ?? "text",
-        status: "sent",
-        delivered_at: null,
-        read_at: null,
-      },
-      { transaction },
+      participantIds = access.participantIds;
+
+      const message = await Message.create(
+        {
+          id: messageId,
+          conversation_id: conversationId,
+          sender_user_id: userId,
+          content,
+          message_type: messageType,
+          status: "sent",
+          delivered_at: null,
+          read_at: null,
+        },
+        { transaction },
+      );
+
+      for (const attachment of attachments) {
+        const stored = await privateMessageMediaStorage.saveMedia({
+          conversationId,
+          messageId,
+          buffer: attachment.buffer,
+          extension: attachment.extension,
+        });
+        storedKeys.push(stored.storageKey);
+
+        await MessageAttachment.create(
+          {
+            message_id: messageId,
+            conversation_id: conversationId,
+            uploader_user_id: userId,
+            attachment_type: attachment.attachment_type,
+            storage_key: stored.storageKey,
+            mime_type: attachment.mime_type,
+            file_name: attachment.originalName,
+            file_size_bytes: attachment.file_size_bytes,
+            duration_seconds: attachment.duration_seconds,
+            width: attachment.width,
+            height: attachment.height,
+          },
+          { transaction },
+        );
+      }
+
+      await access.conversation.update(
+        { last_message_at: message.created_at ?? new Date() },
+        { transaction },
+      );
+    });
+  } catch (error) {
+    await Promise.allSettled(
+      storedKeys.map((key) => privateMessageMediaStorage.deleteMedia(key)),
     );
-
-    messageId = message.id;
-
-    await access.conversation.update(
-      { last_message_at: message.created_at ?? new Date() },
-      { transaction },
-    );
-  });
+    throw error;
+  }
 
   return {
     message: await loadMessage(messageId),
@@ -112,7 +246,7 @@ export async function listMessages(
 
   const { count, rows } = await Message.findAndCountAll({
     where,
-    include: [{ model: User, as: "sender", attributes: ["id", "display_name"] }],
+    include: messageIncludes,
     order,
     limit: filters.limit,
     offset: (filters.page - 1) * filters.limit,
@@ -279,5 +413,35 @@ export async function getUnreadCounts(userId: string): Promise<UnreadCountData> 
   return {
     total_unread: counts.reduce((total, item) => total + item.unread_count, 0),
     conversations: counts,
+  };
+}
+
+
+export async function getMessageAttachmentForDownload(
+  userId: string,
+  conversationId: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<{
+  attachment: MessageAttachmentData;
+  buffer: Buffer;
+}> {
+  await assertConversationParticipant(conversationId, userId);
+
+  const row = await MessageAttachment.findOne({
+    where: {
+      id: attachmentId,
+      message_id: messageId,
+      conversation_id: conversationId,
+    },
+  });
+  if (!row) {
+    throw serviceError("Attachment not found.", "NOT_FOUND");
+  }
+
+  const buffer = await privateMessageMediaStorage.readMedia(row.storage_key);
+  return {
+    attachment: buildMessageAttachmentData(row),
+    buffer,
   };
 }

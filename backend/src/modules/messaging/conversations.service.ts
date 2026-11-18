@@ -4,6 +4,7 @@ import {
   Conversation,
   ConversationParticipant,
   Message,
+  MessageAttachment,
   ProduceListing,
   User,
   sequelize,
@@ -98,9 +99,10 @@ async function loadConversationData(
     where: { conversation_id: conversation.id },
     include: [
       { model: User, as: "sender", attributes: ["id", "display_name"] },
+      { model: MessageAttachment, as: "attachments" },
     ],
     order: [["created_at", "DESC"]],
-  })) as (Message & { sender?: User }) | null;
+  })) as (Message & { sender?: User; attachments?: MessageAttachment[] }) | null;
 
   const unreadWhere: Record<string, unknown> = {
     conversation_id: conversation.id,

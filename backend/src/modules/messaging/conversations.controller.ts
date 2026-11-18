@@ -1,11 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
+import { z } from "zod";
 import {
   ConversationIdSchema,
   CreateConversationSchema,
   ListConversationsQuerySchema,
   ListMessagesQuerySchema,
   MarkReadSchema,
+  MessageIdSchema,
   SendMessageSchema,
+  type SendMessageInput,
 } from "./messaging.validation.js";
 import {
   archiveConversation,
@@ -17,8 +20,10 @@ import {
   unblockConversation,
 } from "./conversations.service.js";
 import {
+  getMessageAttachmentForDownload,
   listMessages,
   markConversationRead,
+  prepareUploadedAttachments,
   sendMessage,
 } from "./messages.service.js";
 import { publishMessageCreated } from "./messaging.events.js";
@@ -185,17 +190,82 @@ export async function sendMessageHandler(
     const id = parseConversationId(req, res, ConversationIdSchema);
     if (!id) return;
 
-    const parsed = SendMessageSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(422).json({
-        success: false,
-        message: "Validation failed.",
-        errors: zodErrorToFields(parsed.error),
+    const isMultipart = String(req.headers["content-type"] ?? "").includes(
+      "multipart/form-data",
+    );
+
+    let input: { content: string; message_type?: string };
+    let files: Express.Multer.File[] = [];
+
+    if (isMultipart) {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const content =
+        typeof body.content === "string" ? body.content : "";
+      const messageType =
+        typeof body.message_type === "string" ? body.message_type : undefined;
+      const parsed = SendMessageSchema.safeParse({
+        content,
+        message_type: messageType ?? "text",
       });
-      return;
+      if (!parsed.success) {
+        res.status(422).json({
+          success: false,
+          message: "Validation failed.",
+          errors: zodErrorToFields(parsed.error),
+        });
+        return;
+      }
+      input = parsed.data;
+      files = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
+      if (files.length === 0 && content.trim().length === 0) {
+        res.status(422).json({
+          success: false,
+          message: "Validation failed.",
+          errors: [
+            { field: "content", message: "Message content is required." },
+          ],
+        });
+        return;
+      }
+    } else {
+      const parsed = SendMessageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(422).json({
+          success: false,
+          message: "Validation failed.",
+          errors: zodErrorToFields(parsed.error),
+        });
+        return;
+      }
+      if (parsed.data.content.trim().length === 0) {
+        res.status(422).json({
+          success: false,
+          message: "Validation failed.",
+          errors: [
+            { field: "content", message: "Message content cannot be blank." },
+          ],
+        });
+        return;
+      }
+      input = parsed.data;
     }
 
-    const result = await sendMessage(userId, id, parsed.data);
+    let prepared: ReturnType<typeof prepareUploadedAttachments> = [];
+    try {
+      prepared = files.length > 0 ? prepareUploadedAttachments(files) : [];
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === "INVALID_MEDIA") {
+        res.status(422).json({
+          success: false,
+          error: { message: (err as Error).message },
+        });
+        return;
+      }
+      throw err;
+    }
+
+    const result = await sendMessage(userId, id, input as SendMessageInput, prepared);
 
     emitToConversation(id, result.participant_user_ids, "message:new", {
       message: result.message,
@@ -279,6 +349,59 @@ export async function markConversationReadHandler(
     });
 
     res.json({ success: true, message: "Conversation marked as read.", data: result });
+  } catch (err) {
+    handleMessagingServiceError(err, res, next);
+  }
+}
+
+
+// ─── GET /api/conversations/:id/messages/:messageId/attachments/:attachmentId/download
+
+const AttachmentIdSchema = z.string().uuid("Invalid attachment ID.");
+
+export async function downloadMessageAttachmentHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!requireMessagingAuth(req, res)) return;
+
+    const conversationId = parseConversationId(req, res, ConversationIdSchema);
+    if (!conversationId) return;
+
+    const messageIdParsed = MessageIdSchema.safeParse(req.params["messageId"]);
+    if (!messageIdParsed.success) {
+      res.status(422).json({
+        success: false,
+        message: "Validation failed.",
+        errors: zodErrorToFields(messageIdParsed.error),
+      });
+      return;
+    }
+    const attachmentIdParsed = AttachmentIdSchema.safeParse(
+      req.params["attachmentId"],
+    );
+    if (!attachmentIdParsed.success) {
+      res.status(422).json({
+        success: false,
+        message: "Validation failed.",
+        errors: zodErrorToFields(attachmentIdParsed.error),
+      });
+      return;
+    }
+
+    const result = await getMessageAttachmentForDownload(
+      req.user!.sub,
+      conversationId,
+      messageIdParsed.data,
+      attachmentIdParsed.data,
+    );
+
+    res.setHeader("Content-Type", result.attachment.mime_type);
+    res.setHeader("Content-Disposition", "inline");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(result.buffer);
   } catch (err) {
     handleMessagingServiceError(err, res, next);
   }

@@ -5,6 +5,7 @@ import {
   archiveConversationHandler,
   blockConversationHandler,
   createConversationHandler,
+  downloadMessageAttachmentHandler,
   getConversationHandler,
   listConversationsHandler,
   listMessagesHandler,
@@ -13,6 +14,7 @@ import {
   unarchiveConversationHandler,
   unblockConversationHandler,
 } from "./conversations.controller.js";
+import { uploadMessageAttachments } from "./message-attachments.upload.middleware.js";
 
 const conversationCreateLimiter = createFixedWindowLimiter({
   windowMs: 60 * 60 * 1000,
@@ -45,9 +47,14 @@ export function createConversationsRouter(): Router {
   router.post(
     "/:id/messages",
     messageSendLimiter,
+    uploadMessageAttachments,
     sendMessageHandler,
   );
   router.get("/:id/messages", listMessagesHandler);
+  router.get(
+    "/:id/messages/:messageId/attachments/:attachmentId/download",
+    downloadMessageAttachmentHandler,
+  );
 
   // Read receipts
   router.patch("/:id/read", readLimiter, markConversationReadHandler);
