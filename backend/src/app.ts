@@ -75,6 +75,10 @@ export function createApp(
 
   app.disable("x-powered-by");
 
+  // Trust the first proxy hop (e.g. Render) so req.ip and rate limiting work
+  // correctly with X-Forwarded-* headers.
+  app.set("trust proxy", env.TRUST_PROXY);
+
   // Baseline security headers without adding a heavyweight middleware dependency.
   app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");

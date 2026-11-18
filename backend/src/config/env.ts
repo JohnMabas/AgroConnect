@@ -166,6 +166,15 @@ if (AI_PROVIDER === "openai_compatible") {
 export const env = Object.freeze({
   NODE_ENV,
   PORT: parsePort(process.env.PORT, 5000),
+  // Render/proxies set X-Forwarded-* headers; trust the first proxy hop by default.
+  TRUST_PROXY: (() => {
+    const raw = optionalString(process.env.TRUST_PROXY);
+    if (raw === undefined) return 1;
+    if (raw === "false" || raw === "0") return false;
+    if (raw === "true") return 1;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 1;
+  })(),
   FRONTEND_URL: optionalString(process.env.FRONTEND_URL),
 
   DATABASE_URL,
@@ -391,10 +400,51 @@ export const env = Object.freeze({
     5,
   ),
 
-  // ─── Message media attachments ──────────────────────────────────────────────
+  // ─── Message media attachments & storage ───────────────────────────────────
+  // Driver for private message attachments: "local" (development disk) or
+  // "cloudinary" (private authenticated media in Cloudinary).
+  STORAGE_DRIVER: ((): "local" | "cloudinary" => {
+    const raw = (optionalString(process.env.STORAGE_DRIVER) ?? "local").toLowerCase();
+    if (raw !== "local" && raw !== "cloudinary") {
+      throw new Error(
+        'Invalid STORAGE_DRIVER. Expected "local" or "cloudinary".',
+      );
+    }
+    if (raw === "cloudinary") {
+      for (const key of [
+        "CLOUDINARY_CLOUD_NAME",
+        "CLOUDINARY_API_KEY",
+        "CLOUDINARY_API_SECRET",
+      ] as const) {
+        if (!optionalString(process.env[key])) {
+          throw new Error(
+            `Missing required environment variable ${key} when STORAGE_DRIVER=cloudinary.`,
+          );
+        }
+      }
+    }
+    return raw;
+  })(),
+  // Local private storage root (development/default). Legacy message keys like
+  // "messages/<conversationId>/<messageId>/<file>" are resolved under this dir.
+  LOCAL_UPLOAD_DIR:
+    optionalString(process.env.LOCAL_UPLOAD_DIR) ?? "private-uploads",
+  // Legacy var kept for compatibility with existing local storage paths.
   MESSAGE_MEDIA_STORAGE_PATH:
     optionalString(process.env.MESSAGE_MEDIA_STORAGE_PATH) ??
     "private-uploads/messages",
+  CLOUDINARY_CLOUD_NAME: optionalString(process.env.CLOUDINARY_CLOUD_NAME),
+  CLOUDINARY_API_KEY: optionalString(process.env.CLOUDINARY_API_KEY),
+  CLOUDINARY_API_SECRET: optionalString(process.env.CLOUDINARY_API_SECRET),
+  CLOUDINARY_FOLDER:
+    optionalString(process.env.CLOUDINARY_FOLDER) ?? "agroconnect/messages",
+  // Global upload ceiling in MiB used for message attachments; falls back to the
+  // larger of the per-type attachment limits when not explicitly set.
+  MAX_UPLOAD_SIZE_MB: parsePositiveInt(
+    "MAX_UPLOAD_SIZE_MB",
+    process.env.MAX_UPLOAD_SIZE_MB,
+    10,
+  ),
   MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES: parsePositiveInt(
     "MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES",
     process.env.MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES,
