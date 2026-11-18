@@ -23,7 +23,11 @@ export function handleMessagingServiceError(
       res.status(403).json({ success: false, error: { message: error.message } });
       return;
     case "INVALID_OPERATION":
+    case "INVALID_MEDIA":
       res.status(422).json({ success: false, error: { message: error.message } });
+      return;
+    case "STORAGE_ERROR":
+      res.status(500).json({ success: false, error: { message: "Could not store attachment." } });
       return;
     case "DUPLICATE_CONVERSATION":
       res.status(409).json({ success: false, error: { message: error.message } });

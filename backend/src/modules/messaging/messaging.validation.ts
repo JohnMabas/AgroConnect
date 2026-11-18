@@ -33,19 +33,17 @@ export const ListConversationsQuerySchema = z.object({
   status: z.enum(["active", "archived", "blocked", "all"]).default("active"),
 });
 
+export const MessageTypeSchema = z.enum(["text", "image", "audio", "media"]);
+
 export const SendMessageSchema = z.object({
   content: z
     .string()
-    .min(MESSAGE_MIN_LENGTH, "Message content is required.")
     .max(
       MESSAGE_MAX_LENGTH,
       `Message content must be at most ${MESSAGE_MAX_LENGTH} characters.`,
     )
-    .refine(
-      (value) => value.trim().length > 0,
-      "Message content cannot be blank.",
-    ),
-  message_type: z.literal("text").default("text"),
+    .default(""),
+  message_type: MessageTypeSchema.default("text"),
 });
 
 export const ListMessagesQuerySchema = z.object({
@@ -81,7 +79,7 @@ export const SocketSendMessageSchema = z.object({
       (value) => value.trim().length > 0,
       "Message content cannot be blank.",
     ),
-  message_type: z.literal("text").default("text"),
+  message_type: MessageTypeSchema.default("text"),
 });
 
 export const SocketMarkReadSchema = z.object({

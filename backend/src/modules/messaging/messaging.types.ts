@@ -1,6 +1,7 @@
 export type ConversationStatus = "active" | "archived" | "blocked";
-export type MessageType = "text";
+export type MessageType = "text" | "image" | "audio" | "media";
 export type MessageStatus = "sent" | "delivered" | "read";
+export type MessageAttachmentType = "image" | "audio";
 
 export interface ConversationParticipantData {
   user_id: string;
@@ -27,6 +28,21 @@ export interface MessageSenderData {
   display_name: string | null;
 }
 
+export interface MessageAttachmentData {
+  id: string;
+  message_id: string;
+  conversation_id: string;
+  attachment_type: MessageAttachmentType;
+  mime_type: string;
+  file_name: string;
+  file_size_bytes: number;
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  download_url: string;
+  created_at: Date;
+}
+
 export interface MessageData {
   id: string;
   conversation_id: string;
@@ -37,6 +53,7 @@ export interface MessageData {
   delivered_at: Date | null;
   read_at: Date | null;
   sender?: MessageSenderData;
+  attachments: MessageAttachmentData[];
   created_at: Date;
   updated_at: Date;
 }
