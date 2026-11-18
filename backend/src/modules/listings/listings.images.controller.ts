@@ -8,7 +8,10 @@ import {
 } from "./listings.images.service.js";
 
 const AddImageUrlSchema = z.object({
-  image_url: z.string().url("image_url must be a valid URL."),
+  image_url: z
+    .string()
+    .url("image_url must be a valid URL.")
+    .max(500, "image_url must be 500 characters or fewer."),
 });
 
 function handleServiceError(
@@ -23,6 +26,9 @@ function handleServiceError(
       return;
     case "FORBIDDEN":
       res.status(403).json({ success: false, error: { message: e.message } });
+      return;
+    case "INVALID_IMAGE":
+      res.status(400).json({ success: false, error: { message: e.message } });
       return;
     case "INVALID_OPERATION":
       res.status(422).json({ success: false, error: { message: e.message } });

@@ -1,12 +1,16 @@
 import { env } from "../../config/env.js";
-import { imageStorage } from "../../integrations/storage/index.js";
+import {
+  imageStorage,
+  publicImageStorage,
+} from "../../integrations/storage/index.js";
 import {
   ProduceListing,
   ProduceListingImage,
   sequelize,
 } from "../../database/models/index.js";
 import type { ListingImageData } from "./listings.types.js";
-import { detectImageType } from "./listings.image-validation.js";
+import { validatePublicImageUpload } from "../uploads/public-image.validation.js";
+import { deletePublicImageBestEffort } from "../uploads/public-image.cleanup.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -15,6 +19,7 @@ function buildImageData(row: ProduceListingImage): ListingImageData {
     id: row.id,
     listing_id: row.listing_id,
     image_url: row.image_url,
+    public_id: row.public_id ?? null,
     is_primary: row.is_primary ?? false,
     display_order: row.display_order ?? 0,
     created_at: row.created_at!,
@@ -74,32 +79,20 @@ function validateExternalImageUrl(rawUrl: string): string {
 
 // ─── Service functions ────────────────────────────────────────────────────────
 
-/**
- * Store and attach an uploaded image file. File contents are validated by
- * magic bytes; client filenames and extensions are never trusted.
- */
 export async function addImageFromUpload(
   userId: string,
   listingId: string,
   file: Express.Multer.File,
 ): Promise<ListingImageData> {
-  const detected = detectImageType(file.buffer);
-  if (!detected) {
-    throw Object.assign(
-      new Error("Unsupported file type. Upload a JPEG, PNG or WebP image."),
-      { code: "INVALID_OPERATION" },
-    );
-  }
-
-  // Verify ownership before writing anything to storage. The transaction below
-  // repeats this check under a row lock to remain safe against races.
+  const detected = validatePublicImageUpload(file);
   await requireListingOwnership(userId, listingId);
 
-  const stored = await imageStorage.saveImage({
-    listingId,
+  const stored = await publicImageStorage.saveImage({
+    folder: "listings",
     buffer: file.buffer,
     mimeType: detected.mimeType,
     extension: detected.extension,
+    ownerId: userId,
   });
 
   try {
@@ -116,7 +109,8 @@ export async function addImageFromUpload(
         {
           listing_id: listingId,
           image_url: stored.imageUrl,
-          storage_key: stored.storageKey,
+          storage_key: stored.publicId,
+          public_id: stored.publicId,
           is_primary: existingCount === 0,
           display_order: existingCount,
         },
@@ -126,8 +120,7 @@ export async function addImageFromUpload(
       return buildImageData(image);
     });
   } catch (err) {
-    // Do not leave orphaned files behind if the database write fails.
-    await imageStorage.deleteImage(stored.storageKey);
+    await deletePublicImageBestEffort(stored.publicId, "listing replacement");
     throw err;
   }
 }
@@ -176,7 +169,7 @@ export async function deleteImage(
   listingId: string,
   imageId: string,
 ): Promise<void> {
-  const storageKey = await sequelize.transaction(async (transaction) => {
+  const stored = await sequelize.transaction(async (transaction) => {
     await requireListingOwnership(userId, listingId, transaction);
 
     const image = await ProduceListingImage.findOne({
@@ -190,7 +183,10 @@ export async function deleteImage(
     }
 
     const wasPrimary = image.is_primary;
-    const key = image.storage_key;
+    const record = {
+      storageKey: image.storage_key,
+      publicId: image.public_id,
+    };
 
     await image.destroy({ transaction });
 
@@ -206,11 +202,20 @@ export async function deleteImage(
       }
     }
 
-    return key;
+    return record;
   });
 
-  if (storageKey && !storageKey.startsWith("dev:")) {
-    await imageStorage.deleteImage(storageKey);
+  if (stored.publicId) {
+    await deletePublicImageBestEffort(stored.publicId, "listing");
+  } else if (stored.storageKey && !stored.storageKey.startsWith("dev:")) {
+    try {
+      await imageStorage.deleteImage(stored.storageKey);
+    } catch (error) {
+      console.error(
+        `[public-image] Failed to delete legacy listing image ${stored.storageKey}:`,
+        error,
+      );
+    }
   }
 }
 

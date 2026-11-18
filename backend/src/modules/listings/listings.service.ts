@@ -49,6 +49,7 @@ function buildImageData(row: ProduceListingImage): ListingImageData {
     id: row.id,
     listing_id: row.listing_id,
     image_url: row.image_url,
+    public_id: row.public_id ?? null,
     is_primary: row.is_primary ?? false,
     display_order: row.display_order ?? 0,
     created_at: row.created_at!,
@@ -88,6 +89,7 @@ function buildListingData(row: ListingRow): ListingData {
         slug: row.produce_type.slug,
         description: row.produce_type.description ?? null,
         image_url: row.produce_type.image_url ?? null,
+        public_id: row.produce_type.public_id ?? null,
         is_active: row.produce_type.is_active ?? true,
         category: row.produce_type.category
           ? {
