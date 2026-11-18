@@ -34,6 +34,63 @@ export class ApiError extends Error {
   }
 }
 
+export function uploadFormData<T>(
+  path: string,
+  formData: FormData,
+  token: string,
+  onProgress?: (percent: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}${path}`);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress?.(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      let body: {
+        error?: { message?: string };
+        message?: string;
+        errors?: Array<{ field: string; message: string }>;
+        data?: Record<string, unknown>;
+      } = {};
+      try {
+        const parsed: unknown = xhr.responseText
+          ? JSON.parse(xhr.responseText)
+          : {};
+        body = parsed as typeof body;
+      } catch {
+        body = {};
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as T);
+        return;
+      }
+
+      reject(
+        new ApiError(
+          xhr.status,
+          body?.error?.message ?? body?.message ?? "Upload failed.",
+          body?.errors,
+          body?.data,
+        ),
+      );
+    };
+
+    xhr.onerror = () => {
+      reject(new ApiError(0, "Network error during upload."));
+    };
+
+    xhr.send(formData);
+  });
+}
+
 const isFormData = (body: BodyInit | null | undefined): boolean =>
   typeof FormData !== "undefined" && body instanceof FormData;
 
@@ -237,11 +294,40 @@ export interface UserProfileData {
   first_name: string | null;
   last_name: string | null;
   display_name: string | null;
+  profile_image_url: string | null;
+  profile_image_public_id?: string | null;
   country: string | null;
   state_or_region: string | null;
   local_government_area: string | null;
   city_or_community: string | null;
   preferred_language: string;
+}
+
+export type FarmerVerificationStatus =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "rejected";
+
+export type FarmSizeUnit = "hectares" | "acres" | "plots";
+
+export interface FarmerProfileData {
+  id: string;
+  farm_name: string | null;
+  farm_image_url: string | null;
+  farm_image_public_id?: string | null;
+  farming_experience_years: number | null;
+  farm_location: string | null;
+  farm_size: number | null;
+  farm_size_unit: FarmSizeUnit | null;
+  farming_description: string | null;
+  primary_produce_interests: string[] | null;
+  verification_status: FarmerVerificationStatus;
+  cooperative_memberships?: Array<{
+    cooperative_id: string;
+    cooperative_name: string;
+    status: string;
+  }>;
 }
 
 export const profileApi = {
@@ -256,6 +342,28 @@ export const profileApi = {
       {
         method: "PUT",
         body: JSON.stringify(data),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  uploadImage: (
+    token: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ) => {
+    const form = new FormData();
+    form.append("image", file);
+    return uploadFormData<{ success: boolean; data: { profile: UserProfileData } }>(
+      "/profiles/me/image",
+      form,
+      token,
+      onProgress,
+    );
+  },
+  deleteImage: (token: string) =>
+    request<{ success: boolean; data: { profile: UserProfileData } }>(
+      "/profiles/me/image",
+      {
+        method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       },
     ),
@@ -276,6 +384,26 @@ export const farmerApi = {
     request("/farmers/profile/me", {
       method: "PUT",
       body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  uploadImage: (
+    token: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ) => {
+    const form = new FormData();
+    form.append("image", file);
+    return uploadFormData<{
+      success: boolean;
+      data: { profile: FarmerProfileData };
+    }>("/farmers/profile/me/image", form, token, onProgress);
+  },
+  deleteImage: (token: string) =>
+    request<{
+      success: boolean;
+      data: { profile: FarmerProfileData };
+    }>("/farmers/profile/me/image", {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
 };
@@ -400,6 +528,7 @@ export interface ProduceTypeData {
   slug: string;
   description: string | null;
   image_url: string | null;
+  public_id?: string | null;
   is_active: boolean;
   category?: ProduceCategoryData;
 }
@@ -446,8 +575,10 @@ export interface ListingImageData {
   id: string;
   listing_id: string;
   image_url: string;
+  public_id?: string | null;
   is_primary: boolean;
   display_order: number;
+  created_at?: string;
 }
 
 export interface InventoryAdjustmentData {
@@ -514,6 +645,29 @@ export const produceApi = {
   getType: (id: string) =>
     request<{ success: boolean; data: { type: ProduceTypeData } }>(
       `/produce/types/${id}`,
+    ),
+  uploadImage: (
+    token: string,
+    id: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ) => {
+    const form = new FormData();
+    form.append("image", file);
+    return uploadFormData<{ success: boolean; data: { type: ProduceTypeData } }>(
+      `/produce/types/${id}/image`,
+      form,
+      token,
+      onProgress,
+    );
+  },
+  deleteImage: (token: string, id: string) =>
+    request<{ success: boolean; data: { type: ProduceTypeData } }>(
+      `/produce/types/${id}/image`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
     ),
 };
 
@@ -585,6 +739,7 @@ export const listingsApi = {
     token: string,
     id: string,
     image: File | string,
+    onProgress?: (percent: number) => void,
   ): Promise<ImageResponse> => {
     if (typeof image === "string") {
       return request(`/listings/${id}/images`, {
@@ -596,11 +751,12 @@ export const listingsApi = {
 
     const form = new FormData();
     form.append("image", image);
-    return request(`/listings/${id}/images`, {
-      method: "POST",
-      body: form,
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    return uploadFormData<ImageResponse>(
+      `/listings/${id}/images`,
+      form,
+      token,
+      onProgress,
+    );
   },
   deleteImage: (token: string, id: string, imageId: string) =>
     request(`/listings/${id}/images/${imageId}`, {
@@ -950,6 +1106,7 @@ export interface BuyerRequestData {
     slug: string;
     description: string | null;
     image_url: string | null;
+    public_id?: string | null;
     is_active: boolean;
     category?: ProduceCategoryData;
   };
