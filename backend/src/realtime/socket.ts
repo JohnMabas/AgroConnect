@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from "node:http";
 import { Server as SocketIOServer, type Socket } from "socket.io";
 import { allowedOrigins } from "../config/cors.js";
+import { env } from "../config/env.js";
 import { verifyAccessToken } from "../services/token.service.js";
 import { fetchUserRoles } from "../services/user-roles.service.js";
 import {
@@ -9,6 +10,7 @@ import {
   SocketMarkReadSchema,
   SocketSendMessageSchema,
 } from "../modules/messaging/messaging.validation.js";
+import type { MessageType } from "../database/models/message.model.js";
 import {
   assertConversationParticipant,
 } from "../modules/messaging/messaging.helpers.js";
@@ -19,9 +21,25 @@ import {
 } from "../modules/messaging/messages.service.js";
 import { publishMessageCreated } from "../modules/messaging/messaging.events.js";
 import {
+  acceptCall,
+  callOtherUserId,
+  createCall,
+  endActiveCallsForUserOnDisconnect,
+  endCall,
+  getCallById,
+  rejectCall,
+} from "../modules/calls/calls.service.js";
+import {
+  SocketCallActionSchema,
+  SocketCallIceSchema,
+  SocketCallInviteSchema,
+  SocketCallSdpSchema,
+} from "../modules/calls/calls.validation.js";
+import {
   clearSocketServer,
   conversationRoom,
   emitToConversation,
+  emitToUser,
   setSocketServer,
   userRoom,
 } from "./registry.js";
@@ -31,7 +49,7 @@ interface SocketUser {
   roles: string[];
 }
 
-interface MessageRateState {
+interface RateState {
   windowStartedAt: number;
   count: number;
 }
@@ -87,6 +105,7 @@ function socketError(error: unknown): AckResponse {
         error: { code: "FORBIDDEN", message: (error as Error).message },
       };
     case "INVALID_OPERATION":
+    case "INVALID_MEDIA":
       return {
         success: false,
         error: {
@@ -95,27 +114,32 @@ function socketError(error: unknown): AckResponse {
         },
       };
     default:
-      console.error("[socket] Messaging event failed:", error);
+      console.error("[socket] Event failed:", error);
       return {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: "Unable to process the messaging request.",
+          message: "Unable to process the request.",
         },
       };
   }
 }
 
-function allowSocketMessage(socket: Socket): boolean {
+function allowRate(
+  socket: Socket,
+  key: "messageRate" | "callRate",
+  limit: number,
+  windowMs = 60_000,
+): boolean {
   const now = Date.now();
-  const state = socket.data.messageRate as MessageRateState | undefined;
+  const state = socket.data[key] as RateState | undefined;
 
-  if (!state || now - state.windowStartedAt >= MESSAGE_RATE_WINDOW_MS) {
-    socket.data.messageRate = { windowStartedAt: now, count: 1 };
+  if (!state || now - state.windowStartedAt >= windowMs) {
+    socket.data[key] = { windowStartedAt: now, count: 1 } satisfies RateState;
     return true;
   }
 
-  if (state.count >= MESSAGE_RATE_LIMIT) {
+  if (state.count >= limit) {
     return false;
   }
 
@@ -213,7 +237,7 @@ export function createSocketServer(httpServer: HttpServer): SocketIOServer {
 
     socket.on("message:send", async (payload: unknown, ack: unknown) => {
       try {
-        if (!allowSocketMessage(socket)) {
+        if (!allowRate(socket, "messageRate", MESSAGE_RATE_LIMIT, MESSAGE_RATE_WINDOW_MS)) {
           respond(ack, {
             success: false,
             error: {
@@ -242,7 +266,7 @@ export function createSocketServer(httpServer: HttpServer): SocketIOServer {
           parsed.data.conversation_id,
           {
             content: parsed.data.content,
-            message_type: parsed.data.message_type,
+            message_type: parsed.data.message_type as MessageType,
           },
         );
 
@@ -341,9 +365,170 @@ export function createSocketServer(httpServer: HttpServer): SocketIOServer {
       }
     });
 
+    // ─── Call signaling (authenticated, participant-only) ──────────────────
+
+    socket.on("call:invite", async (payload: unknown, ack: unknown) => {
+      try {
+        if (!allowRate(socket, "callRate", env.CALL_RATE_LIMIT_PER_MINUTE)) {
+          respond(ack, {
+            success: false,
+            error: { code: "RATE_LIMITED", message: "Too many call requests." },
+          });
+          return;
+        }
+        const parsed = SocketCallInviteSchema.safeParse(payload);
+        if (!parsed.success) {
+          respond(ack, {
+            success: false,
+            error: { code: "VALIDATION_ERROR", message: "Invalid call invite payload." },
+          });
+          return;
+        }
+        const call = await createCall(user.sub, parsed.data);
+        emitToUser(call.callee_user_id, "call:incoming", { call });
+        respond(ack, { success: true, data: { call } });
+      } catch (error) {
+        respond(ack, socketError(error));
+      }
+    });
+
+    socket.on("call:accept", async (payload: unknown, ack: unknown) => {
+      try {
+        if (!allowRate(socket, "callRate", env.CALL_RATE_LIMIT_PER_MINUTE)) {
+          respond(ack, { success: false, error: { code: "RATE_LIMITED", message: "Too many call requests." } });
+          return;
+        }
+        const parsed = SocketCallActionSchema.safeParse(payload);
+        if (!parsed.success) {
+          respond(ack, { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid payload." } });
+          return;
+        }
+        const result = await acceptCall(user.sub, parsed.data.call_id);
+        if (result.changed) {
+          emitToUser(result.call.caller_user_id, "call:accepted", { call: result.call });
+        }
+        respond(ack, { success: true, data: { call: result.call } });
+      } catch (error) {
+        respond(ack, socketError(error));
+      }
+    });
+
+    socket.on("call:reject", async (payload: unknown, ack: unknown) => {
+      try {
+        if (!allowRate(socket, "callRate", env.CALL_RATE_LIMIT_PER_MINUTE)) {
+          respond(ack, { success: false, error: { code: "RATE_LIMITED", message: "Too many call requests." } });
+          return;
+        }
+        const parsed = SocketCallActionSchema.safeParse(payload);
+        if (!parsed.success) {
+          respond(ack, { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid payload." } });
+          return;
+        }
+        const result = await rejectCall(user.sub, parsed.data.call_id, parsed.data.reason);
+        if (result.changed) {
+          emitToUser(result.call.caller_user_id, "call:rejected", { call: result.call });
+        }
+        respond(ack, { success: true, data: { call: result.call } });
+      } catch (error) {
+        respond(ack, socketError(error));
+      }
+    });
+
+    socket.on("call:end", async (payload: unknown, ack: unknown) => {
+      try {
+        if (!allowRate(socket, "callRate", env.CALL_RATE_LIMIT_PER_MINUTE)) {
+          respond(ack, { success: false, error: { code: "RATE_LIMITED", message: "Too many call requests." } });
+          return;
+        }
+        const parsed = SocketCallActionSchema.safeParse(payload);
+        if (!parsed.success) {
+          respond(ack, { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid payload." } });
+          return;
+        }
+        const result = await endCall(user.sub, parsed.data.call_id, parsed.data.reason);
+        if (result.changed) {
+          const otherId = callOtherUserId(result.call, user.sub);
+          emitToUser(otherId, "call:ended", { call: result.call });
+        }
+        respond(ack, { success: true, data: { call: result.call } });
+      } catch (error) {
+        respond(ack, socketError(error));
+      }
+    });
+
+    socket.on("call:offer", async (payload: unknown, ack: unknown) => {
+      try {
+        if (!allowRate(socket, "callRate", env.CALL_RATE_LIMIT_PER_MINUTE)) {
+          respond(ack, { success: false, error: { code: "RATE_LIMITED", message: "Too many call requests." } });
+          return;
+        }
+        const parsed = SocketCallSdpSchema.safeParse(payload);
+        if (!parsed.success) {
+          respond(ack, { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid payload." } });
+          return;
+        }
+        const call = await getCallById(user.sub, parsed.data.call_id);
+        const otherId = callOtherUserId(call, user.sub);
+        emitToUser(otherId, "call:offer", {
+          call_id: parsed.data.call_id,
+          sdp: parsed.data.sdp,
+        });
+        respond(ack, { success: true, data: { call_id: parsed.data.call_id } });
+      } catch (error) {
+        respond(ack, socketError(error));
+      }
+    });
+
+    socket.on("call:answer", async (payload: unknown, ack: unknown) => {
+      try {
+        if (!allowRate(socket, "callRate", env.CALL_RATE_LIMIT_PER_MINUTE)) {
+          respond(ack, { success: false, error: { code: "RATE_LIMITED", message: "Too many call requests." } });
+          return;
+        }
+        const parsed = SocketCallSdpSchema.safeParse(payload);
+        if (!parsed.success) {
+          respond(ack, { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid payload." } });
+          return;
+        }
+        const call = await getCallById(user.sub, parsed.data.call_id);
+        const otherId = callOtherUserId(call, user.sub);
+        emitToUser(otherId, "call:answer", {
+          call_id: parsed.data.call_id,
+          sdp: parsed.data.sdp,
+        });
+        respond(ack, { success: true, data: { call_id: parsed.data.call_id } });
+      } catch (error) {
+        respond(ack, socketError(error));
+      }
+    });
+
+    socket.on("call:ice-candidate", async (payload: unknown, ack: unknown) => {
+      try {
+        if (!allowRate(socket, "callRate", env.CALL_RATE_LIMIT_PER_MINUTE)) {
+          respond(ack, { success: false, error: { code: "RATE_LIMITED", message: "Too many call requests." } });
+          return;
+        }
+        const parsed = SocketCallIceSchema.safeParse(payload);
+        if (!parsed.success) {
+          respond(ack, { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid payload." } });
+          return;
+        }
+        const call = await getCallById(user.sub, parsed.data.call_id);
+        const otherId = callOtherUserId(call, user.sub);
+        emitToUser(otherId, "call:ice-candidate", {
+          call_id: parsed.data.call_id,
+          candidate: parsed.data.candidate,
+        });
+        respond(ack, { success: true, data: { call_id: parsed.data.call_id } });
+      } catch (error) {
+        respond(ack, socketError(error));
+      }
+    });
+
     socket.on("disconnect", () => {
-      // Socket.IO automatically removes the socket from all rooms. No database
-      // state is tied to a live connection.
+      void endActiveCallsForUserOnDisconnect(user.sub).catch((error) => {
+        console.error("[socket] Failed to end active calls on disconnect:", error);
+      });
     });
   });
 
