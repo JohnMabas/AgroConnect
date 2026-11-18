@@ -31,6 +31,8 @@ import { MarketInsight } from "./market-insight.model.js";
 import { MarketObservation } from "./market-observation.model.js";
 import { MarketPrice } from "./market-price.model.js";
 import { Message } from "./message.model.js";
+import { MessageAttachment } from "./message-attachment.model.js";
+import { CallSession } from "./call-session.model.js";
 import { Notification } from "./notification.model.js";
 import { NotificationDelivery } from "./notification-delivery.model.js";
 import { NotificationPreference } from "./notification-preference.model.js";
@@ -425,6 +427,66 @@ User.hasMany(Message, {
   foreignKey: "sender_user_id",
   as: "sent_messages",
   onDelete: "CASCADE",
+});
+
+Message.hasMany(MessageAttachment, {
+  foreignKey: "message_id",
+  as: "attachments",
+  onDelete: "CASCADE",
+});
+
+MessageAttachment.belongsTo(Message, {
+  foreignKey: "message_id",
+  as: "message",
+});
+
+MessageAttachment.belongsTo(Conversation, {
+  foreignKey: "conversation_id",
+  as: "conversation",
+});
+
+Conversation.hasMany(MessageAttachment, {
+  foreignKey: "conversation_id",
+  as: "message_attachments",
+  onDelete: "CASCADE",
+});
+
+MessageAttachment.belongsTo(User, {
+  foreignKey: "uploader_user_id",
+  as: "uploader",
+});
+
+User.hasMany(MessageAttachment, {
+  foreignKey: "uploader_user_id",
+  as: "message_attachments",
+  onDelete: "CASCADE",
+});
+
+// Authenticated WebRTC call sessions (not telecom voice call sessions)
+CallSession.belongsTo(Conversation, {
+  foreignKey: "conversation_id",
+  as: "conversation",
+});
+
+Conversation.hasMany(CallSession, {
+  foreignKey: "conversation_id",
+  as: "call_sessions",
+  onDelete: "CASCADE",
+});
+
+CallSession.belongsTo(User, {
+  foreignKey: "caller_user_id",
+  as: "caller",
+});
+
+CallSession.belongsTo(User, {
+  foreignKey: "callee_user_id",
+  as: "callee",
+});
+
+CallSession.belongsTo(User, {
+  foreignKey: "ended_by_user_id",
+  as: "ended_by",
 });
 
 // Phase 8 associations
@@ -1536,6 +1598,8 @@ export {
   MarketObservation,
   MarketPrice,
   Message,
+  MessageAttachment,
+  CallSession,
   Notification,
   NotificationDelivery,
   NotificationPreference,

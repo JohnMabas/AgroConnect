@@ -7,7 +7,7 @@ import {
 } from "sequelize";
 import { sequelize } from "../sequelize.js";
 
-export type MessageType = "text";
+export type MessageType = "text" | "image" | "audio" | "media";
 export type MessageStatus = "sent" | "delivered" | "read";
 
 export class Message extends Model<
@@ -46,7 +46,7 @@ Message.init(
       allowNull: false,
     },
     message_type: {
-      type: DataTypes.ENUM("text"),
+      type: DataTypes.ENUM("text", "image", "audio", "media"),
       allowNull: false,
       defaultValue: "text",
     },
