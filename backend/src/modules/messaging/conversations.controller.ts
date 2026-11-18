@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { pipeline } from "node:stream/promises";
 import { z } from "zod";
 import {
   ConversationIdSchema,
@@ -199,8 +200,7 @@ export async function sendMessageHandler(
 
     if (isMultipart) {
       const body = (req.body ?? {}) as Record<string, unknown>;
-      const content =
-        typeof body.content === "string" ? body.content : "";
+      const content = typeof body.content === "string" ? body.content : "";
       const messageType =
         typeof body.message_type === "string" ? body.message_type : undefined;
       const parsed = SendMessageSchema.safeParse({
@@ -220,10 +220,7 @@ export async function sendMessageHandler(
       if (files.length === 0 && content.trim().length === 0) {
         res.status(422).json({
           success: false,
-          message: "Validation failed.",
-          errors: [
-            { field: "content", message: "Message content is required." },
-          ],
+          error: { message: "Message content or at least one attachment is required." },
         });
         return;
       }
@@ -237,39 +234,20 @@ export async function sendMessageHandler(
         });
         return;
       }
-      if (parsed.data.content.trim().length === 0) {
-        res.status(422).json({
-          success: false,
-          message: "Validation failed.",
-          errors: [
-            { field: "content", message: "Message content cannot be blank." },
-          ],
-        });
-        return;
-      }
       input = parsed.data;
+      files = [];
     }
 
-    let prepared: ReturnType<typeof prepareUploadedAttachments> = [];
-    try {
-      prepared = files.length > 0 ? prepareUploadedAttachments(files) : [];
-    } catch (err) {
-      const code = (err as { code?: string }).code;
-      if (code === "INVALID_MEDIA") {
-        res.status(422).json({
-          success: false,
-          error: { message: (err as Error).message },
-        });
-        return;
-      }
-      throw err;
-    }
+    const preparedAttachments =
+      files.length > 0 ? prepareUploadedAttachments(files) : [];
 
-    const result = await sendMessage(userId, id, input as SendMessageInput, prepared);
+    const result = await sendMessage(
+      userId,
+      id,
+      input as SendMessageInput,
+      preparedAttachments,
+    );
 
-    emitToConversation(id, result.participant_user_ids, "message:new", {
-      message: result.message,
-    });
     publishMessageCreated({
       conversation_id: id,
       message: result.message,
@@ -354,10 +332,20 @@ export async function markConversationReadHandler(
   }
 }
 
-
 // ─── GET /api/conversations/:id/messages/:messageId/attachments/:attachmentId/download
 
 const AttachmentIdSchema = z.string().uuid("Invalid attachment ID.");
+
+function parseRangeHeader(header: string | undefined): { start: number; end?: number } | undefined {
+  if (!header) return undefined;
+  const m = /^bytes=(\d+)-(\d*)$/i.exec(header.trim());
+  if (!m) return undefined;
+  const start = Number(m[1]);
+  const end = m[2] ? Number(m[2]) : undefined;
+  if (!Number.isFinite(start) || start < 0) return undefined;
+  if (end !== undefined && (!Number.isFinite(end) || end < start)) return undefined;
+  return { start, end };
+}
 
 export async function downloadMessageAttachmentHandler(
   req: Request,
@@ -391,18 +379,71 @@ export async function downloadMessageAttachmentHandler(
       return;
     }
 
-    const result = await getMessageAttachmentForDownload(
-      req.user!.sub,
-      conversationId,
-      messageIdParsed.data,
-      attachmentIdParsed.data,
-    );
+    const attachmentId = attachmentIdParsed.data;
+    const range = parseRangeHeader(req.headers.range);
 
-    res.setHeader("Content-Type", result.attachment.mime_type);
+    const result = await getMessageAttachmentForDownload({
+      userId: req.user!.sub,
+      conversationId,
+      messageId: messageIdParsed.data,
+      attachmentId,
+      range,
+    });
+
+    const status = result.range ? 206 : 200;
+    res.status(status);
+    res.setHeader("Content-Type", result.contentType || result.attachment.mime_type);
     res.setHeader("Content-Disposition", "inline");
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.send(result.buffer);
-  } catch (err) {
+    res.setHeader("Accept-Ranges", "bytes");
+
+    if (result.range) {
+      res.setHeader(
+        "Content-Range",
+        `bytes ${result.range.start}-${result.range.end}/${result.range.total}`,
+      );
+      res.setHeader("Content-Length", String(result.range.end - result.range.start + 1));
+    } else if (typeof result.contentLength === "number") {
+      res.setHeader("Content-Length", String(result.contentLength));
+    } else if (typeof result.totalSize === "number") {
+      res.setHeader("Content-Length", String(result.totalSize));
+    } else if (result.attachment.file_size_bytes) {
+      res.setHeader("Content-Length", String(result.attachment.file_size_bytes));
+    }
+
+    await pipeline(result.stream, res);
+  } catch (err: any) {
+    const attachmentId = req.params["attachmentId"];
+    const code = err?.code as string | undefined;
+
+    if (code === "NOT_FOUND" || code === "STORAGE_NOT_FOUND") {
+      const message =
+        code === "STORAGE_NOT_FOUND"
+          ? "Attachment file is unavailable."
+          : err?.message || "Attachment not found.";
+      res.status(404).json({ success: false, error: { message } });
+      return;
+    }
+    if (code === "FORBIDDEN" || code === "INVALID_OPERATION" || code === "INVALID_MEDIA") {
+      handleMessagingServiceError(err, res, next);
+      return;
+    }
+
+    // Log real storage/provider failures with attachment id for diagnosis.
+    console.error("[attachments] download failed", {
+      attachmentId,
+      conversationId: req.params["id"],
+      messageId: req.params["messageId"],
+      code: err?.code,
+      message: err?.message,
+      status: err?.status,
+    });
+
+    if (code === "STORAGE_ERROR" || err?.http_code || err?.status) {
+      res.status(500).json({ success: false, error: { message: "Could not access attachment storage." } });
+      return;
+    }
+
     handleMessagingServiceError(err, res, next);
   }
 }

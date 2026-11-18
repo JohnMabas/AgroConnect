@@ -9,7 +9,7 @@ import {
   User,
   sequelize,
 } from "../../database/models/index.js";
-import { privateMessageMediaStorage } from "../../integrations/storage/index.js";
+import { messageStorage } from "../../integrations/storage/index.js";
 import {
   assertConversationParticipant,
   buildMessageAttachmentData,
@@ -76,21 +76,32 @@ export function prepareUploadedAttachments(
     );
   }
 
+  const maxUploadBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+
   return files.map((file) => {
     const detected = detectMessageAttachment(file.buffer);
     if (!detected) {
-      throw serviceError("Unsupported or invalid attachment content.", "INVALID_MEDIA");
+      throw serviceError(
+        "Unsupported or invalid attachment content.",
+        "INVALID_MEDIA",
+      );
     }
 
-    const maxSize =
+    const perTypeMax =
       detected.attachment_type === "image"
         ? env.MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES
         : env.MESSAGE_MEDIA_MAX_AUDIO_SIZE_BYTES;
+    const maxSize = Math.max(maxUploadBytes, perTypeMax);
     if (file.size > maxSize) {
-      throw serviceError("Attachment exceeds the maximum allowed file size.", "INVALID_MEDIA");
+      throw serviceError(
+        "Attachment exceeds the maximum allowed file size.",
+        "INVALID_MEDIA",
+      );
     }
 
-    const safeName = (file.originalname || `${detected.attachment_type}.${detected.extension}`)
+    const safeName = (
+      file.originalname || `${detected.attachment_type}.${detected.extension}`
+    )
       .replace(/[\r\n\t]/g, " ")
       .slice(0, 255);
 
@@ -127,11 +138,25 @@ function inferMessageType(
     requested === "audio" ||
     requested === "media"
   ) {
-    // Preserve explicit intent when compatible; fall back to inferred.
     if (attachments.length === 0) return "text";
     return requested;
   }
   return inferred;
+}
+
+function inferResourceType(
+  mimeType: string,
+  attachmentType: string,
+): "image" | "video" | "raw" {
+  if (mimeType.startsWith("image/") || attachmentType === "image") return "image";
+  if (
+    mimeType.startsWith("audio/") ||
+    mimeType.startsWith("video/") ||
+    attachmentType === "audio"
+  ) {
+    return "video";
+  }
+  return "raw";
 }
 
 export async function sendMessage(
@@ -145,10 +170,18 @@ export async function sendMessage(
     throw serviceError("Message content cannot be blank.", "INVALID_OPERATION");
   }
 
-  const messageType = inferMessageType(content, input.message_type, attachments);
+  const messageType = inferMessageType(
+    content,
+    input.message_type,
+    attachments,
+  );
   let participantIds: string[] = [];
   const messageId = randomUUID();
-  const storedKeys: string[] = [];
+  const storedObjects: Array<{
+    key: string;
+    resourceType?: "image" | "video" | "raw";
+    publicId?: string;
+  }> = [];
 
   try {
     await sequelize.transaction(async (transaction) => {
@@ -167,7 +200,7 @@ export async function sendMessage(
 
       participantIds = access.participantIds;
 
-      const message = await Message.create(
+      await Message.create(
         {
           id: messageId,
           conversation_id: conversationId,
@@ -182,13 +215,47 @@ export async function sendMessage(
       );
 
       for (const attachment of attachments) {
-        const stored = await privateMessageMediaStorage.saveMedia({
-          conversationId,
-          messageId,
-          buffer: attachment.buffer,
-          extension: attachment.extension,
-        });
-        storedKeys.push(stored.storageKey);
+        const resourceType = inferResourceType(
+          attachment.mime_type,
+          attachment.attachment_type,
+        );
+        let storageKey: string;
+        let publicId: string | null = null;
+        let storedResourceType: "image" | "video" | "raw" = resourceType;
+
+        if (env.STORAGE_DRIVER === "cloudinary") {
+          // Keep storage_key as a consistent logical key; store Cloudinary
+          // public/resource identifiers separately for retrieval.
+          storageKey = `messages/${conversationId}/${messageId}/${randomUUID()}`;
+          const saved = await messageStorage.save(
+            storageKey,
+            attachment.buffer,
+            attachment.mime_type,
+            {
+              resourceType,
+              publicId: storageKey,
+            },
+          );
+          publicId = saved.publicId ?? storageKey;
+          storedResourceType = saved.resourceType ?? resourceType;
+          storedObjects.push({
+            key: storageKey,
+            resourceType: storedResourceType,
+            publicId,
+          });
+        } else {
+          const saver = messageStorage as any;
+          const stored = await saver.saveMedia({
+            conversationId,
+            messageId,
+            buffer: attachment.buffer,
+            extension: attachment.extension,
+          });
+          storageKey = stored.storageKey;
+          publicId = null;
+          storedResourceType = resourceType;
+          storedObjects.push({ key: storageKey, resourceType: storedResourceType });
+        }
 
         await MessageAttachment.create(
           {
@@ -196,26 +263,35 @@ export async function sendMessage(
             conversation_id: conversationId,
             uploader_user_id: userId,
             attachment_type: attachment.attachment_type,
-            storage_key: stored.storageKey,
+            storage_key: storageKey,
             mime_type: attachment.mime_type,
             file_name: attachment.originalName,
             file_size_bytes: attachment.file_size_bytes,
             duration_seconds: attachment.duration_seconds,
             width: attachment.width,
             height: attachment.height,
-          },
+            resource_type: storedResourceType,
+            public_id: publicId,
+          } as any,
           { transaction },
         );
       }
 
+      const created = await Message.findByPk(messageId, { transaction });
       await access.conversation.update(
-        { last_message_at: message.created_at ?? new Date() },
+        { last_message_at: created?.created_at ?? new Date() },
         { transaction },
       );
     });
   } catch (error) {
     await Promise.allSettled(
-      storedKeys.map((key) => privateMessageMediaStorage.deleteMedia(key)),
+      storedObjects.map((obj) =>
+        messageStorage.delete(obj.key, {
+          resourceType: obj.resourceType,
+          publicId: obj.publicId ?? obj.key,
+          mimeType: undefined,
+        }),
+      ),
     );
     throw error;
   }
@@ -416,16 +492,29 @@ export async function getUnreadCounts(userId: string): Promise<UnreadCountData> 
   };
 }
 
+export interface AttachmentDownloadRequest {
+  userId: string;
+  conversationId: string;
+  messageId: string;
+  attachmentId: string;
+  range?: { start: number; end?: number };
+}
 
 export async function getMessageAttachmentForDownload(
-  userId: string,
-  conversationId: string,
-  messageId: string,
-  attachmentId: string,
+  req: AttachmentDownloadRequest,
 ): Promise<{
   attachment: MessageAttachmentData;
-  buffer: Buffer;
+  stream: import("node:stream").Readable;
+  contentType: string;
+  contentLength?: number;
+  totalSize?: number;
+  range?: { start: number; end: number; total: number };
+  acceptsRanges: boolean;
 }> {
+  const { userId, conversationId, messageId, attachmentId, range } = req;
+
+  // Participant authorization is enforced here; missing/non-participant access
+  // is treated as NOT_FOUND by assertConversationParticipant.
   await assertConversationParticipant(conversationId, userId);
 
   const row = await MessageAttachment.findOne({
@@ -439,9 +528,31 @@ export async function getMessageAttachmentForDownload(
     throw serviceError("Attachment not found.", "NOT_FOUND");
   }
 
-  const buffer = await privateMessageMediaStorage.readMedia(row.storage_key);
-  return {
-    attachment: buildMessageAttachmentData(row),
-    buffer,
-  };
+  const resourceType =
+    (row as any).resource_type ??
+    (row.attachment_type === "image" ? "image" : "video");
+  const publicId = (row as any).public_id ?? row.storage_key;
+
+  try {
+    const result = await messageStorage.getStream(row.storage_key, range, {
+      resourceType,
+      publicId,
+      mimeType: row.mime_type,
+    });
+    return {
+      attachment: buildMessageAttachmentData(row),
+      stream: result.stream,
+      contentType: result.contentType ?? row.mime_type,
+      contentLength: result.contentLength,
+      totalSize: result.totalSize,
+      range: result.range,
+      acceptsRanges: result.acceptsRanges,
+    };
+  } catch (error: any) {
+    const code = error?.code as string | undefined;
+    if (code === "ENOENT" || code === "STORAGE_NOT_FOUND") {
+      throw serviceError("Attachment file is unavailable.", "STORAGE_NOT_FOUND");
+    }
+    throw error;
+  }
 }

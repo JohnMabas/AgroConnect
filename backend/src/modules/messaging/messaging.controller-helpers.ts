@@ -17,7 +17,8 @@ export function handleMessagingServiceError(
 
   switch (error.code) {
     case "NOT_FOUND":
-      res.status(404).json({ success: false, error: { message: error.message } });
+    case "STORAGE_NOT_FOUND":
+      res.status(404).json({ success: false, error: { message: error.message || "Not found." } });
       return;
     case "FORBIDDEN":
       res.status(403).json({ success: false, error: { message: error.message } });
@@ -27,7 +28,8 @@ export function handleMessagingServiceError(
       res.status(422).json({ success: false, error: { message: error.message } });
       return;
     case "STORAGE_ERROR":
-      res.status(500).json({ success: false, error: { message: "Could not store attachment." } });
+      // Real storage/provider failures are logged by callers with context.
+      res.status(500).json({ success: false, error: { message: "Could not access attachment storage." } });
       return;
     case "DUPLICATE_CONVERSATION":
       res.status(409).json({ success: false, error: { message: error.message } });

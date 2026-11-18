@@ -5,6 +5,7 @@ import { env } from "../../config/env.js";
 class UploadValidationError extends Error {}
 
 const maxFileSize = Math.max(
+  env.MAX_UPLOAD_SIZE_MB * 1024 * 1024,
   env.MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES,
   env.MESSAGE_MEDIA_MAX_AUDIO_SIZE_BYTES,
 );
