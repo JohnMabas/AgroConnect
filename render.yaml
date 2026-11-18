@@ -18,6 +18,20 @@ services:
         value: "true"
       - key: FRONTEND_URL
         sync: false
+      - key: STORAGE_DRIVER
+        value: "cloudinary"
+      - key: PUBLIC_IMAGE_STORAGE_DRIVER
+        value: "cloudinary"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_PUBLIC_FOLDER
+        value: "agroconnect"
+      - key: CLOUDINARY_FOLDER
+        value: "agroconnect/messages"
 
   - type: web
     name: agroconnect-frontend
