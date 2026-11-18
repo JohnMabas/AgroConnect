@@ -91,7 +91,13 @@ interface Props {
 
 export function CallManagerProvider({ token, userId, children }: Props) {
   const { socket } = useMessaging();
-  const [state, setState] = useState<CallUiState>(defaultState);
+  const [state, setState] = useState<CallUiState>(() => ({
+    ...defaultState,
+    speakerSelectionSupported:
+      typeof document !== "undefined" &&
+      typeof HTMLMediaElement !== "undefined" &&
+      "setSinkId" in HTMLMediaElement.prototype,
+  }));
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
@@ -107,14 +113,6 @@ export function CallManagerProvider({ token, userId, children }: Props) {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-
-  useEffect(() => {
-    const supported =
-      typeof document !== "undefined" &&
-      typeof HTMLMediaElement !== "undefined" &&
-      "setSinkId" in HTMLMediaElement.prototype;
-    setState((current) => ({ ...current, speakerSelectionSupported: supported }));
-  }, []);
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {

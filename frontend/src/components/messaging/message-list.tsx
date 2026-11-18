@@ -53,53 +53,63 @@ function AttachmentUnavailable({
   );
 }
 
+interface AttachmentBlobState {
+  key: string;
+  url: string | null;
+  error: boolean;
+  loading: boolean;
+}
+
 function useAttachmentBlob(
   downloadUrl: string,
   getAttachmentBlob?: (downloadUrl: string) => Promise<Blob>,
 ) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(!!getAttachmentBlob);
   const [retryNonce, setRetryNonce] = useState(0);
+  const key = `${downloadUrl}:${retryNonce}:${getAttachmentBlob ? "blob" : "none"}`;
+  const [state, setState] = useState<AttachmentBlobState>(() => ({
+    key,
+    url: null,
+    error: false,
+    loading: !!getAttachmentBlob,
+  }));
 
   useEffect(() => {
-    if (!getAttachmentBlob) {
-      setLoading(false);
-      setError(false);
-      setUrl(null);
-      return;
-    }
+    if (!getAttachmentBlob) return;
 
     let objectUrl: string | null = null;
     let cancelled = false;
-    setLoading(true);
-    setError(false);
-    setUrl(null);
 
     getAttachmentBlob(downloadUrl)
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
+        setState({ key, url: objectUrl, error: false, loading: false });
       })
       .catch(() => {
         if (cancelled) return;
-        setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        setState({ key, url: null, error: true, loading: false });
       });
 
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [downloadUrl, getAttachmentBlob, retryNonce]);
+  }, [downloadUrl, getAttachmentBlob, key, retryNonce]);
+
+  const current =
+    state.key === key
+      ? state
+      : {
+          key,
+          url: null,
+          error: !getAttachmentBlob,
+          loading: !!getAttachmentBlob,
+        };
 
   return {
-    url,
-    error,
-    loading,
+    url: current.url,
+    error: current.error,
+    loading: current.loading,
     retry: () => setRetryNonce((n) => n + 1),
   };
 }
