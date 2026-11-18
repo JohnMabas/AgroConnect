@@ -4,7 +4,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { marketplaceApi, mediaUrl, type ListingData, type ApiError } from "@/lib/api";
+import { getUserIdFromToken } from "@/lib/session";
+import { resolveConversationForContext } from "@/lib/messaging";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 
@@ -42,6 +45,17 @@ function formatDateTime(value: string): string {
   } catch {
     return value;
   }
+}
+
+function isContactable(listing: ListingData): boolean {
+  if (listing.status !== "published" || listing.available_quantity <= 0) {
+    return false;
+  }
+  if (!listing.expiry_date) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(`${listing.expiry_date}T00:00:00`);
+  return !Number.isNaN(expiry.getTime()) && expiry >= today;
 }
 
 // ─── Status display ───────────────────────────────────────────────────────────
@@ -134,16 +148,22 @@ function LoginPrompt({ listingId }: { listingId: string }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function MarketplaceListingClient({ listingId }: { listingId: string }) {
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [listing, setListing] = useState<ListingData | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [contacting, setContacting] = useState(false);
+  const [contactError, setContactError] = useState("");
 
   // Hydrate token from sessionStorage on client (guests have no token)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setToken(sessionStorage.getItem("access_token"));
+      const stored = sessionStorage.getItem("access_token");
+      setToken(stored);
+      setUserId(getUserIdFromToken(stored));
     }
   }, []);
 
@@ -183,6 +203,29 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
     },
     [],
   );
+
+  const handleContact = useCallback(async () => {
+    if (!token || !userId || !listing) return;
+    if (listing.farmer_user_id === userId) {
+      setContactError("This is your own listing.");
+      return;
+    }
+    setContacting(true);
+    setContactError("");
+    try {
+      const conversationId = await resolveConversationForContext(token, {
+        participant_user_id: listing.farmer_user_id,
+        listing_id: listing.id,
+      });
+      router.push(`/messages/${conversationId}`);
+    } catch (err) {
+      setContactError(
+        err instanceof Error ? err.message : "Could not start a conversation.",
+      );
+    } finally {
+      setContacting(false);
+    }
+  }, [token, userId, listing, router]);
 
   // Load listing on mount — no redirect for guests
   useEffect(() => {
@@ -266,6 +309,8 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
 
   const isAvailable =
     listing.status === "published" && listing.available_quantity > 0;
+  const isOwner = !!userId && listing.farmer_user_id === userId;
+  const canContact = isContactable(listing) && !isOwner;
 
   const availPct =
     listing.quantity > 0
@@ -523,34 +568,46 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
                         Search for similar produce in the marketplace.
                       </p>
                     </div>
-                  ) : token ? (
-                    // Authenticated — show contact button (messaging phase)
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-agro-green py-3 text-sm font-bold text-white transition-colors hover:bg-deep-navy"
-                      onClick={() => {
-                        alert(
-                          "Messaging is available in the next phase. The platform will let you message farmers directly when that feature launches.",
-                        );
-                      }}
-                    >
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 24 24"
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                  ) : isOwner ? (
+                    <div className="rounded-xl border border-deep-navy/8 bg-soft-bg p-4 text-center text-sm text-deep-navy/60">
+                      This is your listing. Buyers can contact you from here.
+                    </div>
+                  ) : token && canContact ? (
+                    // Authenticated
+                    <>
+                      {contactError && (
+                        <p role="alert" className="text-xs text-red-700">
+                          {contactError}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        disabled={contacting}
+                        className="flex w-full items-center justify-center gap-2 rounded-full bg-agro-green py-3 text-sm font-bold text-white transition-colors hover:bg-deep-navy disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={() => void handleContact()}
                       >
-                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                      </svg>
-                      Contact Farmer
-                    </button>
-                  ) : (
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                        </svg>
+                        {contacting ? "Opening conversation…" : "Contact Farmer"}
+                      </button>
+                    </>
+                  ) : !token ? (
                     // Guest — show login prompt instead of contact button
                     <LoginPrompt listingId={listingId} />
+                  ) : (
+                    <div className="rounded-xl border border-harvest-gold/25 bg-harvest-gold/8 p-4 text-center text-sm text-amber-800">
+                      This listing can no longer be contacted.
+                    </div>
                   )}
 
                   <Link

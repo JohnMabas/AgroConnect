@@ -4,9 +4,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { buyerRequestsApi, type BuyerRequestData, type ApiError } from "@/lib/api";
+import { getUserIdFromToken } from "@/lib/session";
+import { resolveConversationForContext } from "@/lib/messaging";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,11 +37,12 @@ function getProduceName(r: BuyerRequestData): string {
   return r.produce_type?.name ?? r.produce_category?.name ?? "Agricultural produce";
 }
 
-function getUserIdFromToken(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]!)) as { sub?: string };
-    return payload.sub ?? null;
-  } catch { return null; }
+function isContactable(request: BuyerRequestData): boolean {
+  if (request.status !== "open") return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(`${request.expiry_date}T00:00:00`);
+  return !Number.isNaN(expiry.getTime()) && expiry >= today;
 }
 
 // ─── Status ───────────────────────────────────────────────────────────────────
@@ -112,6 +116,7 @@ function ActionBtn({ label, onClick, busy, variant = "default" }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function BuyerRequestDetailClient({ requestId }: { requestId: string }) {
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [request, setRequest] = useState<BuyerRequestData | null>(null);
@@ -119,6 +124,8 @@ export default function BuyerRequestDetailClient({ requestId }: { requestId: str
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [contacting, setContacting] = useState(false);
+  const [contactError, setContactError] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -158,6 +165,29 @@ export default function BuyerRequestDetailClient({ requestId }: { requestId: str
       setActionError((err as ApiError).message || `Failed to ${action} request.`);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleContact() {
+    if (!token || !currentUserId || !request) return;
+    if (request.buyer_user_id === currentUserId) {
+      setContactError("This is your own request.");
+      return;
+    }
+    setContacting(true);
+    setContactError("");
+    try {
+      const conversationId = await resolveConversationForContext(token, {
+        participant_user_id: request.buyer_user_id,
+        buyer_request_id: request.id,
+      });
+      router.push(`/messages/${conversationId}`);
+    } catch (err) {
+      setContactError(
+        err instanceof Error ? err.message : "Could not start a conversation.",
+      );
+    } finally {
+      setContacting(false);
     }
   }
 
@@ -337,13 +367,22 @@ export default function BuyerRequestDetailClient({ requestId }: { requestId: str
                         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                         Respond to Request
                       </button>
+                      {contactError && (
+                        <p role="alert" className="text-xs text-red-700">{contactError}</p>
+                      )}
                       <button type="button"
-                        className="flex w-full items-center justify-center gap-2 rounded-full border border-agro-green/30 py-2.5 text-sm font-semibold text-agro-green transition-colors hover:bg-agro-green/8"
-                        onClick={() => alert("Messaging module coming in the next phase. You will be able to contact buyers directly.")}>
+                        disabled={contacting || !isContactable(request)}
+                        className="flex w-full items-center justify-center gap-2 rounded-full border border-agro-green/30 py-2.5 text-sm font-semibold text-agro-green transition-colors hover:bg-agro-green/8 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => void handleContact()}>
                         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
-                        Contact Buyer
+                        {contacting ? "Opening conversation…" : "Contact Buyer"}
                       </button>
-                      <p className="text-xs text-deep-navy/35 text-center">Offers and messaging available in the next phase.</p>
+                      {!isContactable(request) && (
+                        <p className="text-xs text-center text-deep-navy/50">
+                          This request is no longer accepting responses.
+                        </p>
+                      )}
+                      <p className="text-xs text-deep-navy/35 text-center">Structured offers are available in a later phase.</p>
                     </div>
                   ) : (
                     <div className="mt-3 rounded-xl border border-deep-navy/8 bg-soft-bg p-3 text-center">
