@@ -5,6 +5,7 @@ export interface UserProfileData {
   last_name: string | null;
   display_name: string | null;
   profile_image_url: string | null;
+  profile_image_public_id: string | null;
   country: string | null;
   state_or_region: string | null;
   local_government_area: string | null;
