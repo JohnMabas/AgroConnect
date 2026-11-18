@@ -1,10 +1,12 @@
 import { env } from "../../config/env.js";
 import { LocalImageStorageAdapter } from "./local-storage.adapter.js";
 import { LocalPrivateDocumentStorageAdapter } from "./local-private-document.adapter.js";
+import { LocalPrivateMessageMediaStorageAdapter } from "./local-private-message-media.adapter.js";
 import type {
   ImageStorageAdapter,
   PrivateDocumentStorageAdapter,
 } from "./storage.interface.js";
+import type { PrivateMessageMediaStorageAdapter } from "./local-private-message-media.adapter.js";
 
 /**
  * Active image storage adapter.
@@ -28,8 +30,18 @@ export const privateDocumentStorage: PrivateDocumentStorageAdapter =
     env.VERIFICATION_DOCUMENT_STORAGE_PATH,
   );
 
+/**
+ * Private message media storage. This must never be exposed through a public
+ * static path.
+ */
+export const privateMessageMediaStorage: PrivateMessageMediaStorageAdapter =
+  new LocalPrivateMessageMediaStorageAdapter(env.MESSAGE_MEDIA_STORAGE_PATH);
+
 export type {
   ImageStorageAdapter,
   PrivateDocumentStorageAdapter,
   StoredPrivateDocument,
 } from "./storage.interface.js";
+export type {
+  PrivateMessageMediaStorageAdapter,
+} from "./local-private-message-media.adapter.js";

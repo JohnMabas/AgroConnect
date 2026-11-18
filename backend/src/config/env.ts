@@ -391,6 +391,54 @@ export const env = Object.freeze({
     5,
   ),
 
+  // ─── Message media attachments ──────────────────────────────────────────────
+  MESSAGE_MEDIA_STORAGE_PATH:
+    optionalString(process.env.MESSAGE_MEDIA_STORAGE_PATH) ??
+    "private-uploads/messages",
+  MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES: parsePositiveInt(
+    "MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES",
+    process.env.MESSAGE_MEDIA_MAX_IMAGE_SIZE_BYTES,
+    5 * 1024 * 1024,
+  ),
+  MESSAGE_MEDIA_MAX_AUDIO_SIZE_BYTES: parsePositiveInt(
+    "MESSAGE_MEDIA_MAX_AUDIO_SIZE_BYTES",
+    process.env.MESSAGE_MEDIA_MAX_AUDIO_SIZE_BYTES,
+    10 * 1024 * 1024,
+  ),
+  MESSAGE_MEDIA_MAX_ATTACHMENTS_PER_MESSAGE: parsePositiveInt(
+    "MESSAGE_MEDIA_MAX_ATTACHMENTS_PER_MESSAGE",
+    process.env.MESSAGE_MEDIA_MAX_ATTACHMENTS_PER_MESSAGE,
+    5,
+  ),
+
+  // ─── Authenticated WebRTC calls ─────────────────────────────────────────────
+  STUN_URLS:
+    optionalString(process.env.STUN_URLS) ?? "stun:stun.l.google.com:19302",
+  TURN_URLS: optionalString(process.env.TURN_URLS),
+  TURN_USERNAME: optionalString(process.env.TURN_USERNAME),
+  TURN_CREDENTIAL: optionalString(process.env.TURN_CREDENTIAL),
+  TURN_SECRET: optionalString(process.env.TURN_SECRET),
+  TURN_CREDENTIAL_TTL_SECONDS: parsePositiveInt(
+    "TURN_CREDENTIAL_TTL_SECONDS",
+    process.env.TURN_CREDENTIAL_TTL_SECONDS,
+    3600,
+  ),
+  CALL_RING_TIMEOUT_SECONDS: parsePositiveInt(
+    "CALL_RING_TIMEOUT_SECONDS",
+    process.env.CALL_RING_TIMEOUT_SECONDS,
+    60,
+  ),
+  CALL_MAX_DURATION_SECONDS: parsePositiveInt(
+    "CALL_MAX_DURATION_SECONDS",
+    process.env.CALL_MAX_DURATION_SECONDS,
+    7200,
+  ),
+  CALL_RATE_LIMIT_PER_MINUTE: parsePositiveInt(
+    "CALL_RATE_LIMIT_PER_MINUTE",
+    process.env.CALL_RATE_LIMIT_PER_MINUTE,
+    20,
+  ),
+
   // ─── Orders and inventory reservations ──────────────────────────────────────
   ORDER_RESERVATION_MINUTES: parsePositiveInt(
     "ORDER_RESERVATION_MINUTES",

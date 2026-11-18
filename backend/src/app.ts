@@ -21,6 +21,7 @@ import { createMessagesRouter } from "./modules/messaging/messages.routes.js";
 import { createOffersRouter } from "./modules/offers/offers.routes.js";
 import { createOrdersRouter } from "./modules/orders/orders.routes.js";
 import { createReservationsRouter } from "./modules/orders/reservations.routes.js";
+import { createCallsRouter } from "./modules/calls/calls.routes.js";
 import { createTransportersRouter } from "./modules/transporters/transporters.routes.js";
 import { createDeliveriesRouter } from "./modules/deliveries/deliveries.routes.js";
 import {
@@ -79,7 +80,7 @@ export function createApp(
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "no-referrer");
-    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=()");
     if (env.NODE_ENV === "production") {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     }
@@ -149,6 +150,7 @@ export function createApp(
   // Phase 7 feature routes
   app.use("/api/conversations", createConversationsRouter());
   app.use("/api/messages", createMessagesRouter());
+  app.use("/api/calls", createCallsRouter());
 
   // Phase 8 feature routes
   app.use("/api/offers", createOffersRouter());
