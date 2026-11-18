@@ -11,6 +11,7 @@ import {
   type ListingData,
   type ListingImageData,
 } from "@/lib/api";
+import { thumbnailImageUrl } from "@/lib/cloudinary";
 import {
   LISTING_UNITS,
   MAX_IMAGES_PER_LISTING,
@@ -34,6 +35,7 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busyImage, setBusyImage] = useState(false);
+  const [imageProgress, setImageProgress] = useState(0);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [imageUrl, setImageUrl] = useState("");
@@ -134,6 +136,7 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
     }
 
     setBusyImage(true);
+    setImageProgress(0);
     setError("");
     try {
       for (const file of Array.from(files).slice(0, availableSlots)) {
@@ -143,8 +146,9 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
         if (!isImageWithinSizeLimit(file.size)) {
           throw new Error(`${file.name} is larger than the 5 MB limit.`);
         }
-        await listingsApi.addImage(token, listing.id, file);
+        await listingsApi.addImage(token, listing.id, file, setImageProgress);
       }
+      setImageProgress(100);
       await refreshListing();
     } catch (err) {
       setError(
@@ -152,6 +156,7 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
       );
     } finally {
       setBusyImage(false);
+      setImageProgress(0);
     }
   }
 
@@ -540,7 +545,7 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={mediaUrl(image.image_url)}
+                  src={thumbnailImageUrl(mediaUrl(image.image_url))}
                   alt={`Listing photo ${image.display_order + 1}`}
                   className="h-32 w-full object-cover"
                 />
@@ -585,6 +590,20 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
                 className="mt-1 block w-full cursor-pointer rounded-xl border border-dashed border-deep-navy/25 bg-soft-bg px-4 py-5 text-sm text-deep-navy/60 file:mr-4 file:rounded-full file:border-0 file:bg-agro-green file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-deep-navy disabled:opacity-60"
               />
             </label>
+
+            {busyImage && (
+              <div className="space-y-1">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-deep-navy/10">
+                  <div
+                    className="h-full rounded-full bg-agro-green transition-all"
+                    style={{ width: `${imageProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-deep-navy/60">
+                  Uploading… {imageProgress}%
+                </p>
+              </div>
+            )}
 
             <button
               type="button"

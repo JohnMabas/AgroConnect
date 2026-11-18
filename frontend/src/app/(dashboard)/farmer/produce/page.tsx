@@ -11,6 +11,7 @@ import {
   type ListingData,
   type ApiError,
 } from "@/lib/api";
+import { cardImageUrl } from "@/lib/cloudinary";
 
 // ─── Types / constants ────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ function ProduceCard({ listing, busy, onAction }: ProduceCardProps) {
           {primary ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={mediaUrl(primary.image_url)}
+              src={cardImageUrl(mediaUrl(primary.image_url))}
               alt={listing.title}
               className="h-full w-full object-cover"
               loading="lazy"

@@ -60,6 +60,11 @@ export default function CreateListingPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+    percent: number;
+  } | null>(null);
 
   // Load categories and all types
   useEffect(() => {
@@ -142,9 +147,19 @@ export default function CreateListingPage() {
       const createRes = await listingsApi.create(token, payload);
       createdId = createRes.data.listing.id;
 
-      for (const image of images) {
-        await listingsApi.addImage(token, createdId, image.file);
+      for (let index = 0; index < images.length; index += 1) {
+        setUploadProgress({ current: index + 1, total: images.length, percent: 0 });
+        await listingsApi.addImage(
+          token,
+          createdId,
+          images[index].file,
+          (percent) =>
+            setUploadProgress((prev) =>
+              prev ? { ...prev, percent } : prev,
+            ),
+        );
       }
+      setUploadProgress(null);
 
       if (publish) {
         await listingsApi.publish(token, createdId);
@@ -171,6 +186,7 @@ export default function CreateListingPage() {
       }
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   }
 
@@ -546,6 +562,20 @@ export default function CreateListingPage() {
             }}
             className="block w-full cursor-pointer rounded-xl border border-dashed border-deep-navy/25 bg-soft-bg px-4 py-6 text-sm text-deep-navy/60 file:mr-4 file:rounded-full file:border-0 file:bg-agro-green file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-deep-navy disabled:cursor-not-allowed disabled:opacity-60"
           />
+          {uploadProgress && (
+            <div className="space-y-1">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-deep-navy/10">
+                <div
+                  className="h-full rounded-full bg-agro-green transition-all"
+                  style={{ width: `${uploadProgress.percent}%` }}
+                />
+              </div>
+              <p className="text-xs text-deep-navy/60">
+                Uploading photo {uploadProgress.current} of{" "}
+                {uploadProgress.total}… {uploadProgress.percent}%
+              </p>
+            </div>
+          )}
           {images.length > 0 && (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {images.map((image, index) => (
