@@ -11,6 +11,7 @@ import {
 import type { ListingImageData } from "./listings.types.js";
 import { validatePublicImageUpload } from "../uploads/public-image.validation.js";
 import { deletePublicImageBestEffort } from "../uploads/public-image.cleanup.js";
+import { logUploadStage } from "../uploads/upload-stage-logger.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,8 +86,17 @@ export async function addImageFromUpload(
   file: Express.Multer.File,
 ): Promise<ListingImageData> {
   const detected = validatePublicImageUpload(file);
+  logUploadStage(listingId, "validated", {
+    bytes: file.size,
+    mimeType: detected.mimeType,
+  });
   await requireListingOwnership(userId, listingId);
 
+  const storageStartedAt = Date.now();
+  logUploadStage(listingId, "cloudinary_start", {
+    folder: "listings",
+    bytes: file.size,
+  });
   const stored = await publicImageStorage.saveImage({
     folder: "listings",
     buffer: file.buffer,
@@ -94,9 +104,14 @@ export async function addImageFromUpload(
     extension: detected.extension,
     ownerId: userId,
   });
+  logUploadStage(listingId, "cloudinary_end", {
+    durationMs: Date.now() - storageStartedAt,
+    publicId: stored.publicId,
+  });
 
+  const dbStartedAt = Date.now();
   try {
-    return await sequelize.transaction(async (transaction) => {
+    const image = await sequelize.transaction(async (transaction) => {
       await requireListingOwnership(userId, listingId, transaction);
 
       const existingCount = await ProduceListingImage.count({
@@ -105,7 +120,7 @@ export async function addImageFromUpload(
       });
       assertImageLimit(existingCount);
 
-      const image = await ProduceListingImage.create(
+      const created = await ProduceListingImage.create(
         {
           listing_id: listingId,
           image_url: stored.imageUrl,
@@ -117,8 +132,14 @@ export async function addImageFromUpload(
         { transaction },
       );
 
-      return buildImageData(image);
+      return buildImageData(created);
     });
+
+    logUploadStage(listingId, "db_write", {
+      durationMs: Date.now() - dbStartedAt,
+      imageId: image.id,
+    });
+    return image;
   } catch (err) {
     await deletePublicImageBestEffort(stored.publicId, "listing replacement");
     throw err;
