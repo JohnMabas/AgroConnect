@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import { Op, type Transaction } from "sequelize";
 import { env } from "../../config/env.js";
 import {
@@ -10,12 +9,12 @@ import {
 } from "../../database/models/index.js";
 import { emitToUser } from "../../realtime/registry.js";
 import { dispatchNotification } from "../notifications/notifications.service.js";
+import { buildCallIceConfig } from "./calls.ice-config.js";
 import type {
   CallConfigData,
   CallData,
   CallStatus,
   CallType,
-  IceServerConfig,
   PaginatedCalls,
 } from "./calls.types.js";
 import type { CreateCallInput, ListCallsQuery } from "./calls.validation.js";
@@ -66,40 +65,13 @@ async function loadCall(id: string, transaction?: Transaction): Promise<CallRow>
   return row;
 }
 
-function parseUrls(raw: string | undefined): string[] {
-  if (!raw) return [];
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-export function getCallConfigForUser(userId: string): CallConfigData {
-  const iceServers: IceServerConfig[] = [];
-  const stunUrls = parseUrls(env.STUN_URLS);
-  if (stunUrls.length > 0) {
-    iceServers.push({ urls: stunUrls.length === 1 ? stunUrls[0]! : stunUrls });
-  }
-
-  const turnUrls = parseUrls(env.TURN_URLS);
-  let turnConfigured = false;
-
-  if (turnUrls.length > 0 && env.TURN_SECRET) {
-    const ttl = env.TURN_CREDENTIAL_TTL_SECONDS;
-    const unixTs = Math.floor(Date.now() / 1000) + ttl;
-    const username = `${unixTs}:${userId}`;
-    const credential = createHmac("sha1", env.TURN_SECRET)
-      .update(username)
-      .digest("base64");
-    iceServers.push({
-      urls: turnUrls.length === 1 ? turnUrls[0]! : turnUrls,
-      username,
-      credential,
-    });
-    turnConfigured = true;
-  }
-
-  return { iceServers, turnConfigured };
+export function getCallConfigForUser(_userId: string): CallConfigData {
+  return buildCallIceConfig({
+    stunUrls: env.STUN_URLS,
+    turnUrls: env.TURN_URLS,
+    turnUsername: env.TURN_USERNAME,
+    turnCredential: env.TURN_CREDENTIAL,
+  });
 }
 
 async function assertCallAccess(
