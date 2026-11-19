@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { warnOnMissingTurnConfig } from "./turn-config-validation.js";
 
 // Vitest sets process.env.VITEST = "true" in every worker thread before any
 // module is evaluated. Skipping dotenv here prevents the backend/.env file
@@ -505,12 +506,6 @@ export const env = Object.freeze({
   TURN_URLS: optionalString(process.env.TURN_URLS),
   TURN_USERNAME: optionalString(process.env.TURN_USERNAME),
   TURN_CREDENTIAL: optionalString(process.env.TURN_CREDENTIAL),
-  TURN_SECRET: optionalString(process.env.TURN_SECRET),
-  TURN_CREDENTIAL_TTL_SECONDS: parsePositiveInt(
-    "TURN_CREDENTIAL_TTL_SECONDS",
-    process.env.TURN_CREDENTIAL_TTL_SECONDS,
-    3600,
-  ),
   CALL_RING_TIMEOUT_SECONDS: parsePositiveInt(
     "CALL_RING_TIMEOUT_SECONDS",
     process.env.CALL_RING_TIMEOUT_SECONDS,
@@ -734,5 +729,7 @@ export const env = Object.freeze({
     10,
   ),
 });
+
+warnOnMissingTurnConfig(NODE_ENV, env);
 
 export type Environment = typeof env;
