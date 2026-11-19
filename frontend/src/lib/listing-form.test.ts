@@ -162,7 +162,7 @@ describe("image helpers", () => {
     expect(isSupportedImageType("application/pdf")).toBe(false);
   });
 
-  it("enforces the 5 MiB size limit", () => {
+  it("enforces the 25 MiB raw input size limit", () => {
     expect(isImageWithinSizeLimit(MAX_IMAGE_SIZE_BYTES)).toBe(true);
     expect(isImageWithinSizeLimit(MAX_IMAGE_SIZE_BYTES + 1)).toBe(false);
   });
