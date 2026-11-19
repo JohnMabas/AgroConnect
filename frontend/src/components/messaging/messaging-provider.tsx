@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { messagingApi, type MessageData } from "@/lib/api";
+import { logSignalingFailure } from "@/lib/call-diagnostics";
 import {
   connectMessagingSocket,
   releaseMessagingSocket,
@@ -82,7 +83,10 @@ export function MessagingProvider({ token, userId, children }: MessagingProvider
       void refreshUnreadCount();
     };
     const onDisconnect = () => setConnectionStatus("disconnected");
-    const onError = () => setConnectionStatus("error");
+    const onError = (error: Error) => {
+      logSignalingFailure("socket", error);
+      setConnectionStatus("error");
+    };
     const onMessageNew = (payload: MessageNewPayload) => {
       const message: MessageData | undefined = payload?.message;
       if (!message || message.sender_user_id === userId) return;

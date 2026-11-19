@@ -1,6 +1,7 @@
 import { io, type Socket } from "socket.io-client";
 import type { CallData, ConversationData, MarkReadResult, MessageData } from "@/lib/api";
 import { getStoredAccessToken } from "@/lib/session";
+import { logSignalingFailure } from "@/lib/call-diagnostics";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
@@ -208,7 +209,15 @@ function emitWithAck<T = unknown>(
 ): Promise<SocketAck<T>> {
   return new Promise((resolve) => {
     socket.emit(event, payload, (ack: SocketAck<T>) => {
-      resolve(ack ?? { success: false, error: { message: "No response from server." } });
+      if (!ack) {
+        logSignalingFailure(event, { code: "NO_ACK" });
+        resolve({ success: false, error: { message: "No response from server." } });
+        return;
+      }
+      if (!ack.success && event.startsWith("call:")) {
+        logSignalingFailure(event, ack.error);
+      }
+      resolve(ack);
     });
   });
 }
