@@ -190,18 +190,17 @@ export function toSequelizeOptions(
     logging: false,
     benchmark: false,
     pool: {
-      max: 10,
+      max: 5,
       min: 0,
-      acquire: 30_000,
+      acquire: 15_000,
       idle: 10_000,
+      evict: 30_000,
     },
-    ...(config.ssl === false
-      ? {}
-      : {
-          dialectOptions: {
-            ssl: config.ssl,
-          },
-        }),
+    dialectOptions: {
+      ...(config.ssl === false ? {} : { ssl: config.ssl }),
+      keepAlive: true,
+      connectionTimeoutMillis: 10_000,
+    },
   };
 }
 
