@@ -36,6 +36,8 @@ export class CloudinaryPublicImageStorage implements PublicImageStorageAdapter {
     const uploadPublicId = `${input.folder}/${randomUUID()}`;
 
     const result = await new Promise<CloudinaryUploadResult | undefined>((resolve, reject) => {
+      let settled = false;
+      const state: { timer?: ReturnType<typeof setTimeout> } = {};
       const stream = cloudinary.uploader.upload_stream(
         {
           resource_type: "image",
@@ -45,13 +47,36 @@ export class CloudinaryPublicImageStorage implements PublicImageStorageAdapter {
           overwrite: false,
           use_filename: false,
           unique_filename: false,
+          timeout: env.CLOUDINARY_UPLOAD_TIMEOUT_MS,
         },
         (error, uploadResult) => {
+          if (settled) return;
+          settled = true;
+          if (state.timer) clearTimeout(state.timer);
           if (error) reject(error);
           else resolve(uploadResult);
         },
       );
-      stream.end(input.buffer);
+
+      state.timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        stream.destroy();
+        reject(
+          Object.assign(
+            new Error("Cloudinary image upload timed out."),
+            { code: "UPLOAD_TIMEOUT" },
+          ),
+        );
+      }, env.CLOUDINARY_UPLOAD_TIMEOUT_MS);
+
+      try {
+        stream.end(input.buffer);
+      } catch (error) {
+        if (state.timer) clearTimeout(state.timer);
+        settled = true;
+        reject(error);
+      }
     });
 
     const secureUrl = typeof result?.secure_url === "string" ? result.secure_url : "";

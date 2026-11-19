@@ -156,6 +156,7 @@ describe("CloudinaryPublicImageStorage", () => {
               "https://res.cloudinary.com/demo/image/upload/v1/agroconnect/profiles/photo.jpg",
             public_id: "agroconnect/profiles/photo",
           }),
+        destroy: vi.fn(),
       }),
     );
   });
@@ -180,6 +181,7 @@ describe("CloudinaryPublicImageStorage", () => {
         folder: "agroconnect",
         public_id: expect.stringMatching(/^profiles\/[0-9a-f-]{36}$/),
         overwrite: false,
+        timeout: env.CLOUDINARY_UPLOAD_TIMEOUT_MS,
       }),
       expect.any(Function),
     );
@@ -206,6 +208,36 @@ describe("CloudinaryPublicImageStorage", () => {
     await expect(
       storage.deleteImage("agroconnect/farms/missing"),
     ).resolves.toBeUndefined();
+  });
+
+  it("rejects with UPLOAD_TIMEOUT when Cloudinary never calls back", async () => {
+    const destroy = vi.fn();
+    cloudinaryMock.uploadStream.mockImplementation(() => ({
+      end: vi.fn(),
+      destroy,
+    }));
+    const { CloudinaryPublicImageStorage } = await import(
+      "../src/integrations/storage/cloudinary-public-image.storage.js"
+    );
+    const storage = new CloudinaryPublicImageStorage();
+
+    vi.useFakeTimers();
+    try {
+      const pending = storage.saveImage({
+        folder: "listings",
+        buffer: pngBuffer(),
+        mimeType: "image/png",
+        extension: "png",
+      });
+      const assertion = expect(pending).rejects.toMatchObject({
+        code: "UPLOAD_TIMEOUT",
+      });
+      await vi.advanceTimersByTimeAsync(env.CLOUDINARY_UPLOAD_TIMEOUT_MS);
+      await assertion;
+      expect(destroy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps the uploaded bytes available to the local adapter", async () => {
