@@ -27,11 +27,14 @@ import {
   validateListingForm,
   type ListingFormValues,
 } from "@/lib/listing-form";
+import { compressImageForUpload } from "@/lib/image-compression";
+import { mapWithConcurrency } from "@/lib/concurrency";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const inputClass =
   "w-full rounded-xl border border-deep-navy/20 bg-white px-4 py-3 text-sm text-deep-navy placeholder:text-deep-navy/40 outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/30";
+const MAX_COMPRESSED_SIZE_BYTES = 5 * 1024 * 1024;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -61,7 +64,7 @@ export default function CreateListingPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<{
-    current: number;
+    completed: number;
     total: number;
     percent: number;
   } | null>(null);
@@ -112,7 +115,7 @@ export default function CreateListingPage() {
         continue;
       }
       if (!isImageWithinSizeLimit(file.size)) {
-        setSaveError(`${file.name} is larger than the 5 MB limit.`);
+        setSaveError(`${file.name} is larger than the 25 MB input limit.`);
         continue;
       }
       accepted.push({ file, preview: URL.createObjectURL(file) });
@@ -145,20 +148,27 @@ export default function CreateListingPage() {
     try {
       const payload = listingFormToPayload(form);
       const createRes = await listingsApi.create(token, payload);
-      createdId = createRes.data.listing.id;
+      const targetListingId = createRes.data.listing.id;
+      createdId = targetListingId;
 
-      for (let index = 0; index < images.length; index += 1) {
-        setUploadProgress({ current: index + 1, total: images.length, percent: 0 });
-        await listingsApi.addImage(
-          token,
-          createdId,
-          images[index].file,
-          (percent) =>
-            setUploadProgress((prev) =>
-              prev ? { ...prev, percent } : prev,
-            ),
-        );
-      }
+      const total = images.length;
+      const completedState = { completed: 0, total };
+      const percentages = new Array<number>(total).fill(0);
+      setUploadProgress({ ...completedState, percent: 0 });
+      await mapWithConcurrency(images, 2, async (image, index) => {
+        const prepared = await compressImageForUpload(image.file);
+        if (prepared.size > MAX_COMPRESSED_SIZE_BYTES) {
+          throw new Error(`${image.file.name} is still too large after compression.`);
+        }
+        await listingsApi.addImage(token, targetListingId, prepared, (percent) => {
+          percentages[index] = percent;
+          const combined = Math.round(
+            percentages.reduce((sum, value) => sum + value, 0) / total,
+          );
+          setUploadProgress({ ...completedState, percent: combined });
+        });
+        completedState.completed += 1;
+      });
       setUploadProgress(null);
 
       if (publish) {
@@ -571,8 +581,8 @@ export default function CreateListingPage() {
                 />
               </div>
               <p className="text-xs text-deep-navy/60">
-                Uploading photo {uploadProgress.current} of{" "}
-                {uploadProgress.total}… {uploadProgress.percent}%
+                Uploaded {uploadProgress.completed} of {uploadProgress.total}{" "}
+                photos… {uploadProgress.percent}%
               </p>
             </div>
           )}
