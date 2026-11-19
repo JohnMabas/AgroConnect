@@ -24,6 +24,12 @@ import {
   type MessagingSocket,
 } from "@/lib/messaging-socket";
 import { useMessaging } from "@/components/messaging/messaging-provider";
+import {
+  fallbackIceConfig,
+  logSelectedCandidateType,
+  logSignalingFailure,
+  toCallErrorMessage,
+} from "@/lib/call-diagnostics";
 import { formatCallDuration } from "@/lib/messaging";
 
 type CallPhase = "idle" | "outgoing" | "incoming" | "connecting" | "connected" | "ended" | "error";
@@ -108,11 +114,21 @@ export function CallManagerProvider({ token, userId, children }: Props) {
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const timerRef = useRef<number | null>(null);
   const iceConfigRef = useRef<RTCConfiguration | null>(null);
+  const answerTimeoutRef = useRef<number | null>(null);
+  const iceRestartRef = useRef(false);
+  const negotiationReadyRef = useRef(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  const clearAnswerTimeout = useCallback(() => {
+    if (answerTimeoutRef.current) {
+      window.clearTimeout(answerTimeoutRef.current);
+      answerTimeoutRef.current = null;
+    }
+  }, []);
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -133,12 +149,18 @@ export function CallManagerProvider({ token, userId, children }: Props) {
   }, [stopTimer]);
 
   const cleanupMedia = useCallback(() => {
+    clearAnswerTimeout();
     stopTimer();
     pendingCandidatesRef.current = [];
+    iceRestartRef.current = false;
+    negotiationReadyRef.current = false;
     if (peerRef.current) {
       peerRef.current.onicecandidate = null;
-      peerRef.current.ontrack = null;
+      peerRef.current.onicecandidateerror = null;
+      peerRef.current.oniceconnectionstatechange = null;
       peerRef.current.onconnectionstatechange = null;
+      peerRef.current.onnegotiationneeded = null;
+      peerRef.current.ontrack = null;
       peerRef.current.close();
       peerRef.current = null;
     }
@@ -155,20 +177,25 @@ export function CallManagerProvider({ token, userId, children }: Props) {
     }
     setLocalStream(null);
     setRemoteStream(null);
-  }, [stopTimer]);
+  }, [clearAnswerTimeout, stopTimer]);
 
   useEffect(() => () => cleanupMedia(), [cleanupMedia]);
 
   const getIceConfig = useCallback(async (): Promise<RTCConfiguration> => {
     if (iceConfigRef.current) return iceConfigRef.current;
-    if (!token) return { iceServers: [] };
+    if (!token) {
+      console.warn("[call] ICE config unavailable; using STUN fallback");
+      return fallbackIceConfig();
+    }
     try {
       const res = await callsApi.getConfig(token);
       const config: RTCConfiguration = { iceServers: res.data.iceServers as RTCIceServer[] };
       iceConfigRef.current = config;
       return config;
-    } catch {
-      return { iceServers: [] };
+    } catch (error) {
+      logSignalingFailure("call:config", error);
+      console.warn("[call] ICE config unavailable; using STUN fallback");
+      return fallbackIceConfig();
     }
   }, [token]);
 
@@ -178,6 +205,47 @@ export function CallManagerProvider({ token, userId, children }: Props) {
       const config = await getIceConfig();
       const pc = new RTCPeerConnection(config);
       peerRef.current = pc;
+      iceRestartRef.current = false;
+      negotiationReadyRef.current = false;
+      let handlingFailure = false;
+
+      const handleConnectionFailure = () => {
+        const current = stateRef.current;
+        if (current.call?.id !== call.id || handlingFailure) return;
+        handlingFailure = true;
+
+        if (!iceRestartRef.current) {
+          iceRestartRef.current = true;
+          console.warn(`[call] ICE failed; restarting call=${call.id}`);
+          try {
+            pc.restartIce();
+          } catch (error) {
+            logSignalingFailure("ice-restart", error);
+          }
+          setState((stateNow) =>
+            stateNow.call?.id === call.id
+              ? { ...stateNow, error: "Connection interrupted. Reconnecting…" }
+              : stateNow,
+          );
+          window.setTimeout(() => {
+            handlingFailure = false;
+          }, 5000);
+          return;
+        }
+
+        handlingFailure = false;
+        console.error(`[call] connection failed after ICE restart call=${call.id}`);
+        setState((stateNow) =>
+          stateNow.call?.id === call.id
+            ? {
+                ...stateNow,
+                phase: "error",
+                error: "Connection failed after retry. Check your network and try again.",
+              }
+            : stateNow,
+        );
+      };
+
       const remote = new MediaStream();
       remoteStreamRef.current = remote;
       setRemoteStream(remote);
@@ -197,17 +265,30 @@ export function CallManagerProvider({ token, userId, children }: Props) {
           void sendCallIceCandidateViaSocket(socketConn, call.id, event.candidate.toJSON());
         }
       };
+      pc.onicecandidateerror = (event) => {
+        console.warn(
+          `[call] ICE candidate error call=${call.id} code=${event.errorCode} text=${event.errorText}`,
+        );
+      };
+      pc.oniceconnectionstatechange = () => {
+        const state = pc.iceConnectionState;
+        console.info(`[call] ICE state call=${call.id} state=${state}`);
+        if (state === "connected" || state === "completed") {
+          clearAnswerTimeout();
+          void logSelectedCandidateType(pc, call.id);
+        }
+        if (state === "failed") handleConnectionFailure();
+      };
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === "connected") {
+        const state = pc.connectionState;
+        console.info(`[call] connection state call=${call.id} state=${state}`);
+        if (state === "connected") {
           setState((current) => (current.call?.id === call.id ? { ...current, phase: "connected", error: "" } : current));
+          clearAnswerTimeout();
           startTimer();
-        } else if (pc.connectionState === "failed") {
-          setState((current) =>
-            current.call?.id === call.id
-              ? { ...current, phase: "error", error: "Connection failed. Please try again." }
-              : current,
-          );
-        } else if (pc.connectionState === "disconnected") {
+        } else if (state === "failed") {
+          handleConnectionFailure();
+        } else if (state === "disconnected") {
           setState((current) =>
             current.call?.id === call.id && current.phase === "connected"
               ? { ...current, error: "Connection interrupted. Trying to recover…" }
@@ -215,9 +296,26 @@ export function CallManagerProvider({ token, userId, children }: Props) {
           );
         }
       };
+      pc.onnegotiationneeded = () => {
+        if (!negotiationReadyRef.current || call.caller_user_id !== userId) return;
+        const current = stateRef.current;
+        if (current.call?.id !== call.id) return;
+        void (async () => {
+          try {
+            const offer = await pc.createOffer({
+              iceRestart: iceRestartRef.current,
+            });
+            await pc.setLocalDescription(offer);
+            const ack = await sendCallOfferViaSocket(socketConn, call.id, offer);
+            if (!ack.success) logSignalingFailure("call:offer", ack.error);
+          } catch (error) {
+            logSignalingFailure("call:offer", error);
+          }
+        })();
+      };
       return pc;
     },
-    [getIceConfig, startTimer],
+    [clearAnswerTimeout, getIceConfig, startTimer, userId],
   );
 
   const getLocalStream = useCallback(async (callType: CallType): Promise<MediaStream> => {
@@ -225,10 +323,17 @@ export function CallManagerProvider({ token, userId, children }: Props) {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       throw new Error("Calling is not supported in this browser.");
     }
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: callType === "video",
-    });
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: callType === "video",
+      });
+    } catch (error) {
+      throw new Error(
+        toCallErrorMessage(error, "Could not access microphone or camera."),
+      );
+    }
     localStreamRef.current = stream;
     setLocalStream(stream);
     let canSwitchCamera = false;
@@ -279,10 +384,42 @@ export function CallManagerProvider({ token, userId, children }: Props) {
     [cleanupMedia],
   );
 
+  const startAnswerTimeout = useCallback(
+    (callId: string) => {
+      clearAnswerTimeout();
+      answerTimeoutRef.current = window.setTimeout(() => {
+        const current = stateRef.current;
+        if (current.call?.id !== callId || current.phase === "connected") return;
+        console.warn(`[call] no answer after 30000ms call=${callId}`);
+        if (socket) void endCallViaSocket(socket, callId, "timeout");
+        cleanupMedia();
+        setState({
+          ...defaultState,
+          phase: "error",
+          call: current.call,
+          peerName: current.peerName,
+          durationSeconds: current.durationSeconds,
+          speakerSelectionSupported: current.speakerSelectionSupported,
+          error: "No answer after 30 seconds. The other user may be offline or unable to answer.",
+        });
+      }, 30_000);
+    },
+    [clearAnswerTimeout, cleanupMedia, socket],
+  );
+
   const startCall = useCallback(
     async ({ conversationId, calleeUserId, callType, peerName }: StartCallOptions) => {
       if (!socket || !token || !userId) {
         setState({ ...defaultState, phase: "error", error: "Sign in and connect to start a call." });
+        return;
+      }
+      if (!socket.connected) {
+        setState({
+          ...defaultState,
+          phase: "error",
+          peerName,
+          error: "The other user is offline or unavailable. Check your connection and try again.",
+        });
         return;
       }
       if (stateRef.current.phase !== "idle") return;
@@ -295,7 +432,8 @@ export function CallManagerProvider({ token, userId, children }: Props) {
           call_type: callType,
         });
         if (!inviteAck.success) {
-          throw new Error(inviteAck.error?.message || "Could not start the call.");
+          logSignalingFailure("call:invite", inviteAck.error);
+          throw new Error(toCallErrorMessage(inviteAck.error, "Could not start the call."));
         }
         if (!inviteAck.data?.call) {
           throw new Error("Could not start the call.");
@@ -308,8 +446,11 @@ export function CallManagerProvider({ token, userId, children }: Props) {
         await pc.setLocalDescription(offer);
         const offerAck = await sendCallOfferViaSocket(socket, call.id, offer);
         if (!offerAck.success) {
-          throw new Error(offerAck.error?.message || "Could not send call offer.");
+          logSignalingFailure("call:offer", offerAck.error);
+          throw new Error(toCallErrorMessage(offerAck.error, "Could not send call offer."));
         }
+        negotiationReadyRef.current = true;
+        startAnswerTimeout(call.id);
       } catch (err) {
         const call = stateRef.current.call;
         if (call && socket) {
@@ -320,12 +461,12 @@ export function CallManagerProvider({ token, userId, children }: Props) {
           ...defaultState,
           phase: "error",
           peerName,
-          error: err instanceof Error ? err.message : "Could not start the call.",
+          error: toCallErrorMessage(err, "Could not start the call."),
         });
         window.setTimeout(() => setState(defaultState), 2500);
       }
     },
-    [socket, token, userId, getLocalStream, ensurePeer, cleanupMedia],
+    [socket, token, userId, getLocalStream, ensurePeer, cleanupMedia, startAnswerTimeout],
   );
 
   const acceptIncomingCall = useCallback(async () => {
@@ -338,7 +479,8 @@ export function CallManagerProvider({ token, userId, children }: Props) {
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       const ack = await acceptCallViaSocket(socket, current.call.id);
       if (!ack.success) {
-        throw new Error(ack.error?.message || "Could not accept the call.");
+        logSignalingFailure("call:accept", ack.error);
+        throw new Error(toCallErrorMessage(ack.error, "Could not accept the call."));
       }
       if (!ack.data?.call) {
         throw new Error("Could not accept the call.");
@@ -351,7 +493,12 @@ export function CallManagerProvider({ token, userId, children }: Props) {
       if (pc.signalingState === "have-remote-offer") {
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        await sendCallAnswerViaSocket(socket, current.call.id, answer);
+        const answerAck = await sendCallAnswerViaSocket(socket, current.call.id, answer);
+        if (!answerAck.success) {
+          logSignalingFailure("call:answer", answerAck.error);
+          throw new Error(toCallErrorMessage(answerAck.error, "Could not answer the call."));
+        }
+        negotiationReadyRef.current = true;
       }
     } catch (err) {
       const call = stateRef.current.call;
@@ -360,7 +507,7 @@ export function CallManagerProvider({ token, userId, children }: Props) {
       setState({
         ...defaultState,
         phase: "error",
-        error: err instanceof Error ? err.message : "Could not accept the call.",
+        error: toCallErrorMessage(err, "Could not accept the call."),
       });
       window.setTimeout(() => setState(defaultState), 2500);
     }
@@ -533,6 +680,7 @@ export function CallManagerProvider({ token, userId, children }: Props) {
     const onRejected = (payload: CallEventPayload) => {
       const call = payload?.call;
       if (!call || stateRef.current.call?.id !== call.id) return;
+      clearAnswerTimeout();
       cleanupMedia();
       setState({ ...defaultState, phase: "error", error: "Call declined.", peerName: stateRef.current.peerName, call });
       window.setTimeout(() => setState(defaultState), 2000);
@@ -546,6 +694,7 @@ export function CallManagerProvider({ token, userId, children }: Props) {
 
     const onFailed = (payload: { call_id?: string; message?: string }) => {
       if (payload?.call_id && stateRef.current.call?.id !== payload.call_id) return;
+      clearAnswerTimeout();
       cleanupMedia();
       setState({ ...defaultState, phase: "error", error: payload?.message || "Call failed." });
       window.setTimeout(() => setState(defaultState), 2500);
@@ -570,10 +719,13 @@ export function CallManagerProvider({ token, userId, children }: Props) {
         ) {
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          await sendCallAnswerViaSocket(socket, call_id, answer);
+          const answerAck = await sendCallAnswerViaSocket(socket, call_id, answer);
+          if (!answerAck.success) {
+            logSignalingFailure("call:answer", answerAck.error);
+          }
         }
-      } catch {
-        // ignore malformed signaling
+      } catch (error) {
+        logSignalingFailure("call:offer", error);
       }
     };
 
@@ -582,12 +734,13 @@ export function CallManagerProvider({ token, userId, children }: Props) {
       if (!call_id || !sdp) return;
       const current = stateRef.current;
       if (current.call?.id !== call_id) return;
+      clearAnswerTimeout();
       try {
         const pc = await ensurePeer(socket, current.call);
         await pc.setRemoteDescription(sdp as RTCSessionDescriptionInit);
         await flushPendingCandidates(pc);
-      } catch {
-        // ignore malformed signaling
+      } catch (error) {
+        logSignalingFailure("call:answer", error);
       }
     };
 
@@ -603,8 +756,8 @@ export function CallManagerProvider({ token, userId, children }: Props) {
       }
       try {
         await pc.addIceCandidate(candidate as RTCIceCandidateInit);
-      } catch {
-        // ignore
+      } catch (error) {
+        logSignalingFailure("call:ice-candidate", error);
       }
     };
 
@@ -627,7 +780,7 @@ export function CallManagerProvider({ token, userId, children }: Props) {
       socket.off("call:answer", onAnswer);
       socket.off("call:ice-candidate", onCandidate);
     };
-  }, [socket, userId, cleanupMedia, ensurePeer, finalize, flushPendingCandidates]);
+  }, [socket, userId, cleanupMedia, clearAnswerTimeout, ensurePeer, finalize, flushPendingCandidates]);
 
   const value = useMemo(
     () => ({
