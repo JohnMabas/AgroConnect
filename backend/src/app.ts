@@ -7,6 +7,8 @@ import { allowedOrigins } from "./config/cors.js";
 import { checkDatabaseHealth } from "./database/connection.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFoundHandler } from "./middleware/not-found.js";
+import { requestLogger } from "./middleware/request-logger.js";
+import { requestTimeout } from "./middleware/request-timeout.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import { createProfilesRouter } from "./modules/profiles/profiles.routes.js";
 import { createFarmersRouter } from "./modules/farmers/farmers.routes.js";
@@ -74,6 +76,8 @@ export function createApp(
   const app = express();
 
   app.disable("x-powered-by");
+  app.use(requestLogger);
+  app.use(requestTimeout(env.REQUEST_TIMEOUT_MS));
 
   // Trust the first proxy hop (e.g. Render) so req.ip and rate limiting work
   // correctly with X-Forwarded-* headers.

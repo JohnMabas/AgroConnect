@@ -156,6 +156,9 @@ async function start(): Promise<void> {
     stopNotificationWorker = notifications.stopNotificationWorker;
 
     server = createServer(app);
+    server.requestTimeout = env.REQUEST_TIMEOUT_MS + 5_000;
+    server.headersTimeout = env.REQUEST_TIMEOUT_MS + 10_000;
+    server.keepAliveTimeout = 5_000;
     realtime.createSocketServer(server);
     stopRealtime = realtime.stopSocketServer;
 
