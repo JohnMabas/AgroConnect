@@ -22,9 +22,12 @@ import {
   validateListingForm,
   type ListingFormValues,
 } from "@/lib/listing-form";
+import { compressImageForUpload } from "@/lib/image-compression";
+import { mapWithConcurrency } from "@/lib/concurrency";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2 text-sm text-deep-navy outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/30 disabled:bg-deep-navy/5";
+const MAX_COMPRESSED_SIZE_BYTES = 5 * 1024 * 1024;
 
 export default function EditListingClient({ listingId }: { listingId: string }) {
   const router = useRouter();
@@ -135,19 +138,30 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
       return;
     }
 
+    const selected = Array.from(files).slice(0, availableSlots);
     setBusyImage(true);
     setImageProgress(0);
     setError("");
     try {
-      for (const file of Array.from(files).slice(0, availableSlots)) {
+      let completed = 0;
+      await mapWithConcurrency(selected, 2, async (file) => {
         if (!isSupportedImageType(file.type)) {
           throw new Error(`${file.name} is not a supported image type.`);
         }
         if (!isImageWithinSizeLimit(file.size)) {
-          throw new Error(`${file.name} is larger than the 5 MB limit.`);
+          throw new Error(`${file.name} is larger than the 25 MB input limit.`);
         }
-        await listingsApi.addImage(token, listing.id, file, setImageProgress);
-      }
+        const prepared = await compressImageForUpload(file);
+        if (prepared.size > MAX_COMPRESSED_SIZE_BYTES) {
+          throw new Error(`${file.name} is still too large after compression.`);
+        }
+        await listingsApi.addImage(token, listing.id, prepared, (percent) => {
+          setImageProgress(
+            Math.round((completed * 100 + percent) / selected.length),
+          );
+        });
+        completed += 1;
+      });
       setImageProgress(100);
       await refreshListing();
     } catch (err) {
