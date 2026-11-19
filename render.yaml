@@ -30,6 +30,10 @@ services:
         sync: false
       - key: CLOUDINARY_PUBLIC_FOLDER
         value: "agroconnect"
+      - key: CLOUDINARY_UPLOAD_TIMEOUT_MS
+        value: "15000"
+      - key: REQUEST_TIMEOUT_MS
+        value: "45000"
       - key: CLOUDINARY_FOLDER
         value: "agroconnect/messages"
 

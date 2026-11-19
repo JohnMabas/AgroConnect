@@ -166,6 +166,11 @@ if (AI_PROVIDER === "openai_compatible") {
 export const env = Object.freeze({
   NODE_ENV,
   PORT: parsePort(process.env.PORT, 5000),
+  REQUEST_TIMEOUT_MS: parsePositiveInt(
+    "REQUEST_TIMEOUT_MS",
+    process.env.REQUEST_TIMEOUT_MS,
+    45_000,
+  ),
   // Render/proxies set X-Forwarded-* headers; trust the first proxy hop by default.
   TRUST_PROXY: (() => {
     const raw = optionalString(process.env.TRUST_PROXY);
@@ -466,6 +471,11 @@ export const env = Object.freeze({
     optionalString(process.env.CLOUDINARY_FOLDER) ?? "agroconnect/messages",
   CLOUDINARY_PUBLIC_FOLDER:
     optionalString(process.env.CLOUDINARY_PUBLIC_FOLDER) ?? "agroconnect",
+  CLOUDINARY_UPLOAD_TIMEOUT_MS: parsePositiveInt(
+    "CLOUDINARY_UPLOAD_TIMEOUT_MS",
+    process.env.CLOUDINARY_UPLOAD_TIMEOUT_MS,
+    15_000,
+  ),
   // Global upload ceiling in MiB used for message attachments; falls back to the
   // larger of the per-type attachment limits when not explicitly set.
   MAX_UPLOAD_SIZE_MB: parsePositiveInt(
