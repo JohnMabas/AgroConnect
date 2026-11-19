@@ -39,9 +39,42 @@ export function uploadFormData<T>(
   formData: FormData,
   token: string,
   onProgress?: (percent: number) => void,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const timeoutMs = options.timeoutMs ?? 60_000;
+    const controller = new AbortController();
+    let timedOut = false;
+    let settled = false;
+
+    const onAbort = () => xhr.abort();
+    const onExternalAbort = () => {
+      timedOut = false;
+      controller.abort();
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      controller.signal.removeEventListener("abort", onAbort);
+      options.signal?.removeEventListener("abort", onExternalAbort);
+      callback();
+    };
+
+    controller.signal.addEventListener("abort", onAbort, { once: true });
+    if (options.signal?.aborted) {
+      finish(() => reject(new ApiError(0, "Upload canceled.")));
+      return;
+    }
+    if (options.signal) {
+      options.signal.addEventListener("abort", onExternalAbort, { once: true });
+    }
+
     xhr.open("POST", `${API_BASE}${path}`);
     xhr.withCredentials = true;
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -53,38 +86,60 @@ export function uploadFormData<T>(
     };
 
     xhr.onload = () => {
-      let body: {
-        error?: { message?: string };
-        message?: string;
-        errors?: Array<{ field: string; message: string }>;
-        data?: Record<string, unknown>;
-      } = {};
-      try {
-        const parsed: unknown = xhr.responseText
-          ? JSON.parse(xhr.responseText)
-          : {};
-        body = parsed as typeof body;
-      } catch {
-        body = {};
-      }
+      finish(() => {
+        let body: {
+          error?: { message?: string };
+          message?: string;
+          errors?: Array<{ field: string; message: string }>;
+          data?: Record<string, unknown>;
+        } = {};
+        try {
+          const parsed: unknown = xhr.responseText
+            ? JSON.parse(xhr.responseText)
+            : {};
+          body = parsed as typeof body;
+        } catch {
+          body = {};
+        }
 
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body as T);
-        return;
-      }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as T);
+          return;
+        }
 
-      reject(
-        new ApiError(
-          xhr.status,
-          body?.error?.message ?? body?.message ?? "Upload failed.",
-          body?.errors,
-          body?.data,
+        reject(
+          new ApiError(
+            xhr.status,
+            body?.error?.message ?? body?.message ?? "Upload failed.",
+            body?.errors,
+            body?.data,
+          ),
+        );
+      });
+    };
+
+    xhr.onerror = () => {
+      finish(() =>
+        reject(
+          new ApiError(
+            0,
+            "Network error during upload. Check your connection and retry.",
+          ),
         ),
       );
     };
 
-    xhr.onerror = () => {
-      reject(new ApiError(0, "Network error during upload."));
+    xhr.onabort = () => {
+      finish(() =>
+        reject(
+          new ApiError(
+            timedOut ? 504 : 0,
+            timedOut
+              ? "Upload timed out. Please retry."
+              : "Upload canceled.",
+          ),
+        ),
+      );
     };
 
     xhr.send(formData);
@@ -740,6 +795,7 @@ export const listingsApi = {
     id: string,
     image: File | string,
     onProgress?: (percent: number) => void,
+    options?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<ImageResponse> => {
     if (typeof image === "string") {
       return request(`/listings/${id}/images`, {
@@ -756,6 +812,7 @@ export const listingsApi = {
       form,
       token,
       onProgress,
+      options,
     );
   },
   deleteImage: (token: string, id: string, imageId: string) =>
