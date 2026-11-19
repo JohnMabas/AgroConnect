@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { thumbnailImageUrl } from "@/lib/cloudinary";
+import { compressImageForUpload } from "@/lib/image-compression";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_INPUT_SIZE_BYTES = 25 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
 
 export type ImageUploadRequest = (
   file: File,
@@ -28,7 +30,7 @@ export function SingleImageUpload({
   upload,
   remove,
   label = "Image",
-  hint = "JPEG, PNG or WebP, up to 5 MB.",
+  hint = "JPEG, PNG or WebP; large photos are compressed before upload.",
   alt = "Image preview",
   disabled = false,
 }: SingleImageUploadProps) {
@@ -37,6 +39,7 @@ export function SingleImageUpload({
   const [removing, setRemoving] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+  const [lastFile, setLastFile] = useState<File | null>(null);
   const objectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -54,20 +57,7 @@ export function SingleImageUpload({
     }
   }
 
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Upload a JPEG, PNG or WebP image.");
-      return;
-    }
-    if (file.size > MAX_SIZE_BYTES) {
-      setError("Image must be 5 MB or smaller.");
-      return;
-    }
-
+  async function runUpload(file: File) {
     clearObjectUrl();
     const objectUrl = URL.createObjectURL(file);
     objectUrlRef.current = objectUrl;
@@ -77,7 +67,11 @@ export function SingleImageUpload({
     setError("");
 
     try {
-      const imageUrl = await upload(file, setProgress);
+      const prepared = await compressImageForUpload(file);
+      if (prepared.size > MAX_UPLOAD_SIZE_BYTES) {
+        throw new Error("Image is still too large after compression.");
+      }
+      const imageUrl = await upload(prepared, setProgress);
       setPreview(undefined);
       onChange(imageUrl);
     } catch (err) {
@@ -87,6 +81,24 @@ export function SingleImageUpload({
       clearObjectUrl();
       setUploading(false);
     }
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setError("Upload a JPEG, PNG or WebP image.");
+      return;
+    }
+    if (file.size > MAX_INPUT_SIZE_BYTES) {
+      setError("Image must be 25 MB or smaller.");
+      return;
+    }
+
+    setLastFile(file);
+    void runUpload(file);
   }
 
   async function handleRemove() {
@@ -154,9 +166,21 @@ export function SingleImageUpload({
       )}
 
       {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
+        <div className="space-y-2">
+          <p role="alert" className="text-sm text-red-700">
+            {error}
+          </p>
+          {lastFile && (
+            <button
+              type="button"
+              disabled={busy || disabled}
+              onClick={() => void runUpload(lastFile)}
+              className="rounded-full bg-deep-navy px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Retry upload
+            </button>
+          )}
+        </div>
       )}
 
       {(value || preview) && (

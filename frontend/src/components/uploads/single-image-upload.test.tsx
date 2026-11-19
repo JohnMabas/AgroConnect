@@ -34,7 +34,9 @@ describe("SingleImageUpload", () => {
     );
 
     expect(screen.getByText("No image uploaded")).toBeTruthy();
-    expect(screen.getByText(/JPEG, PNG or WebP, up to 5 MB/)).toBeTruthy();
+    expect(
+      screen.getByText(/large photos are compressed before upload/),
+    ).toBeTruthy();
     expect(fileInput(container).accept).toBe(
       "image/jpeg,image/png,image/webp",
     );
@@ -85,19 +87,19 @@ describe("SingleImageUpload", () => {
     expect(preview.style.backgroundImage).toContain("f_auto,q_auto");
   });
 
-  it("rejects files larger than 5 MB before uploading", () => {
+  it("rejects files larger than 25 MB before uploading", () => {
     const upload = vi.fn();
     const { container } = render(
       <SingleImageUpload value={null} onChange={() => {}} upload={upload} />,
     );
-    const bigFile = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.png", {
+    const bigFile = new File([new Uint8Array(25 * 1024 * 1024 + 1)], "big.png", {
       type: "image/png",
     });
 
     fireEvent.change(fileInput(container), { target: { files: [bigFile] } });
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Image must be 5 MB or smaller.",
+      "Image must be 25 MB or smaller.",
     );
     expect(upload).not.toHaveBeenCalled();
   });
@@ -116,6 +118,28 @@ describe("SingleImageUpload", () => {
     );
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByRole("img", { name: "Image preview" })).toBeNull();
+  });
+
+  it("shows a retry button and reuses the file after a failed upload", async () => {
+    const upload = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Upload timed out. Please retry."))
+      .mockResolvedValueOnce(UPLOADED_URL);
+    const onChange = vi.fn();
+    const { container } = render(
+      <SingleImageUpload value={null} onChange={onChange} upload={upload} />,
+    );
+
+    fireEvent.change(fileInput(container), { target: { files: [pngFile()] } });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Upload timed out. Please retry.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry upload" }));
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(UPLOADED_URL));
+    expect(upload).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("rejects unsupported file types before uploading", () => {
