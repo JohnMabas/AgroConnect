@@ -1,9 +1,4 @@
-// Resolve the database hostname to an IPv4 address before any database module
-// is imported. This machine's DNS synthesises a NAT64 AAAA record alongside
-// the real A record. Node's Happy Eyeballs races both in parallel; the IPv6
-// attempt fails immediately (ENETUNREACH) and the AggregateError surfaces as
-// ETIMEDOUT in the Sequelize pool. Pre-resolving to IPv4 avoids the race.
-import { resolve4 } from "node:dns/promises";
+import "./database/resolve-host.js";
 
 import { createServer } from "node:http";
 import type { Server } from "node:http";
@@ -80,49 +75,6 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
 
 async function start(): Promise<void> {
   try {
-    // Load .env first (dotenv is idempotent) so we can read the hostname before
-    // env.ts caches it. Then resolve the hostname to an IPv4 address to prevent
-    // Node's Happy Eyeballs from racing IPv4 against an unreachable DNS64
-    // synthetic AAAA record, which causes ETIMEDOUT in the Sequelize pool.
-    const { config: loadDotenv } = await import("dotenv");
-    loadDotenv({ quiet: true });
-
-    const rawUrl = process.env.DATABASE_URL;
-    const rawHost = process.env.DB_HOST;
-    const hostname = rawUrl
-      ? (() => {
-          try {
-            return new URL(rawUrl).hostname;
-          } catch {
-            return undefined;
-          }
-        })()
-      : rawHost;
-
-    if (hostname) {
-      try {
-        const addresses = await resolve4(hostname);
-        const ipv4 = addresses[0];
-        if (ipv4 !== undefined) {
-          // Patch process.env so env.ts uses the resolved IP.
-          // Keep the original hostname in DB_SSL_SERVERNAME so TLS SNI works.
-          if (rawUrl) {
-            const parsed = new URL(rawUrl);
-            process.env.DB_SSL_SERVERNAME = parsed.hostname;
-            parsed.hostname = ipv4;
-            process.env.DATABASE_URL = parsed.toString();
-          } else if (rawHost) {
-            process.env.DB_SSL_SERVERNAME = rawHost;
-            process.env.DB_HOST = ipv4;
-          }
-          console.log(`Resolved ${hostname} → ${ipv4} (IPv4)`);
-        }
-      } catch {
-        // DNS resolution failed; proceed with the original hostname and hope
-        // for the best (e.g. IPv6-capable network, or hostname is already an IP).
-      }
-    }
-
     const { env } = await import("./config/env.js");
     connection = await import("./database/connection.js");
     const { app } = await import("./app.js");
@@ -130,6 +82,18 @@ async function start(): Promise<void> {
 
     await connection.testDatabaseConnection();
     console.log(`Database connection established in ${env.NODE_ENV} mode.`);
+
+    if (env.NODE_ENV === "development") {
+      const { findMissingModelColumns } = await import(
+        "./database/schema-check.js"
+      );
+      const missingColumns = await findMissingModelColumns();
+      if (missingColumns.length > 0) {
+        console.warn(
+          `[db:check] Development database schema warning: missing columns: ${missingColumns.join(", ")}. Run npm run db:migrate.`,
+        );
+      }
+    }
 
     const buyerRequestExpiry = await import(
       "./modules/buyer-requests/buyer-requests.service.js"
