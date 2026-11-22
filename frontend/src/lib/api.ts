@@ -583,6 +583,7 @@ export interface ProduceTypeData {
   slug: string;
   description: string | null;
   image_url: string | null;
+  secure_url?: string | null;
   public_id?: string | null;
   is_active: boolean;
   category?: ProduceCategoryData;
@@ -630,6 +631,7 @@ export interface ListingImageData {
   id: string;
   listing_id: string;
   image_url: string;
+  secure_url?: string | null;
   public_id?: string | null;
   is_primary: boolean;
   display_order: number;
