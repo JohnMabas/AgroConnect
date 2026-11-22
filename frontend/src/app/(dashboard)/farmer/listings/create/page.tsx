@@ -63,6 +63,11 @@ export default function CreateListingPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [pendingUpload, setPendingUpload] = useState<{
+    listingId: string;
+    files: Array<{ file: File; preview: string }>;
+    publish: boolean;
+  } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{
     completed: number;
     total: number;
@@ -79,8 +84,8 @@ export default function CreateListingPage() {
         ]);
         setCategories(catRes.data.categories.filter((c) => c.is_active));
         setProduceTypes(typeRes.data.types.filter((t) => t.is_active));
-      } catch {
-        // non-fatal — form still usable but dropdowns empty
+      } catch (err) {
+        console.warn("Could not load listing catalogue.", err);
       }
     }
     void loadCatalogue();
@@ -134,6 +139,76 @@ export default function CreateListingPage() {
     });
   }
 
+  async function uploadListingImages(
+    files: Array<{ file: File; preview: string }>,
+    targetListingId: string,
+    authToken: string,
+  ): Promise<{
+    failed: Array<{ file: File; preview: string }>;
+    message: string | null;
+  }> {
+    const failed: Array<{ file: File; preview: string }> = [];
+    const messages: string[] = [];
+    const total = files.length;
+    const percentages = new Array<number>(total).fill(0);
+    const completedState = { completed: 0, total };
+    setUploadProgress({ ...completedState, percent: 0 });
+
+    await mapWithConcurrency(files, 2, async (image, index) => {
+      try {
+        const prepared = await compressImageForUpload(image.file);
+        if (prepared.size > MAX_COMPRESSED_SIZE_BYTES) {
+          throw new Error(`${image.file.name} is still too large after compression.`);
+        }
+        await listingsApi.addImage(authToken, targetListingId, prepared, (percent) => {
+          percentages[index] = percent;
+          const combined = Math.round(
+            percentages.reduce((sum, value) => sum + value, 0) / total,
+          );
+          setUploadProgress({ ...completedState, percent: combined });
+        });
+        completedState.completed += 1;
+      } catch (err) {
+        failed.push(image);
+        messages.push(
+          err instanceof Error ? err.message : "The image could not be uploaded.",
+        );
+      }
+    });
+
+    return { failed, message: messages[0] ?? null };
+  }
+
+  async function retryPendingUpload() {
+    if (!pendingUpload || !token) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      const result = await uploadListingImages(
+        pendingUpload.files,
+        pendingUpload.listingId,
+        token,
+      );
+      if (result.failed.length > 0) {
+        setPendingUpload({ ...pendingUpload, files: result.failed });
+        setSaveError(result.message ?? "Some photos could not be uploaded. Retry below.");
+        return;
+      }
+      setPendingUpload(null);
+      if (pendingUpload.publish) {
+        await listingsApi.publish(token, pendingUpload.listingId);
+      }
+      router.push("/farmer/listings");
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "The photos could not be uploaded.",
+      );
+    } finally {
+      setSaving(false);
+      setUploadProgress(null);
+    }
+  }
+
   async function handleSubmit(e: FormEvent, publish: boolean) {
     e.preventDefault();
     const errs = validateListingForm(form);
@@ -151,37 +226,31 @@ export default function CreateListingPage() {
       const targetListingId = createRes.data.listing.id;
       createdId = targetListingId;
 
-      const total = images.length;
-      const completedState = { completed: 0, total };
-      const percentages = new Array<number>(total).fill(0);
-      setUploadProgress({ ...completedState, percent: 0 });
-      await mapWithConcurrency(images, 2, async (image, index) => {
-        const prepared = await compressImageForUpload(image.file);
-        if (prepared.size > MAX_COMPRESSED_SIZE_BYTES) {
-          throw new Error(`${image.file.name} is still too large after compression.`);
-        }
-        await listingsApi.addImage(token, targetListingId, prepared, (percent) => {
-          percentages[index] = percent;
-          const combined = Math.round(
-            percentages.reduce((sum, value) => sum + value, 0) / total,
-          );
-          setUploadProgress({ ...completedState, percent: combined });
+      const result = await uploadListingImages(images, targetListingId, token);
+      if (result.failed.length > 0) {
+        setPendingUpload({
+          listingId: targetListingId,
+          files: result.failed,
+          publish,
         });
-        completedState.completed += 1;
-      });
+        setSaveError(result.message ?? "Some photos could not be uploaded. Retry below.");
+        return;
+      }
       setUploadProgress(null);
+      setPendingUpload(null);
 
       if (publish) {
-        await listingsApi.publish(token, createdId);
+        await listingsApi.publish(token, targetListingId);
       }
 
       router.push("/farmer/listings");
     } catch (err) {
       if (createdId) {
+        const apiErr = err as ApiError;
+        setPendingUpload({ listingId: createdId, files: images, publish });
         setSaveError(
-          "Your listing was saved as a draft, but the remaining images could not be uploaded. Add them from the edit page.",
+          apiErr.message ?? "Your listing was saved, but the photos could not be uploaded.",
         );
-        router.push(`/farmer/listings/${createdId}/edit`);
         return;
       }
       const apiErr = err as ApiError;
@@ -218,7 +287,17 @@ export default function CreateListingPage() {
       <form noValidate className="space-y-6">
         {saveError && (
           <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-            {saveError}
+            <p>{saveError}</p>
+            {pendingUpload && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void retryPendingUpload()}
+                className="mt-2 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                Retry upload
+              </button>
+            )}
           </div>
         )}
 
