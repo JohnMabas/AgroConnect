@@ -46,6 +46,7 @@ import * as createMessageAttachments from "./20261120000002-create-message-attac
 import * as createCallSessions from "./20261120000003-create-call-sessions.js";
 import * as addCloudinaryFieldsToMessageAttachments from "./20261120000004-add-cloudinary-fields-to-message-attachments.js";
 import * as addPublicImageFields from "./20261121000001-add-public-image-fields.js";
+import * as addPublicImageSecureUrls from "./20261121000002-add-public-image-secure-urls.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -215,5 +216,9 @@ export const migrations = [
   {
     name: "20261121000001-add-public-image-fields",
     ...addPublicImageFields,
+  },
+  {
+    name: "20261121000002-add-public-image-secure-urls",
+    ...addPublicImageSecureUrls,
   },
 ];

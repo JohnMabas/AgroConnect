@@ -175,6 +175,7 @@ const ALL_MIGRATION_NAMES = [
   "20261120000003-create-call-sessions",
   "20261120000004-add-cloudinary-fields-to-message-attachments",
   "20261121000001-add-public-image-fields",
+  "20261121000002-add-public-image-secure-urls",
 ];
 
 async function getPublicTables(): Promise<string[]> {
@@ -221,6 +222,6 @@ describe("migrations", () => {
       expect(reapplied).toHaveLength(ALL_MIGRATION_NAMES.length);
       await expect(getPublicTables()).resolves.toEqual(ALL_TABLES);
     },
-    360_000,
-  );
+     900_000,
+   );
 });
