@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { env } from "../../config/env.js";
+import { logUploadStage } from "./upload-stage-logger.js";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -33,6 +34,11 @@ export function uploadSinglePublicImage(field = "image") {
         return;
       }
 
+      const listingIdParam = req.params["id"];
+      const listingId = Array.isArray(listingIdParam)
+        ? listingIdParam[0] ?? "unknown"
+        : listingIdParam ?? "unknown";
+
       if (err instanceof multer.MulterError) {
         const message =
           err.code === "LIMIT_FILE_SIZE"
@@ -40,6 +46,11 @@ export function uploadSinglePublicImage(field = "image") {
                 env.UPLOAD_MAX_FILE_SIZE_BYTES / (1024 * 1024),
               )} MB.`
             : "The image upload could not be processed.";
+        logUploadStage(listingId, "failed", {
+          code: "INVALID_IMAGE",
+          message,
+          status: 400,
+        });
         res.status(400).json({
           success: false,
           error: { message },
@@ -48,6 +59,11 @@ export function uploadSinglePublicImage(field = "image") {
       }
 
       if (err instanceof UploadValidationError) {
+        logUploadStage(listingId, "failed", {
+          code: "INVALID_IMAGE",
+          message: err.message,
+          status: 400,
+        });
         res.status(400).json({
           success: false,
           error: { message: err.message },
@@ -55,6 +71,11 @@ export function uploadSinglePublicImage(field = "image") {
         return;
       }
 
+      logUploadStage(listingId, "failed", {
+        code: "UPLOAD_PARSE_ERROR",
+        message: err instanceof Error ? err.message : "Upload failed.",
+        status: 500,
+      });
       next(err);
     });
   };
