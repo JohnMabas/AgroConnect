@@ -66,7 +66,10 @@ describe("database configuration", () => {
       username: "aiven_user",
       password: "secret",
     });
-    expect(options.dialectOptions).toBeUndefined();
+    expect(options.dialectOptions).toMatchObject({
+      keepAlive: true,
+      connectionTimeoutMillis: 10_000,
+    });
   });
 
   it("rejects incomplete configuration", () => {

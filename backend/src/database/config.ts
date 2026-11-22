@@ -22,6 +22,12 @@ export interface DatabaseConfigSource {
   DB_NAME?: string | undefined;
   DB_USER?: string | undefined;
   DB_PASSWORD?: string | undefined;
+  DB_POOL_MAX?: number | undefined;
+  DB_POOL_ACQUIRE_MS?: number | undefined;
+  DB_POOL_IDLE_MS?: number | undefined;
+  DB_POOL_EVICT_MS?: number | undefined;
+  DB_POOL_KEEP_ALIVE?: boolean | undefined;
+  DB_CONNECTION_TIMEOUT_MS?: number | undefined;
 }
 
 export interface ResolvedDatabaseConfig {
@@ -32,9 +38,21 @@ export interface ResolvedDatabaseConfig {
   password: string;
   ssl: false | DatabaseSslOptions;
   insecureSsl: boolean;
+  poolMax: number;
+  poolAcquireMs: number;
+  poolIdleMs: number;
+  poolEvictMs: number;
+  poolKeepAlive: boolean;
+  connectionTimeoutMs: number;
 }
 
 const POSTGRES_PROTOCOLS = ["postgres:", "postgresql:"];
+
+function positiveInteger(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : fallback;
+}
 
 function requireValue(value: string | undefined, label: string): string {
   if (value === undefined || value.trim() === "") {
@@ -174,6 +192,12 @@ export function resolveDatabaseConfig(
     ...connection,
     ssl,
     insecureSsl,
+    poolMax: positiveInteger(source.DB_POOL_MAX, 5),
+    poolAcquireMs: positiveInteger(source.DB_POOL_ACQUIRE_MS, 15_000),
+    poolIdleMs: positiveInteger(source.DB_POOL_IDLE_MS, 10_000),
+    poolEvictMs: positiveInteger(source.DB_POOL_EVICT_MS, 30_000),
+    poolKeepAlive: source.DB_POOL_KEEP_ALIVE ?? true,
+    connectionTimeoutMs: positiveInteger(source.DB_CONNECTION_TIMEOUT_MS, 10_000),
   };
 }
 
@@ -190,16 +214,16 @@ export function toSequelizeOptions(
     logging: false,
     benchmark: false,
     pool: {
-      max: 5,
+      max: config.poolMax,
       min: 0,
-      acquire: 15_000,
-      idle: 10_000,
-      evict: 30_000,
+      acquire: config.poolAcquireMs,
+      idle: config.poolIdleMs,
+      evict: config.poolEvictMs,
     },
     dialectOptions: {
       ...(config.ssl === false ? {} : { ssl: config.ssl }),
-      keepAlive: true,
-      connectionTimeoutMillis: 10_000,
+      keepAlive: config.poolKeepAlive,
+      connectionTimeoutMillis: config.connectionTimeoutMs,
     },
   };
 }
