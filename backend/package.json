@@ -17,10 +17,12 @@
     "db:migrate:undo": "npm run build && node dist/database/run-migrations.js down",
     "db:migrate:undo:all": "npm run build && node dist/database/run-migrations.js down:all",
     "db:migrate:status": "npm run build && node dist/database/run-migrations.js status",
+    "db:check": "npm run build && node dist/database/check-schema.js",
     "db:seed": "npm run build && node dist/database/run-seeders.js up",
     "db:seed:undo": "npm run build && node dist/database/run-seeders.js down",
     "db:seed:undo:all": "npm run build && node dist/database/run-seeders.js down:all",
-    "db:seed:status": "npm run build && node dist/database/run-seeders.js status"
+    "db:seed:status": "npm run build && node dist/database/run-seeders.js status",
+    "db:find-missing-listing-images": "tsx scripts/find-missing-listing-images.ts"
   },
   "dependencies": {
     "@getbrevo/brevo": "6.2.0",
