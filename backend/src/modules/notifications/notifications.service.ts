@@ -122,6 +122,46 @@ async function withTimeout<T>(
   }
 }
 
+function isConnectionResetError(error: unknown, depth = 0): boolean {
+  if (error === null || typeof error !== "object" || depth > 4) return false;
+
+  const code = "code" in error ? error.code : undefined;
+  const message = error instanceof Error ? error.message : String(error);
+  const parent = "parent" in error ? error.parent : undefined;
+  const errors = "errors" in error && Array.isArray(error.errors) ? error.errors : [];
+
+  return (
+    code === "ECONNRESET" ||
+    /ECONNRESET|Connection reset by peer/i.test(message) ||
+    isConnectionResetError(parent, depth + 1) ||
+    errors.some((nested) => isConnectionResetError(nested, depth + 1))
+  );
+}
+
+async function retryConnectionResets<T>(
+  work: () => Promise<T>,
+  attempts = 3,
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await work();
+    } catch (error) {
+      lastError = error;
+      if (!isConnectionResetError(error) || attempt === attempts) throw error;
+      console.warn(
+        `Notification worker database connection reset; retrying (${attempt}/${attempts}).`,
+      );
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, 250 * 2 ** (attempt - 1)),
+      );
+    }
+  }
+
+  throw lastError;
+}
+
 function providerReference(result: unknown): string | null {
   if (
     result &&
@@ -652,8 +692,10 @@ export async function retryNotificationDelivery(
 let workerTimer: NodeJS.Timeout | undefined;
 
 async function runNotificationWorker(): Promise<void> {
-  await processPendingNotificationDeliveries();
-  await sendReservationExpiryWarnings();
+  await retryConnectionResets(async () => {
+    await processPendingNotificationDeliveries();
+    await sendReservationExpiryWarnings();
+  });
 }
 
 export function startNotificationWorker(
