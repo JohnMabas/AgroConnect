@@ -17,6 +17,37 @@ interface CloudinaryErrorShape {
   error?: { http_code?: number };
 }
 
+function withCloudinaryTimeout<T>(
+  work: Promise<T> | T,
+  timeoutMs: number,
+  code: string,
+  message: string,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(Object.assign(new Error(message), { code }));
+    }, timeoutMs);
+
+    Promise.resolve(work).then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export class CloudinaryPublicImageStorage implements PublicImageStorageAdapter {
   private configured = false;
 
@@ -92,11 +123,16 @@ export class CloudinaryPublicImageStorage implements PublicImageStorageAdapter {
   async deleteImage(publicId: string): Promise<void> {
     this.ensureConfigured();
     try {
-      await cloudinary.uploader.destroy(publicId, {
-        resource_type: "image",
-        type: "upload",
-        invalidate: true,
-      });
+      await withCloudinaryTimeout(
+        cloudinary.uploader.destroy(publicId, {
+          resource_type: "image",
+          type: "upload",
+          invalidate: true,
+        }),
+        env.CLOUDINARY_DELETE_TIMEOUT_MS,
+        "CLOUDINARY_DELETE_TIMEOUT",
+        "Cloudinary image delete timed out.",
+      );
     } catch (error: unknown) {
       const cloudinaryError = error as CloudinaryErrorShape;
       const status = cloudinaryError.http_code ?? cloudinaryError.error?.http_code;
