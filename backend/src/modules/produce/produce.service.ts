@@ -31,6 +31,7 @@ function buildTypeData(
     slug: row.slug,
     description: row.description ?? null,
     image_url: row.image_url ?? null,
+    secure_url: row.secure_url ?? row.image_url ?? null,
     public_id: row.public_id ?? null,
     is_active: row.is_active ?? true,
     category: row.category ? buildCategoryData(row.category) : undefined,
@@ -132,6 +133,7 @@ export async function setProduceTypeImage(
   try {
     await type.update({
       image_url: stored.imageUrl,
+      secure_url: stored.imageUrl,
       public_id: stored.publicId,
     });
   } catch (err) {
@@ -151,7 +153,7 @@ export async function deleteProduceTypeImage(
   }
 
   const previousPublicId = type.public_id;
-  await type.update({ image_url: null, public_id: null });
+  await type.update({ image_url: null, secure_url: null, public_id: null });
   await deletePublicImageBestEffort(previousPublicId, "produce");
 
   return buildTypeData(type);

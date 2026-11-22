@@ -17,6 +17,7 @@ export class ProduceListingImage extends Model<
   declare id: CreationOptional<string>;
   declare listing_id: string;
   declare image_url: string;
+  declare secure_url: CreationOptional<string | null>;
   declare storage_key: CreationOptional<string | null>;
   declare public_id: CreationOptional<string | null>;
   declare is_primary: CreationOptional<boolean>;
@@ -38,6 +39,10 @@ ProduceListingImage.init(
     image_url: {
       type: DataTypes.STRING(512),
       allowNull: false,
+    },
+    secure_url: {
+      type: DataTypes.STRING(512),
+      allowNull: true,
     },
     storage_key: {
       type: DataTypes.STRING(512),

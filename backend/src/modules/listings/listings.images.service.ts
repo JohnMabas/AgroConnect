@@ -20,6 +20,7 @@ function buildImageData(row: ProduceListingImage): ListingImageData {
     id: row.id,
     listing_id: row.listing_id,
     image_url: row.image_url,
+    secure_url: row.secure_url ?? row.image_url,
     public_id: row.public_id ?? null,
     is_primary: row.is_primary ?? false,
     display_order: row.display_order ?? 0,
@@ -94,7 +95,7 @@ export async function addImageFromUpload(
 
   const storageStartedAt = Date.now();
   logUploadStage(listingId, "cloudinary_start", {
-    folder: "listings",
+    folder: `${env.CLOUDINARY_PUBLIC_FOLDER}/listings`,
     bytes: file.size,
   });
   const stored = await publicImageStorage.saveImage({
@@ -124,6 +125,7 @@ export async function addImageFromUpload(
         {
           listing_id: listingId,
           image_url: stored.imageUrl,
+          secure_url: stored.imageUrl,
           storage_key: stored.publicId,
           public_id: stored.publicId,
           is_primary: existingCount === 0,
@@ -170,6 +172,7 @@ export async function addImageFromUrl(
       {
         listing_id: listingId,
         image_url: imageUrl,
+        secure_url: null,
         storage_key: `dev:${imageUrl}`,
         is_primary: existingCount === 0,
         display_order: existingCount,

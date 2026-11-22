@@ -49,6 +49,7 @@ function buildImageData(row: ProduceListingImage): ListingImageData {
     id: row.id,
     listing_id: row.listing_id,
     image_url: row.image_url,
+    secure_url: row.secure_url ?? row.image_url,
     public_id: row.public_id ?? null,
     is_primary: row.is_primary ?? false,
     display_order: row.display_order ?? 0,

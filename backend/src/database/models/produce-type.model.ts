@@ -17,6 +17,7 @@ export class ProduceType extends Model<
   declare slug: string;
   declare description: CreationOptional<string | null>;
   declare image_url: CreationOptional<string | null>;
+  declare secure_url: CreationOptional<string | null>;
   declare public_id: CreationOptional<string | null>;
   declare is_active: CreationOptional<boolean>;
   declare created_at: CreationOptional<Date>;
@@ -47,6 +48,10 @@ ProduceType.init(
       allowNull: true,
     },
     image_url: {
+      type: DataTypes.STRING(512),
+      allowNull: true,
+    },
+    secure_url: {
       type: DataTypes.STRING(512),
       allowNull: true,
     },
