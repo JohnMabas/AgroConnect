@@ -11,6 +11,7 @@ import { getUserIdFromToken } from "@/lib/session";
 import { resolveConversationForContext } from "@/lib/messaging";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ListingImage } from "@/components/listings/listing-image";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -349,8 +350,7 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
               <div className="p-5 md:border-r md:border-deep-navy/8 md:p-8">
                 <div className="aspect-[4/3] overflow-hidden rounded-xl bg-soft-bg">
                   {currentImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <ListingImage
                       src={detailImageUrl(mediaUrl(currentImage.image_url))}
                       alt={listing.title}
                       className="h-full w-full object-cover"
@@ -380,8 +380,7 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
                               : "border-transparent hover:border-deep-navy/20"
                           }`}
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
+                          <ListingImage
                             src={thumbnailImageUrl(mediaUrl(img.image_url))}
                             alt=""
                             className="h-full w-full object-cover"

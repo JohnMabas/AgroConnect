@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { listingsApi, mediaUrl, type ListingData } from "@/lib/api";
 import { detailImageUrl, thumbnailImageUrl } from "@/lib/cloudinary";
 import { StatusBadge } from "@/components/listings/status-badge";
+import { ListingImage } from "@/components/listings/listing-image";
 
 function formatMoney(value: number, currency: string): string {
   try {
@@ -91,8 +92,7 @@ export default function ListingDetailsPage({ listingId }: { listingId: string })
         <section>
           <div className="aspect-square overflow-hidden rounded-xl bg-fresh-green/10">
             {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <ListingImage
                 src={detailImageUrl(mediaUrl(image.image_url))}
                 alt={listing.title}
                 className="h-full w-full object-cover"
@@ -122,8 +122,7 @@ export default function ListingDetailsPage({ listingId }: { listingId: string })
                         : "border-transparent"
                     }`}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <ListingImage
                       src={thumbnailImageUrl(mediaUrl(item.image_url))}
                       alt=""
                       className="h-full w-full object-cover"

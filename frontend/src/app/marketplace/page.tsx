@@ -17,6 +17,7 @@ import {
 } from "@/lib/api";
 import { cardImageUrl } from "@/lib/cloudinary";
 import { Pagination, EmptyState, Alert } from "@/components/ui";
+import { ListingImage } from "@/components/listings/listing-image";
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest first" },
@@ -53,8 +54,7 @@ function ListingCard({ listing }: { listing: ListingData }) {
       {/* Image */}
       <div className="aspect-[4/3] w-full overflow-hidden rounded-t-2xl bg-soft-bg">
         {primary ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <ListingImage
             src={cardImageUrl(mediaUrl(primary.image_url))}
             alt={listing.title}
             className="h-full w-full object-cover"

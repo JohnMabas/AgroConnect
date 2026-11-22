@@ -5,6 +5,7 @@ import { mediaUrl, type ListingData } from "@/lib/api";
 import { thumbnailImageUrl } from "@/lib/cloudinary";
 import { StatusBadge } from "./status-badge";
 import { QuantityDisplay } from "./quantity-display";
+import { ListingImage } from "./listing-image";
 
 export type ListingAction =
   | "publish"
@@ -46,8 +47,7 @@ export function ListingCard({ listing, busy, onAction }: ListingCardProps) {
         <div className="flex min-w-0 flex-1 gap-4">
           <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-fresh-green/10">
             {primary ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <ListingImage
                 src={thumbnailImageUrl(mediaUrl(primary.image_url))}
                 alt={listing.title}
                 className="h-full w-full object-cover"

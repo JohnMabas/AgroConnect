@@ -11,6 +11,7 @@ import {
 import { cardImageUrl } from "@/lib/cloudinary";
 import { getAccessTokenClaims } from "@/lib/session";
 import { SingleImageUpload } from "@/components/uploads/single-image-upload";
+import { ListingImage } from "@/components/listings/listing-image";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -210,11 +211,11 @@ function ProduceCard({
       {/* Image */}
       <div className="h-40 bg-fresh-green/10 flex items-center justify-center">
         {type.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <ListingImage
             src={cardImageUrl(mediaUrl(type.image_url))}
             alt={type.name}
             className="h-full w-full object-cover"
+            placeholder="🌿"
           />
         ) : (
           <span className="text-4xl" aria-hidden="true">
