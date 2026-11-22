@@ -24,6 +24,7 @@ import {
 } from "@/lib/listing-form";
 import { compressImageForUpload } from "@/lib/image-compression";
 import { mapWithConcurrency } from "@/lib/concurrency";
+import { ListingImage } from "@/components/listings/listing-image";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-deep-navy/20 bg-white px-3 py-2 text-sm text-deep-navy outline-none transition-colors focus:border-agro-green focus:ring-2 focus:ring-agro-green/30 disabled:bg-deep-navy/5";
@@ -39,6 +40,7 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
   const [saving, setSaving] = useState(false);
   const [busyImage, setBusyImage] = useState(false);
   const [imageProgress, setImageProgress] = useState(0);
+  const [failedFiles, setFailedFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [imageUrl, setImageUrl] = useState("");
@@ -130,21 +132,17 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
     setForm(listingToFormValues(res.data.listing));
   }
 
-  async function uploadImages(files: FileList | null) {
-    if (!files || !token || !listing) return;
-    const availableSlots = MAX_IMAGES_PER_LISTING - images.length;
-    if (availableSlots <= 0) {
-      setError(`This listing already has the maximum of ${MAX_IMAGES_PER_LISTING} images.`);
-      return;
-    }
+  async function uploadImageFiles(
+    files: File[],
+    authToken: string,
+    targetListingId: string,
+  ): Promise<{ failed: File[]; message: string | null }> {
+    const failed: File[] = [];
+    const messages: string[] = [];
+    let completed = 0;
 
-    const selected = Array.from(files).slice(0, availableSlots);
-    setBusyImage(true);
-    setImageProgress(0);
-    setError("");
-    try {
-      let completed = 0;
-      await mapWithConcurrency(selected, 2, async (file) => {
+    await mapWithConcurrency(files, 2, async (file) => {
+      try {
         if (!isSupportedImageType(file.type)) {
           throw new Error(`${file.name} is not a supported image type.`);
         }
@@ -155,16 +153,41 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
         if (prepared.size > MAX_COMPRESSED_SIZE_BYTES) {
           throw new Error(`${file.name} is still too large after compression.`);
         }
-        await listingsApi.addImage(token, listing.id, prepared, (percent) => {
-          setImageProgress(
-            Math.round((completed * 100 + percent) / selected.length),
-          );
-        });
+        await listingsApi.addImage(
+          authToken,
+          targetListingId,
+          prepared,
+          (percent) => {
+            setImageProgress(
+              Math.round((completed * 100 + percent) / files.length),
+            );
+          },
+        );
         completed += 1;
-      });
-      setImageProgress(100);
+      } catch (err) {
+        failed.push(file);
+        messages.push(
+          err instanceof Error ? err.message : "The image could not be uploaded.",
+        );
+      }
+    });
+
+    return { failed, message: messages[0] ?? null };
+  }
+
+  async function submitImages(selected: File[]) {
+    if (!token || !listing || selected.length === 0) return;
+    setBusyImage(true);
+    setImageProgress(0);
+    setError("");
+    try {
+      const result = await uploadImageFiles(selected, token, listing.id);
+      setFailedFiles(result.failed);
+      if (result.message) setError(result.message);
+      else setImageProgress(100);
       await refreshListing();
     } catch (err) {
+      setFailedFiles(selected);
       setError(
         err instanceof Error ? err.message : "The image could not be uploaded.",
       );
@@ -172,6 +195,26 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
       setBusyImage(false);
       setImageProgress(0);
     }
+  }
+
+  async function uploadImages(files: FileList | null) {
+    if (!files || !token || !listing) return;
+    const availableSlots = MAX_IMAGES_PER_LISTING - images.length;
+    if (availableSlots <= 0) {
+      setError(`This listing already has the maximum of ${MAX_IMAGES_PER_LISTING} images.`);
+      return;
+    }
+    await submitImages(Array.from(files).slice(0, availableSlots));
+  }
+
+  async function retryFailedImages() {
+    if (!token || !listing || failedFiles.length === 0) return;
+    const availableSlots = MAX_IMAGES_PER_LISTING - images.length;
+    if (availableSlots <= 0) {
+      setError(`This listing already has the maximum of ${MAX_IMAGES_PER_LISTING} images.`);
+      return;
+    }
+    await submitImages(failedFiles.slice(0, availableSlots));
   }
 
   async function addImageByUrl() {
@@ -273,9 +316,19 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
       </div>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p>{error}</p>
+          {failedFiles.length > 0 && (
+            <button
+              type="button"
+              disabled={busyImage}
+              onClick={() => void retryFailedImages()}
+              className="mt-2 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+            >
+              Retry upload
+            </button>
+          )}
+        </div>
       )}
 
       {listing.status === "published" && (
@@ -557,8 +610,7 @@ export default function EditListingClient({ listingId }: { listingId: string }) 
                 key={image.id}
                 className="overflow-hidden rounded-xl border border-deep-navy/10 bg-soft-bg"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <ListingImage
                   src={thumbnailImageUrl(mediaUrl(image.image_url))}
                   alt={`Listing photo ${image.display_order + 1}`}
                   className="h-32 w-full object-cover"
