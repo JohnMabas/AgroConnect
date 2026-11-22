@@ -204,6 +204,32 @@ export const env = Object.freeze({
   DB_NAME: optionalString(process.env.DB_NAME),
   DB_USER: optionalString(process.env.DB_USER),
   DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_POOL_MAX: parsePositiveInt("DB_POOL_MAX", process.env.DB_POOL_MAX, 5),
+  DB_POOL_ACQUIRE_MS: parsePositiveInt(
+    "DB_POOL_ACQUIRE_MS",
+    process.env.DB_POOL_ACQUIRE_MS,
+    15_000,
+  ),
+  DB_POOL_IDLE_MS: parsePositiveInt(
+    "DB_POOL_IDLE_MS",
+    process.env.DB_POOL_IDLE_MS,
+    10_000,
+  ),
+  DB_POOL_EVICT_MS: parsePositiveInt(
+    "DB_POOL_EVICT_MS",
+    process.env.DB_POOL_EVICT_MS,
+    30_000,
+  ),
+  DB_POOL_KEEP_ALIVE: parseBoolean(
+    "DB_POOL_KEEP_ALIVE",
+    process.env.DB_POOL_KEEP_ALIVE,
+    true,
+  ),
+  DB_CONNECTION_TIMEOUT_MS: parsePositiveInt(
+    "DB_CONNECTION_TIMEOUT_MS",
+    process.env.DB_CONNECTION_TIMEOUT_MS,
+    10_000,
+  ),
 
   DEFAULT_PHONE_COUNTRY:
     optionalString(process.env.DEFAULT_PHONE_COUNTRY)?.toUpperCase() ?? "NG",
@@ -475,6 +501,11 @@ export const env = Object.freeze({
   CLOUDINARY_UPLOAD_TIMEOUT_MS: parsePositiveInt(
     "CLOUDINARY_UPLOAD_TIMEOUT_MS",
     process.env.CLOUDINARY_UPLOAD_TIMEOUT_MS,
+    15_000,
+  ),
+  CLOUDINARY_DELETE_TIMEOUT_MS: parsePositiveInt(
+    "CLOUDINARY_DELETE_TIMEOUT_MS",
+    process.env.CLOUDINARY_DELETE_TIMEOUT_MS,
     15_000,
   ),
   // Global upload ceiling in MiB used for message attachments; falls back to the

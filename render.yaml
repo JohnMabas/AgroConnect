@@ -16,6 +16,18 @@ services:
         sync: false
       - key: DB_SSL_VERIFY
         value: "true"
+      - key: DB_POOL_MAX
+        value: "5"
+      - key: DB_POOL_ACQUIRE_MS
+        value: "15000"
+      - key: DB_POOL_IDLE_MS
+        value: "10000"
+      - key: DB_POOL_EVICT_MS
+        value: "30000"
+      - key: DB_POOL_KEEP_ALIVE
+        value: "true"
+      - key: DB_CONNECTION_TIMEOUT_MS
+        value: "10000"
       - key: FRONTEND_URL
         sync: false
       - key: STORAGE_DRIVER
@@ -31,6 +43,8 @@ services:
       - key: CLOUDINARY_PUBLIC_FOLDER
         value: "agroconnect"
       - key: CLOUDINARY_UPLOAD_TIMEOUT_MS
+        value: "15000"
+      - key: CLOUDINARY_DELETE_TIMEOUT_MS
         value: "15000"
       - key: REQUEST_TIMEOUT_MS
         value: "45000"
