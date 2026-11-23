@@ -11,12 +11,43 @@ import { CallManagerProvider } from "@/components/messaging/call-manager";
 import { MessageNavIndicator } from "@/components/messaging/message-nav-indicator";
 import type { SafeUser } from "@/lib/api";
 
+const navIcons = {
+  offers: (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path fillRule="evenodd" d="M4 3a1 1 0 011-1h10a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V3zm3 2a1 1 0 000 2h6a1 1 0 100-2H7zm0 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 4a1 1 0 000 2h4a1 1 0 100-2H7z" clipRule="evenodd" />
+    </svg>
+  ),
+  orders: (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+      <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+    </svg>
+  ),
+  reservations: (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path fillRule="evenodd" d="M6 2a1 1 0 011 1v1h6V3a1 1 0 112 0v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h1V3a1 1 0 011-1zM4 8v8h12V8H4z" clipRule="evenodd" />
+    </svg>
+  ),
+  notifications: (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 15h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6z" />
+      <path d="M7.17 17a3 3 0 005.66 0H7.17z" />
+    </svg>
+  ),
+};
+
+const offersLink = { href: "/offers", label: "Offers", icon: navIcons.offers };
+const ordersLink = { href: "/orders", label: "Orders", icon: navIcons.orders };
+const reservationsLink = { href: "/reservations", label: "Reservations", icon: navIcons.reservations };
+const notificationsLink = { href: "/notifications", label: "Notifications", icon: navIcons.notifications };
+
 // Nav links per role — the first matching role wins.
 function getNavLinks(user: SafeUser) {
   const roles = user.roles;
 
   if (roles.includes("admin")) {
     return [
+      notificationsLink,
       {
         href: "/admin/cooperatives",
         label: "Cooperatives",
@@ -50,6 +81,7 @@ function getNavLinks(user: SafeUser) {
 
   if (roles.includes("cooperative_agent")) {
     return [
+      notificationsLink,
       {
         href: "/agent/dashboard",
         label: "My Assignments",
@@ -74,6 +106,7 @@ function getNavLinks(user: SafeUser) {
 
   if (roles.includes("cooperative")) {
     return [
+      notificationsLink,
       {
         href: "/cooperatives/dashboard",
         label: "Dashboard",
@@ -106,6 +139,10 @@ function getNavLinks(user: SafeUser) {
 
   if (roles.includes("farmer")) {
     return [
+      notificationsLink,
+      offersLink,
+      ordersLink,
+      reservationsLink,
       {
         href: "/farmer/dashboard",
         label: "Dashboard",
@@ -185,6 +222,7 @@ function getNavLinks(user: SafeUser) {
 
   if (roles.includes("transporter")) {
     return [
+      notificationsLink,
       {
         href: "/transporter/dashboard",
         label: "Dashboard",
@@ -218,6 +256,10 @@ function getNavLinks(user: SafeUser) {
 
   if (roles.includes("buyer")) {
     return [
+      notificationsLink,
+      offersLink,
+      ordersLink,
+      reservationsLink,
       {
         href: "/buyer/dashboard",
         label: "Dashboard",
@@ -278,6 +320,7 @@ function getNavLinks(user: SafeUser) {
   }
 
   return [
+    notificationsLink,
     {
       href: "/profile",
       label: "Profile",
