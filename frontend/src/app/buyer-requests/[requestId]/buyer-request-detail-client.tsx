@@ -361,12 +361,13 @@ export default function BuyerRequestDetailClient({ requestId }: { requestId: str
                   <p className="font-heading text-sm font-bold text-deep-navy">Respond to this request</p>
                   {request.status === "open" ? (
                     <div className="mt-4 space-y-2">
-                      <button type="button"
-                        className="flex w-full items-center justify-center gap-2 rounded-full bg-agro-green py-3 text-sm font-bold text-white transition-colors hover:bg-deep-navy"
-                        onClick={() => alert("Offers module coming in the next phase. You will be able to submit a structured offer directly from this page.")}>
-                        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                        Respond to Request
-                      </button>
+                      {isContactable(request) && (
+                        <Link href={`/offers/new?buyerRequestId=${request.id}`}
+                          className="flex w-full items-center justify-center gap-2 rounded-full bg-agro-green py-3 text-sm font-bold text-white transition-colors hover:bg-deep-navy">
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                          Make offer
+                        </Link>
+                      )}
                       {contactError && (
                         <p role="alert" className="text-xs text-red-700">{contactError}</p>
                       )}
@@ -382,7 +383,6 @@ export default function BuyerRequestDetailClient({ requestId }: { requestId: str
                           This request is no longer accepting responses.
                         </p>
                       )}
-                      <p className="text-xs text-deep-navy/35 text-center">Structured offers are available in a later phase.</p>
                     </div>
                   ) : (
                     <div className="mt-3 rounded-xl border border-deep-navy/8 bg-soft-bg p-3 text-center">

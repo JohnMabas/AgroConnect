@@ -189,6 +189,10 @@ export default function MyRequestsPage() {
                       className="rounded-full border border-deep-navy/20 px-3.5 py-1.5 text-xs font-semibold text-deep-navy/70 transition-colors hover:bg-deep-navy/5">
                       View
                     </Link>
+                    <Link href={`/offers?buyerRequestId=${r.id}`}
+                      className="rounded-full border border-agro-green/30 px-3.5 py-1.5 text-xs font-semibold text-agro-green transition-colors hover:bg-agro-green hover:text-white">
+                      View offers
+                    </Link>
                     {(r.status === "open" || r.status === "paused") && (
                       <Link href={`/buyer-requests/${r.id}/edit`}
                         className="rounded-full border border-deep-navy/20 px-3.5 py-1.5 text-xs font-semibold text-deep-navy/70 transition-colors hover:bg-deep-navy/5">

@@ -313,6 +313,7 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
     listing.status === "published" && listing.available_quantity > 0;
   const isOwner = !!userId && listing.farmer_user_id === userId;
   const canContact = isContactable(listing) && !isOwner;
+  const canMakeOffer = !!token && !!userId && canContact;
 
   const availPct =
     listing.quantity > 0
@@ -600,6 +601,14 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
                         </svg>
                         {contacting ? "Opening conversation…" : "Contact Farmer"}
                       </button>
+                      {canMakeOffer && (
+                        <Link
+                          href={`/offers/new?listingId=${listing.id}`}
+                          className="flex w-full items-center justify-center gap-2 rounded-full border border-agro-green/30 py-2.5 text-sm font-bold text-agro-green transition-colors hover:bg-agro-green hover:text-white"
+                        >
+                          Make offer
+                        </Link>
+                      )}
                     </>
                   ) : !token ? (
                     // Guest — show login prompt instead of contact button
@@ -619,7 +628,7 @@ export default function MarketplaceListingClient({ listingId }: { listingId: str
                 </div>
 
                 <p className="mt-4 text-xs text-deep-navy/35">
-                  Offers, orders and payments are available in the next platform phases.
+                  Orders and payments are available in the next platform phases.
                 </p>
               </div>
             </div>

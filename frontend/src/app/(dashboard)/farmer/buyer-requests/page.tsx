@@ -31,7 +31,15 @@ function getProduceName(r: BuyerRequestData) {
   return r.produce_type?.name ?? r.produce_category?.name ?? "Agricultural produce";
 }
 
-function RequestCard({ r }: { r: BuyerRequestData }) {
+function isOpenAndUnexpired(r: BuyerRequestData): boolean {
+  if (r.status !== "open") return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(`${r.expiry_date}T00:00:00`);
+  return !Number.isNaN(expiry.getTime()) && expiry >= today;
+}
+
+function RequestCard({ r, canMakeOffer }: { r: BuyerRequestData; canMakeOffer: boolean }) {
   const loc = [r.community, r.local_government_area, r.state_or_region].filter(Boolean).join(", ");
   return (
     <article className="flex flex-col rounded-2xl border border-deep-navy/8 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -68,11 +76,17 @@ function RequestCard({ r }: { r: BuyerRequestData }) {
           <span>Expires {formatDate(r.expiry_date)}</span>
         </div>
         {r.buyer?.display_name && <p className="mt-1.5 text-xs text-deep-navy/35">by {r.buyer.display_name}</p>}
-        <div className="mt-4 flex flex-1 items-end">
+        <div className="mt-4 flex flex-1 items-end gap-2">
           <Link href={`/buyer-requests/${r.id}`}
-            className="w-full rounded-full border border-agro-green/30 py-2.5 text-center text-sm font-semibold text-agro-green transition-colors hover:bg-agro-green hover:text-white">
+            className="flex-1 rounded-full border border-agro-green/30 py-2.5 text-center text-sm font-semibold text-agro-green transition-colors hover:bg-agro-green hover:text-white">
             View Request
           </Link>
+          {canMakeOffer && (
+            <Link href={`/offers/new?buyerRequestId=${r.id}`}
+              className="flex-1 rounded-full bg-agro-green py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-deep-navy">
+              Make offer
+            </Link>
+          )}
         </div>
       </div>
     </article>
@@ -84,7 +98,7 @@ function Skeleton() {
 }
 
 export default function FarmerBuyerRequestsPage() {
-  const { token, loading: authLoading, error: authError } = useDashboardAuth();
+  const { token, user, loading: authLoading, error: authError } = useDashboardAuth();
 
   const [categories, setCategories] = useState<ProduceCategoryData[]>([]);
   const [requests, setRequests] = useState<BuyerRequestData[]>([]);
@@ -133,7 +147,7 @@ export default function FarmerBuyerRequestsPage() {
 
   useEffect(() => {
     if (token) void fetch(1);
-  }, [token, debouncedSearch, categorySlug, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, debouncedSearch, categorySlug, location, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (authLoading) return <div className="animate-pulse space-y-4">{[1,2,3].map(i => <div key={i} className="h-24 rounded-2xl bg-white shadow-sm" />)}</div>;
   if (authError) return <div className="rounded-2xl border border-red-200 bg-white p-8 text-center"><p className="text-sm text-red-700">{authError}</p></div>;
@@ -195,7 +209,17 @@ export default function FarmerBuyerRequestsPage() {
       {!loading && requests.length > 0 && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {requests.map((r) => <RequestCard key={r.id} r={r} />)}
+            {requests.map((r) => (
+              <RequestCard
+                key={r.id}
+                r={r}
+                canMakeOffer={
+                  !!user &&
+                  r.buyer_user_id !== user.id &&
+                  isOpenAndUnexpired(r)
+                }
+              />
+            ))}
           </div>
           <Pagination page={page} totalPages={totalPages} onPageChange={(p) => void fetch(p)} />
         </>
