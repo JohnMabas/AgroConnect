@@ -1325,6 +1325,545 @@ export const buyerRequestsApi = {
   },
 };
 
+function withQuery<T extends object>(
+  path: string,
+  params: T,
+): string {
+  const query = new URLSearchParams();
+  const entries = params as Record<string, string | number | undefined>;
+  for (const [key, value] of Object.entries(entries)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  const suffix = query.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
+export type OfferStatus =
+  | "pending"
+  | "countered"
+  | "accepted"
+  | "rejected"
+  | "withdrawn"
+  | "expired";
+
+export interface OfferUserSummary {
+  id: string;
+  display_name: string | null;
+}
+
+export interface OfferListingSummary {
+  id: string;
+  title: string;
+  status: string;
+  farmer_user_id: string;
+  available_quantity: number;
+  unit: string;
+  price_per_unit: number;
+  currency: string;
+}
+
+export interface OfferBuyerRequestSummary {
+  id: string;
+  status: string;
+  buyer_user_id: string;
+  requested_quantity: number;
+  unit: string;
+  currency: string;
+  expiry_date: string;
+}
+
+export interface OfferData {
+  id: string;
+  offer_number: string;
+  listing_id: string | null;
+  buyer_request_id: string | null;
+  conversation_id: string | null;
+  buyer_id: string;
+  farmer_id: string;
+  created_by: string;
+  recipient_user_id: string;
+  parent_offer_id: string | null;
+  root_offer_id: string | null;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  total_amount: number;
+  currency: string;
+  delivery_terms: string | null;
+  delivery_location: string | null;
+  delivery_date: string | null;
+  buyer_message: string | null;
+  status: OfferStatus;
+  expires_at: string;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  withdrawn_at: string | null;
+  expired_at: string | null;
+  countered_at: string | null;
+  buyer?: OfferUserSummary;
+  farmer?: OfferUserSummary;
+  listing?: OfferListingSummary;
+  buyer_request?: OfferBuyerRequestSummary;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OfferEventData {
+  id: string;
+  offer_id: string;
+  actor_user_id: string | null;
+  action: string;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface OfferHistoryData {
+  root_offer_id: string;
+  offers: OfferData[];
+  events: OfferEventData[];
+}
+
+export interface PaginatedOffersData {
+  offers: OfferData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface OfferTermsPayload {
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  currency?: string;
+  delivery_terms?: string | null;
+  delivery_location?: string | null;
+  delivery_date?: string | null;
+  buyer_message?: string | null;
+  expires_at?: string;
+}
+
+export interface CreateOfferPayload extends OfferTermsPayload {
+  listing_id?: string;
+  buyer_request_id?: string;
+  conversation_id?: string;
+}
+
+export interface ListOffersParams {
+  page?: number;
+  limit?: number;
+  status?: OfferStatus;
+  role?: "buyer" | "farmer";
+  direction?: "sent" | "received";
+  listing_id?: string;
+  buyer_request_id?: string;
+  conversation_id?: string;
+  sort?: "newest" | "expiring_soon";
+}
+
+export type OrderStatus =
+  | "pending_payment"
+  | "paid"
+  | "processing"
+  | "ready_for_delivery"
+  | "in_transit"
+  | "delivered"
+  | "completed"
+  | "cancelled"
+  | "payment_failed"
+  | "refunded";
+
+export type OrderPaymentStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded"
+  | "partially_refunded";
+
+export type PaymentStatus =
+  | "pending"
+  | "success"
+  | "failed"
+  | "abandoned"
+  | "refunded"
+  | "partially_refunded";
+
+export type ReservationStatus =
+  | "active"
+  | "released"
+  | "expired"
+  | "consumed"
+  | "void";
+
+export type RefundStatus =
+  | "pending"
+  | "processing"
+  | "processed"
+  | "failed"
+  | "needs_attention";
+
+export interface OrderUserSummary {
+  id: string;
+  display_name: string | null;
+}
+
+export interface OrderListingSummary {
+  id: string;
+  title: string;
+  status: string;
+  farmer_user_id: string;
+  available_quantity: number;
+  reserved_quantity: number;
+  sold_quantity: number;
+  unit: string;
+  price_per_unit: number;
+  currency: string;
+  expiry_date: string | null;
+}
+
+export interface OrderItemData {
+  id: string;
+  order_id: string;
+  listing_id: string | null;
+  title: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  line_total: number;
+}
+
+export interface OrderReservationData {
+  id: string;
+  order_id: string;
+  listing_id: string;
+  quantity: number;
+  status: ReservationStatus;
+  expires_at: string;
+  released_at: string | null;
+  release_reason: string | null;
+  is_expired: boolean;
+}
+
+export interface OrderEventData {
+  id: string;
+  order_id: string;
+  actor_user_id: string | null;
+  action: string;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface OrderPaymentSummary {
+  id: string;
+  reference: string;
+  provider: string;
+  amount_minor: number;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  authorization_url: string | null;
+  access_code: string | null;
+  channel: string | null;
+  gateway_response: string | null;
+  paid_at: string | null;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderData {
+  id: string;
+  order_number: string;
+  offer_id: string;
+  listing_id: string | null;
+  buyer_id: string;
+  farmer_id: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  total_amount: number;
+  currency: string;
+  status: OrderStatus;
+  payment_status: OrderPaymentStatus;
+  delivery_terms: string | null;
+  delivery_location: string | null;
+  delivery_date: string | null;
+  buyer_message: string | null;
+  reservation_expires_at: string | null;
+  paid_at: string | null;
+  cancelled_at: string | null;
+  completed_at: string | null;
+  refunded_at: string | null;
+  cancellation_reason: string | null;
+  buyer?: OrderUserSummary;
+  farmer?: OrderUserSummary;
+  listing?: OrderListingSummary;
+  item?: OrderItemData;
+  reservation?: OrderReservationData;
+  payments?: OrderPaymentSummary[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderHistoryData {
+  order_id: string;
+  events: OrderEventData[];
+}
+
+export interface PaginatedOrdersData {
+  orders: OrderData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface PaginatedReservationsData {
+  reservations: OrderReservationData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface ListOrdersParams {
+  page?: number;
+  limit?: number;
+  status?: OrderStatus;
+  payment_status?: OrderPaymentStatus;
+  role?: "buyer" | "farmer";
+  listing_id?: string;
+  offer_id?: string;
+  sort?: "newest" | "oldest";
+}
+
+export interface ListReservationsParams {
+  page?: number;
+  limit?: number;
+  status?: ReservationStatus;
+  order_id?: string;
+  listing_id?: string;
+}
+
+export interface PaymentData extends OrderPaymentSummary {
+  order_id: string;
+  provider: string;
+  authorization_url: string | null;
+  access_code: string | null;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  gateway_response: string | null;
+  provider_transaction_id: string | null;
+  paid_at: string | null;
+  verified_at: string | null;
+  last_error: string | null;
+}
+
+export interface RefundData {
+  id: string;
+  order_id: string;
+  payment_id: string;
+  requested_by_user_id: string | null;
+  provider: string;
+  provider_refund_id: string | null;
+  transaction_reference: string;
+  amount_minor: number;
+  amount: number;
+  currency: string;
+  status: RefundStatus;
+  customer_note: string | null;
+  merchant_note: string | null;
+  processed_at: string | null;
+  failed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderFeeDisclosureData {
+  id: string;
+  order_id: string;
+  cooperative_id: string | null;
+  agent_user_id: string | null;
+  fee_type: "cooperative_service_fee" | "agent_service_fee" | "platform_commission" | "other";
+  amount_minor: string;
+  currency: string;
+  description: string | null;
+  disclosed_at: string;
+  agreed_by_farmer_user_id: string | null;
+  agreed_at: string | null;
+  farmer_approval_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RefundRequestPayload {
+  amount?: number;
+  customer_note?: string | null;
+  merchant_note?: string | null;
+}
+
+export const offersApi = {
+  create: (token: string, payload: CreateOfferPayload) =>
+    request<{ success: boolean; message: string; data: { offer: OfferData } }>(
+      "/offers",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  list: (token: string, params: ListOffersParams = {}) =>
+    request<{ success: boolean; data: PaginatedOffersData }>(
+      withQuery("/offers", params),
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  get: (token: string, offerId: string) =>
+    request<{ success: boolean; data: { offer: OfferData } }>(
+      `/offers/${encodeURIComponent(offerId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  history: (token: string, offerId: string) =>
+    request<{ success: boolean; data: { history: OfferHistoryData } }>(
+      `/offers/${encodeURIComponent(offerId)}/history`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  accept: (token: string, offerId: string) =>
+    request<{ success: boolean; message: string; data: { offer: OfferData } }>(
+      `/offers/${encodeURIComponent(offerId)}/accept`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    ),
+  reject: (token: string, offerId: string) =>
+    request<{ success: boolean; message: string; data: { offer: OfferData } }>(
+      `/offers/${encodeURIComponent(offerId)}/reject`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    ),
+  withdraw: (token: string, offerId: string) =>
+    request<{ success: boolean; message: string; data: { offer: OfferData } }>(
+      `/offers/${encodeURIComponent(offerId)}/withdraw`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    ),
+  counter: (token: string, offerId: string, payload: OfferTermsPayload) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { offer: OfferData; countered_offer: OfferData };
+    }>(`/offers/${encodeURIComponent(offerId)}/counter`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};
+
+export const ordersApi = {
+  create: (token: string, offerId: string) =>
+    request<{ success: boolean; message: string; data: { order: OrderData } }>(
+      "/orders",
+      {
+        method: "POST",
+        body: JSON.stringify({ offer_id: offerId }),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  list: (token: string, params: ListOrdersParams = {}) =>
+    request<{ success: boolean; data: PaginatedOrdersData }>(
+      withQuery("/orders", params),
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  get: (token: string, orderId: string) =>
+    request<{ success: boolean; data: { order: OrderData } }>(
+      `/orders/${encodeURIComponent(orderId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  history: (token: string, orderId: string) =>
+    request<{ success: boolean; data: { history: OrderHistoryData } }>(
+      `/orders/${encodeURIComponent(orderId)}/history`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  reservation: (token: string, orderId: string) =>
+    request<{ success: boolean; data: { reservation: OrderReservationData } }>(
+      `/orders/${encodeURIComponent(orderId)}/reservation`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  payments: (token: string, orderId: string) =>
+    request<{ success: boolean; data: { payments: OrderPaymentSummary[] } }>(
+      `/orders/${encodeURIComponent(orderId)}/payments`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  feeDisclosures: (token: string, orderId: string) =>
+    request<{ success: boolean; data: { fee_disclosures: OrderFeeDisclosureData[] } }>(
+      `/orders/${encodeURIComponent(orderId)}/fee-disclosures`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  updateStatus: (token: string, orderId: string, status: Extract<OrderStatus, "processing" | "ready_for_delivery" | "in_transit" | "delivered" | "completed">) =>
+    request<{ success: boolean; message: string; data: { order: OrderData } }>(
+      `/orders/${encodeURIComponent(orderId)}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  cancel: (token: string, orderId: string, reason: string) =>
+    request<{ success: boolean; message: string; data: { order: OrderData } }>(
+      `/orders/${encodeURIComponent(orderId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+};
+
+export const reservationsApi = {
+  list: (token: string, params: ListReservationsParams = {}) =>
+    request<{ success: boolean; data: PaginatedReservationsData }>(
+      withQuery("/reservations", params),
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+};
+
+export const paymentsApi = {
+  initialize: (token: string, orderId: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: {
+        payment: PaymentData;
+        authorization_url: string;
+        access_code: string | null;
+        order: OrderData;
+      };
+    }>("/payments/paystack/initialize", {
+      method: "POST",
+      body: JSON.stringify({ order_id: orderId }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  verify: (token: string, reference: string) =>
+    request<{ success: boolean; data: { payment: PaymentData; order: OrderData } }>(
+      `/payments/paystack/verify/${encodeURIComponent(reference)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  requestRefund: (token: string, reference: string, payload: RefundRequestPayload = {}) =>
+    request<{ success: boolean; message: string; data: { refund: RefundData } }>(
+      `/payments/paystack/${encodeURIComponent(reference)}/refund`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  getRefunds: (token: string, reference: string) =>
+    request<{ success: boolean; data: { payment: PaymentData; refunds: RefundData[] } }>(
+      `/payments/paystack/${encodeURIComponent(reference)}/refund`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+};
+
 // ─── Phase 11: Notifications API ──────────────────────────────────────────────
 
 export interface NotificationData {
@@ -1354,11 +1893,11 @@ export interface PaginatedNotificationsData {
 export const notificationsApi = {
   getNotifications: (
     token: string,
-    params: { unread?: boolean; type?: string; page?: number; limit?: number } = {},
+    params: { unread?: boolean; notification_type?: string; page?: number; limit?: number } = {},
   ) => {
     const q = new URLSearchParams();
     if (params.unread) q.set("unread", "true");
-    if (params.type) q.set("type", params.type);
+    if (params.notification_type) q.set("notification_type", params.notification_type);
     if (params.page) q.set("page", String(params.page));
     if (params.limit) q.set("limit", String(params.limit));
     const suffix = q.toString();
