@@ -10,6 +10,7 @@ import {
 import {
   Delivery,
   DeliveryHistory,
+  DeliveryLocationPing,
   Order,
   OrderItem,
   TransporterProfile,
@@ -29,14 +30,19 @@ import type {
   CreateDeliveryInput,
   DeclineDeliveryInput,
   ListDeliveriesQuery,
+  UpdateDeliveryLocationInput,
   UpdateDeliveryStatusInput,
 } from "./deliveries.validation.js";
 import type {
   DeliveryData,
   DeliveryHistoryData,
   DeliveryHistoryEventData,
+  DeliveryLocationData,
+  DeliveryLocationHistoryData,
+  DeliveryLocationPingData,
   DeliveryOrderSummary,
   PaginatedDeliveries,
+  UpdateDeliveryLocationResult,
 } from "./deliveries.types.js";
 
 const QUANTITY_SCALE = 3;
@@ -50,6 +56,12 @@ const TERMINAL_DELIVERY_STATUSES: DeliveryStatus[] = [
   "cancelled",
   "failed",
 ];
+const TRACKABLE_DELIVERY_STATUSES: DeliveryStatus[] = [
+  "accepted",
+  "picked_up",
+  "in_transit",
+];
+const LOCATION_HISTORY_LIMIT = 50;
 
 type DeliveryRow = Delivery & {
   order?: Order;
@@ -61,6 +73,20 @@ type DeliveryRow = Delivery & {
 
 function serviceError(message: string, code: string): Error {
   return Object.assign(new Error(message), { code });
+}
+
+function nullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function nullableDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function normalizePlace(value: string): string {
@@ -134,6 +160,18 @@ function buildDeliveryData(row: DeliveryRow): DeliveryData {
     transporter_id: row.transporter_id ?? null,
     pickup_location: row.pickup_location,
     delivery_location: row.delivery_location,
+    pickup_latitude: nullableNumber(row.pickup_latitude),
+    pickup_longitude: nullableNumber(row.pickup_longitude),
+    delivery_latitude: nullableNumber(row.delivery_latitude),
+    delivery_longitude: nullableNumber(row.delivery_longitude),
+    current_latitude: nullableNumber(row.current_latitude),
+    current_longitude: nullableNumber(row.current_longitude),
+    current_location_accuracy_meters: nullableNumber(
+      row.current_location_accuracy_meters,
+    ),
+    current_location_recorded_at: nullableDate(
+      row.current_location_recorded_at,
+    ),
     produce_description: row.produce_description,
     quantity: Number(row.quantity),
     unit: row.unit,
@@ -169,6 +207,46 @@ function buildDeliveryData(row: DeliveryRow): DeliveryData {
       : undefined,
     created_at: row.created_at!,
     updated_at: row.updated_at!,
+  };
+}
+
+function buildDeliveryLocationData(
+  delivery: Delivery,
+): DeliveryLocationData {
+  const status = (delivery.status ?? "pending") as DeliveryStatus;
+  const latitude = nullableNumber(delivery.current_latitude);
+  const longitude = nullableNumber(delivery.current_longitude);
+
+  return {
+    delivery_id: delivery.id,
+    status,
+    current_location:
+      latitude !== null && longitude !== null
+        ? {
+            latitude,
+            longitude,
+            accuracy_meters: nullableNumber(
+              delivery.current_location_accuracy_meters,
+            ),
+            recorded_at: nullableDate(delivery.current_location_recorded_at),
+          }
+        : null,
+    shareable: TRACKABLE_DELIVERY_STATUSES.includes(status),
+  };
+}
+
+function buildDeliveryLocationPingData(
+  row: DeliveryLocationPing,
+): DeliveryLocationPingData {
+  return {
+    id: row.id,
+    delivery_id: row.delivery_id,
+    reporter_user_id: row.reporter_user_id,
+    latitude: nullableNumber(row.latitude)!,
+    longitude: nullableNumber(row.longitude)!,
+    accuracy_meters: nullableNumber(row.accuracy_meters),
+    recorded_at: nullableDate(row.recorded_at)!,
+    created_at: nullableDate(row.created_at)!,
   };
 }
 
@@ -238,7 +316,8 @@ function assertCanView(
   if (
     delivery.buyer_id === userId ||
     delivery.farmer_id === userId ||
-    delivery.transporter_id === userId
+    delivery.transporter_id === userId ||
+    delivery.created_by_user_id === userId
   ) {
     return;
   }
@@ -404,6 +483,10 @@ export async function createDelivery(
           transporter_id: null,
           pickup_location: input.pickup_location,
           delivery_location: deliveryLocation,
+          pickup_latitude: input.pickup_latitude ?? null,
+          pickup_longitude: input.pickup_longitude ?? null,
+          delivery_latitude: input.delivery_latitude ?? null,
+          delivery_longitude: input.delivery_longitude ?? null,
           produce_description: produceDescription,
           quantity: orderQuantity as unknown as number,
           unit: order.unit,
@@ -999,4 +1082,96 @@ export async function updateDeliveryStatus(
   });
 
   return buildDeliveryData(await loadDeliveryRow(deliveryId));
+}
+
+export async function getDeliveryLocation(
+  userId: string,
+  roles: string[],
+  deliveryId: string,
+): Promise<DeliveryLocationData> {
+  const delivery = await loadDeliveryRow(deliveryId);
+  assertCanView(delivery, userId, roles);
+  return buildDeliveryLocationData(delivery);
+}
+
+export async function getDeliveryLocationHistory(
+  userId: string,
+  roles: string[],
+  deliveryId: string,
+): Promise<DeliveryLocationHistoryData> {
+  const delivery = await loadDeliveryRow(deliveryId);
+  assertCanView(delivery, userId, roles);
+
+  const pings = await DeliveryLocationPing.findAll({
+    where: { delivery_id: deliveryId },
+    order: [
+      ["recorded_at", "DESC"],
+      ["created_at", "DESC"],
+    ],
+    limit: LOCATION_HISTORY_LIMIT,
+  });
+
+  return {
+    delivery_id: deliveryId,
+    pings: pings.map(buildDeliveryLocationPingData),
+  };
+}
+
+export async function updateDeliveryLocation(
+  userId: string,
+  deliveryId: string,
+  input: UpdateDeliveryLocationInput,
+): Promise<UpdateDeliveryLocationResult> {
+  await sequelize.transaction(async (transaction) => {
+    const delivery = await Delivery.findByPk(deliveryId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!delivery) {
+      throw serviceError("Delivery not found.", "NOT_FOUND");
+    }
+    if (delivery.transporter_id !== userId) {
+      throw serviceError(
+        "Only the assigned transporter can share live location.",
+        "FORBIDDEN",
+      );
+    }
+
+    const status = (delivery.status ?? "pending") as DeliveryStatus;
+    if (!TRACKABLE_DELIVERY_STATUSES.includes(status)) {
+      throw serviceError(
+        "Live location sharing is only available while the delivery is active.",
+        "INVALID_OPERATION",
+      );
+    }
+
+    const recordedAt = input.recorded_at ?? new Date();
+    await delivery.update(
+      {
+        current_latitude: input.latitude,
+        current_longitude: input.longitude,
+        current_location_accuracy_meters: input.accuracy_meters ?? null,
+        current_location_recorded_at: recordedAt,
+      },
+      { transaction },
+    );
+
+    await DeliveryLocationPing.create(
+      {
+        delivery_id: deliveryId,
+        reporter_user_id: userId,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        accuracy_meters: input.accuracy_meters ?? null,
+        recorded_at: recordedAt,
+      },
+      { transaction },
+    );
+  });
+
+  const deliveryRow = await loadDeliveryRow(deliveryId);
+  return {
+    delivery: buildDeliveryData(deliveryRow),
+    location: buildDeliveryLocationData(deliveryRow),
+  };
 }

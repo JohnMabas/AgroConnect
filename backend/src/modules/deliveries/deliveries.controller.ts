@@ -7,6 +7,7 @@ import {
   DeclineDeliverySchema,
   DeliveryIdSchema,
   ListDeliveriesQuerySchema,
+  UpdateDeliveryLocationSchema,
   UpdateDeliveryStatusSchema,
 } from "./deliveries.validation.js";
 import {
@@ -16,12 +17,18 @@ import {
   declineDelivery,
   getDeliveryById,
   getDeliveryHistory,
+  getDeliveryLocation,
+  getDeliveryLocationHistory,
   getOrderDelivery,
   listDeliveries,
   listMyDeliveries,
+  updateDeliveryLocation,
   updateDeliveryStatus,
 } from "./deliveries.service.js";
-import { publishDeliveryUpdated } from "./deliveries.events.js";
+import {
+  publishDeliveryLocationUpdated,
+  publishDeliveryUpdated,
+} from "./deliveries.events.js";
 
 function zodErrorToFields(err: ZodError) {
   return err.errors.map((error) => ({
@@ -213,6 +220,50 @@ export async function getDeliveryHistoryHandler(
   }
 }
 
+export async function getDeliveryLocationHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!requireAuth(req, res)) return;
+
+    const id = parseParam(req.params["id"], res);
+    if (!id) return;
+
+    const location = await getDeliveryLocation(
+      req.user!.sub,
+      req.user!.roles ?? [],
+      id,
+    );
+    res.json({ success: true, data: { location } });
+  } catch (err) {
+    handleServiceError(err, res, next);
+  }
+}
+
+export async function getDeliveryLocationHistoryHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!requireAuth(req, res)) return;
+
+    const id = parseParam(req.params["id"], res);
+    if (!id) return;
+
+    const history = await getDeliveryLocationHistory(
+      req.user!.sub,
+      req.user!.roles ?? [],
+      id,
+    );
+    res.json({ success: true, data: { history } });
+  } catch (err) {
+    handleServiceError(err, res, next);
+  }
+}
+
 export async function getOrderDeliveryHandler(
   req: Request,
   res: Response,
@@ -392,6 +443,43 @@ export async function updateDeliveryStatusHandler(
       success: true,
       message: "Delivery status updated.",
       data: { delivery },
+    });
+  } catch (err) {
+    handleServiceError(err, res, next);
+  }
+}
+
+export async function updateDeliveryLocationHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!requireAuth(req, res)) return;
+
+    const id = parseParam(req.params["id"], res);
+    if (!id) return;
+
+    const parsed = UpdateDeliveryLocationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({
+        success: false,
+        message: "Validation failed.",
+        errors: zodErrorToFields(parsed.error),
+      });
+      return;
+    }
+
+    const result = await updateDeliveryLocation(req.user!.sub, id, parsed.data);
+    publishDeliveryLocationUpdated(
+      result.delivery,
+      result.location,
+      req.user!.sub,
+    );
+    res.json({
+      success: true,
+      message: "Delivery location updated.",
+      data: result,
     });
   } catch (err) {
     handleServiceError(err, res, next);

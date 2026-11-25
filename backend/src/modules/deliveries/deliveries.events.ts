@@ -1,6 +1,15 @@
 import { EventEmitter } from "node:events";
 import { emitToUser } from "../../realtime/registry.js";
-import type { DeliveryData } from "./deliveries.types.js";
+import type {
+  DeliveryData,
+  DeliveryLocationData,
+} from "./deliveries.types.js";
+
+export interface DeliveryLocationUpdatedEvent {
+  delivery: DeliveryData;
+  location: DeliveryLocationData;
+  actor_user_id: string | null;
+}
 
 export interface DeliveryUpdatedEvent {
   delivery: DeliveryData;
@@ -43,5 +52,33 @@ export function publishDeliveryUpdated(
       delivery,
       actor_user_id: actorUserId,
     });
+  }
+}
+
+export function publishDeliveryLocationUpdated(
+  delivery: DeliveryData,
+  location: DeliveryLocationData,
+  actorUserId: string | null,
+): void {
+  const event: DeliveryLocationUpdatedEvent = {
+    delivery,
+    location,
+    actor_user_id: actorUserId,
+  };
+
+  const recipientIds = new Set([
+    delivery.buyer_id,
+    delivery.farmer_id,
+    delivery.created_by_user_id ?? delivery.buyer_id,
+  ]);
+  if (delivery.transporter_id) {
+    recipientIds.add(delivery.transporter_id);
+  }
+  if (actorUserId) {
+    recipientIds.add(actorUserId);
+  }
+
+  for (const recipientId of recipientIds) {
+    emitToUser(recipientId, "delivery:location:updated", event);
   }
 }

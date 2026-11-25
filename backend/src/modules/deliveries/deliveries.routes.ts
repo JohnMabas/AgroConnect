@@ -8,8 +8,11 @@ import {
   declineDeliveryHandler,
   getDeliveryHandler,
   getDeliveryHistoryHandler,
+  getDeliveryLocationHandler,
+  getDeliveryLocationHistoryHandler,
   listDeliveriesHandler,
   reassignTransporterHandler,
+  updateDeliveryLocationHandler,
   updateDeliveryStatusHandler,
 } from "./deliveries.controller.js";
 
@@ -25,6 +28,12 @@ const deliveryActionLimiter = createFixedWindowLimiter({
   message: "Too many delivery updates. Please slow down and try again shortly.",
 });
 
+const deliveryLocationLimiter = createFixedWindowLimiter({
+  windowMs: 60 * 1000,
+  limit: 30,
+  message: "Too many location updates. Please slow down and try again shortly.",
+});
+
 export function createDeliveriesRouter(): Router {
   const router = Router();
 
@@ -34,6 +43,8 @@ export function createDeliveriesRouter(): Router {
   router.get("/", listDeliveriesHandler);
 
   router.get("/:id/history", getDeliveryHistoryHandler);
+  router.get("/:id/location/history", getDeliveryLocationHistoryHandler);
+  router.get("/:id/location", getDeliveryLocationHandler);
   router.get("/:id", getDeliveryHandler);
 
   router.patch(
@@ -54,6 +65,11 @@ export function createDeliveriesRouter(): Router {
     "/:id/status",
     deliveryActionLimiter,
     updateDeliveryStatusHandler,
+  );
+  router.patch(
+    "/:id/location",
+    deliveryLocationLimiter,
+    updateDeliveryLocationHandler,
   );
 
   return router;
