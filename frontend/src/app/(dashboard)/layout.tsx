@@ -9,6 +9,8 @@ import { MobileNav, HamburgerButton } from "@/components/dashboard/mobile-nav";
 import { MessagingProvider } from "@/components/messaging/messaging-provider";
 import { CallManagerProvider } from "@/components/messaging/call-manager";
 import { MessageNavIndicator } from "@/components/messaging/message-nav-indicator";
+import { NotificationProvider } from "@/components/notifications/notification-provider";
+import { NotificationNavIndicator } from "@/components/notifications/notification-nav-indicator";
 import type { SafeUser } from "@/lib/api";
 
 const navIcons = {
@@ -40,6 +42,16 @@ const offersLink = { href: "/offers", label: "Offers", icon: navIcons.offers };
 const ordersLink = { href: "/orders", label: "Orders", icon: navIcons.orders };
 const reservationsLink = { href: "/reservations", label: "Reservations", icon: navIcons.reservations };
 const notificationsLink = { href: "/notifications", label: "Notifications", icon: navIcons.notifications };
+const deliveriesLink = {
+  href: "/deliveries",
+  label: "Deliveries",
+  icon: (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path d="M3 4a1 1 0 00-1 1v8a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+      <path d="M4.5 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15.5 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+    </svg>
+  ),
+};
 
 // Nav links per role — the first matching role wins.
 function getNavLinks(user: SafeUser) {
@@ -48,6 +60,7 @@ function getNavLinks(user: SafeUser) {
   if (roles.includes("admin")) {
     return [
       notificationsLink,
+      { ...deliveriesLink, href: "/admin/deliveries" },
       {
         href: "/admin/cooperatives",
         label: "Cooperatives",
@@ -140,6 +153,7 @@ function getNavLinks(user: SafeUser) {
   if (roles.includes("farmer")) {
     return [
       notificationsLink,
+      { ...deliveriesLink, href: "/farmer/deliveries" },
       offersLink,
       ordersLink,
       reservationsLink,
@@ -223,6 +237,7 @@ function getNavLinks(user: SafeUser) {
   if (roles.includes("transporter")) {
     return [
       notificationsLink,
+      { ...deliveriesLink, href: "/transporter/deliveries" },
       {
         href: "/transporter/dashboard",
         label: "Dashboard",
@@ -257,6 +272,7 @@ function getNavLinks(user: SafeUser) {
   if (roles.includes("buyer")) {
     return [
       notificationsLink,
+      { ...deliveriesLink, href: "/buyer/deliveries" },
       offersLink,
       ordersLink,
       reservationsLink,
@@ -402,6 +418,7 @@ export default function DashboardLayout({
 
   return (
     <MessagingProvider token={token} userId={user.id}>
+      <NotificationProvider token={token} userId={user.id}>
       <CallManagerProvider token={token} userId={user.id}>
       <div className="flex min-h-screen bg-soft-bg">
         {/* Skip link */}
@@ -435,6 +452,9 @@ export default function DashboardLayout({
 
             {/* Messages */}
             <MessageNavIndicator />
+
+            {/* Notifications */}
+            <NotificationNavIndicator />
 
             {/* User display name */}
             <span className="hidden text-sm font-semibold text-deep-navy/70 sm:block">
@@ -488,6 +508,7 @@ export default function DashboardLayout({
         </div>
       </div>
       </CallManagerProvider>
+      </NotificationProvider>
     </MessagingProvider>
   );
 }
