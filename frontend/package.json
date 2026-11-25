@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "mapbox-gl": "^3.35.2",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
