@@ -124,3 +124,45 @@ body {
   outline: 3px solid #e9a23b;
   outline-offset: 2px;
 }
+
+.delivery-map-marker {
+  width: 18px;
+  height: 18px;
+  border: 3px solid #ffffff;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(24, 50, 75, 0.3);
+  cursor: pointer;
+}
+
+.delivery-map-marker--pickup {
+  background: #e9a23b;
+}
+
+.delivery-map-marker--delivery {
+  background: #8bc34a;
+}
+
+.delivery-map-marker--current {
+  background: #176b45;
+  width: 22px;
+  height: 22px;
+  animation: current-location-pulse 1.8s ease-out infinite;
+}
+
+@keyframes current-location-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(23, 107, 69, 0.45);
+  }
+  80% {
+    box-shadow: 0 0 0 12px rgba(23, 107, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(23, 107, 69, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delivery-map-marker--current {
+    animation: none;
+  }
+}
