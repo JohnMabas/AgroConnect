@@ -20,6 +20,10 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Delivery maps
+
+Delivery maps use Mapbox GL JS. Set `NEXT_PUBLIC_MAPBOX_TOKEN` in `.env.local` to a public Mapbox token (`pk.*`) restricted to your allowed domains and APIs. Never put a private or secret Mapbox key in a `NEXT_PUBLIC_*` variable. If the token is missing, the map shows a configuration placeholder instead of pretending live maps are available.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
