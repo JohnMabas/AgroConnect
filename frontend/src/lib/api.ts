@@ -480,6 +480,17 @@ export const transporterApi = {
       body: JSON.stringify(data),
       headers: { Authorization: `Bearer ${token}` },
     }),
+  listAvailable: (token: string, params: ListTransportersParams = {}) => {
+    const q = new URLSearchParams();
+    if (params.page !== undefined) q.set("page", String(params.page));
+    if (params.limit !== undefined) q.set("limit", String(params.limit));
+    if (params.location) q.set("location", params.location);
+    const suffix = q.toString();
+    return request<{ success: boolean; data: PaginatedTransportersData }>(
+      `/transporters/available${suffix ? `?${suffix}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
 };
 
 export const cooperativeApi = {
@@ -1864,8 +1875,6 @@ export const paymentsApi = {
     ),
 };
 
-// ─── Phase 11: Notifications API ──────────────────────────────────────────────
-
 export interface NotificationData {
   id: string;
   user_id: string;
@@ -1879,6 +1888,7 @@ export interface NotificationData {
   is_read: boolean;
   read_at: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface PaginatedNotificationsData {
@@ -1890,16 +1900,78 @@ export interface PaginatedNotificationsData {
   unread_count: number;
 }
 
+export interface NotificationPreferenceData {
+  user_id: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  sms_enabled: boolean;
+  offers_enabled: boolean;
+  messages_enabled: boolean;
+  orders_enabled: boolean;
+  payments_enabled: boolean;
+  deliveries_enabled: boolean;
+  reviews_enabled: boolean;
+  verifications_enabled: boolean;
+  marketing_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationDeliveryData {
+  id: string;
+  notification_id: string;
+  user_id: string;
+  channel: "in_app" | "email" | "sms";
+  provider: string;
+  provider_reference: string | null;
+  delivery_status: "pending" | "sent" | "delivered" | "failed" | "skipped";
+  attempts: number;
+  last_attempt_at: string | null;
+  next_attempt_at: string | null;
+  delivered_at: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListNotificationsParams {
+  unread?: boolean;
+  notification_type?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface UpdateNotificationPreferencesPayload {
+  in_app_enabled?: boolean;
+  email_enabled?: boolean;
+  sms_enabled?: boolean;
+  offers_enabled?: boolean;
+  messages_enabled?: boolean;
+  orders_enabled?: boolean;
+  payments_enabled?: boolean;
+  deliveries_enabled?: boolean;
+  reviews_enabled?: boolean;
+  verifications_enabled?: boolean;
+  marketing_enabled?: boolean;
+}
+
+export interface ListNotificationDeliveriesParams {
+  page?: number;
+  limit?: number;
+  delivery_status?: NotificationDeliveryData["delivery_status"];
+  channel?: NotificationDeliveryData["channel"];
+}
+
 export const notificationsApi = {
   getNotifications: (
     token: string,
-    params: { unread?: boolean; notification_type?: string; page?: number; limit?: number } = {},
+    params: ListNotificationsParams = {},
   ) => {
     const q = new URLSearchParams();
-    if (params.unread) q.set("unread", "true");
+    if (params.unread !== undefined) q.set("unread", String(params.unread));
     if (params.notification_type) q.set("notification_type", params.notification_type);
-    if (params.page) q.set("page", String(params.page));
-    if (params.limit) q.set("limit", String(params.limit));
+    if (params.page !== undefined) q.set("page", String(params.page));
+    if (params.limit !== undefined) q.set("limit", String(params.limit));
     const suffix = q.toString();
     return request<{ success: boolean; data: PaginatedNotificationsData }>(
       `/notifications${suffix ? `?${suffix}` : ""}`,
@@ -1911,44 +1983,173 @@ export const notificationsApi = {
       "/notifications/unread-count",
       { headers: { Authorization: `Bearer ${token}` } },
     ),
-  markRead: (token: string, id: string) =>
+  get: (token: string, id: string) =>
     request<{ success: boolean; data: { notification: NotificationData } }>(
-      `/notifications/${id}/read`,
-      {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      },
+      `/notifications/${encodeURIComponent(id)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
     ),
+  markRead: (token: string, id: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { notification: NotificationData };
+    }>(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   markAllRead: (token: string) =>
-    request<{ success: boolean; message: string }>(
-      "/notifications/read-all",
-      {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      },
+    request<{
+      success: boolean;
+      message: string;
+      data: { updated: number };
+    }>("/notifications/read-all", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getPreferences: (token: string) =>
+    request<{ success: boolean; data: { preferences: NotificationPreferenceData } }>(
+      "/notifications/preferences",
+      { headers: { Authorization: `Bearer ${token}` } },
     ),
+  updatePreferences: (token: string, payload: UpdateNotificationPreferencesPayload) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { preferences: NotificationPreferenceData };
+    }>("/notifications/preferences", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  listDeliveries: (token: string, params: ListNotificationDeliveriesParams = {}) => {
+    const q = new URLSearchParams();
+    if (params.page !== undefined) q.set("page", String(params.page));
+    if (params.limit !== undefined) q.set("limit", String(params.limit));
+    if (params.delivery_status) q.set("delivery_status", params.delivery_status);
+    if (params.channel) q.set("channel", params.channel);
+    const suffix = q.toString();
+    return request<{
+      success: boolean;
+      data: {
+        deliveries: NotificationDeliveryData[];
+        total: number;
+        page: number;
+        limit: number;
+        total_pages: number;
+      };
+    }>(`/admin/notifications/deliveries${suffix ? `?${suffix}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  retryDelivery: (token: string, id: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: NotificationDeliveryData };
+    }>(`/admin/notifications/deliveries/${encodeURIComponent(id)}/retry`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 };
 
-// ─── Phase 10: Deliveries API ─────────────────────────────────────────────────
+export type DeliveryStatus =
+  | "pending"
+  | "assigned"
+  | "accepted"
+  | "picked_up"
+  | "in_transit"
+  | "delivered"
+  | "completed"
+  | "cancelled"
+  | "failed";
+
+export interface DeliveryUserSummary {
+  id: string;
+  display_name: string | null;
+}
+
+export interface DeliveryOrderSummary {
+  id: string;
+  order_number: string;
+  status: OrderStatus;
+  payment_status: OrderPaymentStatus;
+  quantity: number;
+  unit: string;
+  total_amount: number;
+  currency: string;
+  delivery_location: string | null;
+  delivery_date: string | null;
+}
+
+export interface DeliveryHistoryEventData {
+  id: string;
+  delivery_id: string;
+  actor_user_id: string | null;
+  action: string;
+  previous_status: string | null;
+  new_status: string | null;
+  description: string | null;
+  location: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface DeliveryHistoryData {
+  delivery_id: string;
+  events: DeliveryHistoryEventData[];
+}
 
 export interface DeliveryData {
   id: string;
   delivery_reference: string;
   order_id: string;
-  status: "pending" | "assigned" | "accepted" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled" | "failed";
-  pickup_location: string | null;
+  farmer_id: string;
+  buyer_id: string;
+  transporter_id: string | null;
+  pickup_location: string;
   delivery_location: string | null;
+  pickup_latitude: number | null;
+  pickup_longitude: number | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
+  current_latitude: number | null;
+  current_longitude: number | null;
+  current_location_accuracy_meters: number | null;
+  current_location_recorded_at: string | null;
   produce_description: string | null;
   quantity: number;
   unit: string;
-  expected_pickup_date: string | null;
-  expected_delivery_date: string | null;
-  delivery_fee_minor: number | null;
+  expected_pickup_date: string;
+  expected_delivery_date: string;
+  delivery_fee_minor: number;
+  delivery_fee: number;
   currency: string;
+  additional_instructions: string | null;
+  status: DeliveryStatus;
+  created_by_user_id: string | null;
+  assigned_at: string | null;
+  accepted_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  failed_at: string | null;
   cancellation_reason: string | null;
   failure_reason: string | null;
+  order?: DeliveryOrderSummary;
+  buyer?: DeliveryUserSummary;
+  farmer?: DeliveryUserSummary;
+  transporter?: DeliveryUserSummary;
   created_at: string;
   updated_at: string;
+}
+
+export interface ListDeliveriesParams {
+  page?: number;
+  limit?: number;
+  status?: DeliveryStatus;
+  order_id?: string;
+  sort?: "newest" | "oldest";
 }
 
 export interface PaginatedDeliveriesData {
@@ -1959,17 +2160,230 @@ export interface PaginatedDeliveriesData {
   total_pages: number;
 }
 
+export interface CreateDeliveryPayload {
+  order_id: string;
+  pickup_location: string;
+  delivery_location?: string;
+  pickup_latitude?: number;
+  pickup_longitude?: number;
+  delivery_latitude?: number;
+  delivery_longitude?: number;
+  produce_description?: string;
+  quantity?: number;
+  unit?: string;
+  expected_pickup_date: string;
+  expected_delivery_date: string;
+  delivery_fee: number;
+  currency?: string;
+  additional_instructions?: string;
+}
+
+export interface UpdateDeliveryStatusPayload {
+  status:
+    | "picked_up"
+    | "in_transit"
+    | "delivered"
+    | "completed"
+    | "cancelled"
+    | "failed";
+  reason?: string;
+  description?: string;
+  location?: string;
+}
+
+export interface DeliveryCurrentLocation {
+  latitude: number;
+  longitude: number;
+  accuracy_meters: number | null;
+  recorded_at: string | null;
+}
+
+export interface DeliveryLocationData {
+  delivery_id: string;
+  status: DeliveryStatus;
+  current_location: DeliveryCurrentLocation | null;
+  shareable: boolean;
+}
+
+export interface DeliveryLocationPingData extends DeliveryCurrentLocation {
+  id: string;
+  delivery_id: string;
+  reporter_user_id: string;
+  created_at: string;
+}
+
+export interface DeliveryLocationHistoryData {
+  delivery_id: string;
+  pings: DeliveryLocationPingData[];
+}
+
+export interface UpdateDeliveryLocationPayload {
+  latitude: number;
+  longitude: number;
+  accuracy_meters?: number;
+  recorded_at?: string;
+}
+
+export interface TransporterProfileData {
+  id: string;
+  user_id: string;
+  business_name: string;
+  contact_phone: string;
+  operating_location: string;
+  coverage_areas: string[];
+  vehicle_type: string | null;
+  vehicle_registration_number: string | null;
+  vehicle_capacity: string | null;
+  produce_types: string[];
+  availability_status: "available" | "unavailable" | "suspended";
+  approval_status: "pending" | "approved" | "rejected" | "suspended";
+  approved_by_user_id: string | null;
+  approved_at: string | null;
+  suspended_reason: string | null;
+  user?: DeliveryUserSummary;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListTransportersParams {
+  page?: number;
+  limit?: number;
+  location?: string;
+}
+
+export interface PaginatedTransportersData {
+  transporters: TransporterProfileData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+function deliveryQuery(params: ListDeliveriesParams): string {
+  const q = new URLSearchParams();
+  if (params.page !== undefined) q.set("page", String(params.page));
+  if (params.limit !== undefined) q.set("limit", String(params.limit));
+  if (params.status) q.set("status", params.status);
+  if (params.order_id) q.set("order_id", params.order_id);
+  if (params.sort) q.set("sort", params.sort);
+  return q.toString();
+}
+
 export const deliveriesApi = {
-  getMyDeliveries: (token: string, params: { page?: number; limit?: number } = {}) => {
-    const q = new URLSearchParams();
-    if (params.page) q.set("page", String(params.page));
-    if (params.limit) q.set("limit", String(params.limit));
-    const suffix = q.toString();
+  list: (token: string, params: ListDeliveriesParams = {}) => {
+    const suffix = deliveryQuery(params);
+    return request<{ success: boolean; data: PaginatedDeliveriesData }>(
+      `/deliveries${suffix ? `?${suffix}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+  getMyDeliveries: (token: string, params: ListDeliveriesParams = {}) => {
+    const suffix = deliveryQuery(params);
     return request<{ success: boolean; data: PaginatedDeliveriesData }>(
       `/transporters/my-deliveries${suffix ? `?${suffix}` : ""}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
   },
+  get: (token: string, id: string) =>
+    request<{ success: boolean; data: { delivery: DeliveryData } }>(
+      `/deliveries/${encodeURIComponent(id)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  getForOrder: (token: string, orderId: string) =>
+    request<{ success: boolean; data: { delivery: DeliveryData } }>(
+      `/orders/${encodeURIComponent(orderId)}/delivery`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  history: (token: string, id: string) =>
+    request<{ success: boolean; data: { history: DeliveryHistoryData } }>(
+      `/deliveries/${encodeURIComponent(id)}/history`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  getLocation: (token: string, id: string) =>
+    request<{ success: boolean; data: { location: DeliveryLocationData } }>(
+      `/deliveries/${encodeURIComponent(id)}/location`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  getLocationHistory: (token: string, id: string) =>
+    request<{
+      success: boolean;
+      data: { history: DeliveryLocationHistoryData };
+    }>(`/deliveries/${encodeURIComponent(id)}/location/history`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateLocation: (
+    token: string,
+    id: string,
+    payload: UpdateDeliveryLocationPayload,
+  ) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: DeliveryData; location: DeliveryLocationData };
+    }>(`/deliveries/${encodeURIComponent(id)}/location`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  create: (token: string, payload: CreateDeliveryPayload) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: DeliveryData };
+    }>("/deliveries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  assign: (token: string, id: string, transporterId: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: DeliveryData };
+    }>(`/deliveries/${encodeURIComponent(id)}/assign`, {
+      method: "PATCH",
+      body: JSON.stringify({ transporter_id: transporterId }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  reassign: (token: string, id: string, transporterId: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: DeliveryData };
+    }>(`/deliveries/${encodeURIComponent(id)}/reassign`, {
+      method: "PATCH",
+      body: JSON.stringify({ transporter_id: transporterId }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  accept: (token: string, id: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: DeliveryData };
+    }>(`/deliveries/${encodeURIComponent(id)}/accept`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  decline: (token: string, id: string, reason?: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: DeliveryData };
+    }>(`/deliveries/${encodeURIComponent(id)}/decline`, {
+      method: "PATCH",
+      body: JSON.stringify(reason ? { reason } : {}),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateStatus: (token: string, id: string, payload: UpdateDeliveryStatusPayload) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { delivery: DeliveryData };
+    }>(`/deliveries/${encodeURIComponent(id)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 };
 
 // ─── Phase 6: Marketplace API ─────────────────────────────────────────────────
