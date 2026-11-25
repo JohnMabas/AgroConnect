@@ -27,6 +27,14 @@ export interface DeliveryData {
   transporter_id: string | null;
   pickup_location: string;
   delivery_location: string;
+  pickup_latitude: number | null;
+  pickup_longitude: number | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
+  current_latitude: number | null;
+  current_longitude: number | null;
+  current_location_accuracy_meters: number | null;
+  current_location_recorded_at: Date | null;
   produce_description: string;
   quantity: number;
   unit: string;
@@ -53,6 +61,39 @@ export interface DeliveryData {
   transporter?: DeliveryUserSummary;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface DeliveryLocationData {
+  delivery_id: string;
+  status: DeliveryStatus;
+  current_location: {
+    latitude: number;
+    longitude: number;
+    accuracy_meters: number | null;
+    recorded_at: Date | null;
+  } | null;
+  shareable: boolean;
+}
+
+export interface DeliveryLocationPingData {
+  id: string;
+  delivery_id: string;
+  reporter_user_id: string;
+  latitude: number;
+  longitude: number;
+  accuracy_meters: number | null;
+  recorded_at: Date;
+  created_at: Date;
+}
+
+export interface DeliveryLocationHistoryData {
+  delivery_id: string;
+  pings: DeliveryLocationPingData[];
+}
+
+export interface UpdateDeliveryLocationResult {
+  delivery: DeliveryData;
+  location: DeliveryLocationData;
 }
 
 export interface DeliveryHistoryEventData {

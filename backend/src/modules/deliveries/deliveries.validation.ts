@@ -7,6 +7,9 @@ const isoDate = z
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date in YYYY-MM-DD format.");
 
+const latitude = z.coerce.number().finite().min(-90).max(90);
+const longitude = z.coerce.number().finite().min(-180).max(180);
+
 export const deliveryStatus = z.enum([
   "pending",
   "assigned",
@@ -33,6 +36,10 @@ export const CreateDeliverySchema = z
       .min(2, "Delivery location must be at least 2 characters.")
       .max(500, "Delivery location must be at most 500 characters.")
       .optional(),
+    pickup_latitude: latitude.optional(),
+    pickup_longitude: longitude.optional(),
+    delivery_latitude: latitude.optional(),
+    delivery_longitude: longitude.optional(),
     produce_description: z
       .string()
       .trim()
@@ -57,6 +64,25 @@ export const CreateDeliverySchema = z
     {
       message: "Expected delivery date cannot be before the pickup date.",
       path: ["expected_delivery_date"],
+    },
+  )
+  .refine(
+    (value) =>
+      (value.pickup_latitude === undefined) ===
+      (value.pickup_longitude === undefined),
+    {
+      message: "Pickup coordinates must include both latitude and longitude.",
+      path: ["pickup_longitude"],
+    },
+  )
+  .refine(
+    (value) =>
+      (value.delivery_latitude === undefined) ===
+      (value.delivery_longitude === undefined),
+    {
+      message:
+        "Delivery coordinates must include both latitude and longitude.",
+      path: ["delivery_longitude"],
     },
   );
 
@@ -108,6 +134,23 @@ export const UpdateDeliveryStatusSchema = z
     },
   );
 
+export const UpdateDeliveryLocationSchema = z
+  .object({
+    latitude,
+    longitude,
+    accuracy_meters: z.coerce
+      .number()
+      .finite()
+      .nonnegative("Accuracy cannot be negative.")
+      .max(10000, "Accuracy must be at most 10000 meters.")
+      .optional(),
+    recorded_at: z.coerce.date().optional(),
+  })
+  .refine((value) => value.recorded_at === undefined || value.recorded_at.getTime() <= Date.now() + 5 * 60 * 1000, {
+    message: "Recorded time cannot be in the future.",
+    path: ["recorded_at"],
+  });
+
 export const DeclineDeliverySchema = z.object({
   reason: z
     .string()
@@ -125,5 +168,8 @@ export type AssignTransporterInput = z.infer<
 >;
 export type UpdateDeliveryStatusInput = z.infer<
   typeof UpdateDeliveryStatusSchema
+>;
+export type UpdateDeliveryLocationInput = z.infer<
+  typeof UpdateDeliveryLocationSchema
 >;
 export type DeclineDeliveryInput = z.infer<typeof DeclineDeliverySchema>;
