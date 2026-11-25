@@ -47,6 +47,8 @@ import * as createCallSessions from "./20261120000003-create-call-sessions.js";
 import * as addCloudinaryFieldsToMessageAttachments from "./20261120000004-add-cloudinary-fields-to-message-attachments.js";
 import * as addPublicImageFields from "./20261121000001-add-public-image-fields.js";
 import * as addPublicImageSecureUrls from "./20261121000002-add-public-image-secure-urls.js";
+import * as addDeliveryLocationTracking from "./20261122000001-add-delivery-location-tracking.js";
+import * as addDeliveryLocationColumns from "./20261125000001-add-delivery-location-columns.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -220,5 +222,13 @@ export const migrations = [
   {
     name: "20261121000002-add-public-image-secure-urls",
     ...addPublicImageSecureUrls,
+  },
+  {
+    name: "20261122000001-add-delivery-location-tracking",
+    ...addDeliveryLocationTracking,
+  },
+  {
+    name: "20261125000001-add-delivery-location-columns",
+    ...addDeliveryLocationColumns,
   },
 ];

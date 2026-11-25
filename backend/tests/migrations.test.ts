@@ -50,6 +50,7 @@ const PHASE_9_TABLES = [
 const PHASE_10_TABLES = [
   "deliveries",
   "delivery_history",
+  "delivery_location_pings",
   "transporter_profiles",
 ];
 const PHASE_11_TABLES = [
@@ -176,6 +177,8 @@ const ALL_MIGRATION_NAMES = [
   "20261120000004-add-cloudinary-fields-to-message-attachments",
   "20261121000001-add-public-image-fields",
   "20261121000002-add-public-image-secure-urls",
+  "20261122000001-add-delivery-location-tracking",
+  "20261125000001-add-delivery-location-columns",
 ];
 
 async function getPublicTables(): Promise<string[]> {
