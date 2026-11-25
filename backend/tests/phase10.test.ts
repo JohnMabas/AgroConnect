@@ -257,6 +257,10 @@ function deliveryPayload(
     order_id: order.id,
     pickup_location: "Bukuru Farm Gate, Jos South",
     delivery_location: order.delivery_location,
+    pickup_latitude: 9.8965,
+    pickup_longitude: 8.8583,
+    delivery_latitude: 9.9172,
+    delivery_longitude: 8.8931,
     produce_description: "Fresh maize in good condition",
     quantity: order.quantity,
     unit: order.unit,
@@ -566,6 +570,10 @@ describe("Phase 10 delivery requests", () => {
       farmer_id: farmer.userId,
       transporter_id: null,
       delivery_location: "Bukuru, Jos South",
+      pickup_latitude: 9.8965,
+      pickup_longitude: 8.8583,
+      delivery_latitude: 9.9172,
+      delivery_longitude: 8.8931,
       quantity: 10,
       unit: "kg",
       delivery_fee_minor: 125050,
@@ -721,6 +729,70 @@ describe("Phase 10 delivery assignment and lifecycle", () => {
       "ready_for_delivery",
     );
 
+    const initialLocation = await request(app)
+      .get(`/api/deliveries/${deliveryId}/location`)
+      .set("Authorization", `Bearer ${buyer.token}`);
+    expect(initialLocation.status).toBe(200);
+    expect(initialLocation.body.data.location).toMatchObject({
+      delivery_id: deliveryId,
+      status: "accepted",
+      shareable: true,
+      current_location: null,
+    });
+
+    const outsiderLocation = await request(app)
+      .get(`/api/deliveries/${deliveryId}/location`)
+      .set("Authorization", `Bearer ${outsider.token}`);
+    expect(outsiderLocation.status).toBe(404);
+
+    const buyerShare = await request(app)
+      .patch(`/api/deliveries/${deliveryId}/location`)
+      .set("Authorization", `Bearer ${buyer.token}`)
+      .send({ latitude: 9.9, longitude: 8.86 });
+    expect(buyerShare.status).toBe(403);
+
+    const invalidShare = await request(app)
+      .patch(`/api/deliveries/${deliveryId}/location`)
+      .set("Authorization", `Bearer ${transporter.token}`)
+      .send({ latitude: 91, longitude: 8.86 });
+    expect(invalidShare.status).toBe(422);
+
+    const recordedAt = new Date().toISOString();
+    const shared = await request(app)
+      .patch(`/api/deliveries/${deliveryId}/location`)
+      .set("Authorization", `Bearer ${transporter.token}`)
+      .send({
+        latitude: 9.905,
+        longitude: 8.871,
+        accuracy_meters: 12,
+        recorded_at: recordedAt,
+      });
+    expect(shared.status).toBe(200);
+    expect(shared.body.data.location.current_location).toMatchObject({
+      latitude: 9.905,
+      longitude: 8.871,
+      accuracy_meters: 12,
+    });
+
+    const buyerLocation = await request(app)
+      .get(`/api/deliveries/${deliveryId}/location`)
+      .set("Authorization", `Bearer ${buyer.token}`);
+    expect(buyerLocation.status).toBe(200);
+    expect(buyerLocation.body.data.location.current_location.latitude).toBe(
+      9.905,
+    );
+
+    const locationHistory = await request(app)
+      .get(`/api/deliveries/${deliveryId}/location/history`)
+      .set("Authorization", `Bearer ${farmer.token}`);
+    expect(locationHistory.status).toBe(200);
+    expect(locationHistory.body.data.history.pings).toHaveLength(1);
+    expect(locationHistory.body.data.history.pings[0]).toMatchObject({
+      reporter_user_id: transporter.userId,
+      latitude: 9.905,
+      longitude: 8.871,
+    });
+
     const buyerPickedUp = await request(app)
       .patch(`/api/deliveries/${deliveryId}/status`)
       .set("Authorization", `Bearer ${buyer.token}`)
@@ -774,6 +846,12 @@ describe("Phase 10 delivery assignment and lifecycle", () => {
     expect(buyerComplete.status).toBe(200);
     expect(buyerComplete.body.data.delivery.status).toBe("completed");
     expect((await Order.findByPk(paidOrder.id))!.status).toBe("completed");
+
+    const lateShare = await request(app)
+      .patch(`/api/deliveries/${deliveryId}/location`)
+      .set("Authorization", `Bearer ${transporter.token}`)
+      .send({ latitude: 9.91, longitude: 8.88 });
+    expect(lateShare.status).toBe(422);
 
     const reopen = await request(app)
       .patch(`/api/deliveries/${deliveryId}/status`)
