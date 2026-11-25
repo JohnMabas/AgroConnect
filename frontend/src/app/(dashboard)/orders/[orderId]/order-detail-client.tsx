@@ -359,6 +359,16 @@ export default function OrderDetailClient({ orderId }: { orderId: string }) {
           { label: "Orders", href: "/orders" },
           { label: order.order_number },
         ]}
+        action={
+          isParticipant ? (
+            <Link
+              href={isBuyer ? "/buyer/deliveries" : "/farmer/deliveries"}
+              className="rounded-full border border-deep-navy/20 px-5 py-2.5 text-sm font-semibold text-deep-navy/70 transition-colors hover:border-agro-green/30 hover:text-agro-green"
+            >
+              Deliveries
+            </Link>
+          ) : undefined
+        }
       />
 
       {actionError && (

@@ -59,18 +59,6 @@ const APPROVAL_INFO: Record<ApprovalStatus, { badge: string; message: string }> 
   },
 };
 
-function ComingSoonCard({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="relative flex flex-col rounded-2xl border border-deep-navy/10 bg-white p-5 shadow-sm">
-      <span className="absolute right-3 top-3 rounded-full bg-deep-navy/8 px-2 py-0.5 text-xs font-semibold text-deep-navy/40">
-        Coming soon
-      </span>
-      <h3 className="font-heading text-sm font-bold text-deep-navy/60">{title}</h3>
-      <p className="mt-1 text-xs leading-5 text-deep-navy/40">{description}</p>
-    </div>
-  );
-}
-
 export default function TransporterDashboardPage() {
   const { token, user, loading: authLoading, error: authError } = useDashboardAuth("transporter");
 
@@ -254,19 +242,19 @@ export default function TransporterDashboardPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
-              href: "/transporter/profile",
-              label: "Transport profile",
+              href: "/transporter/deliveries",
+              label: "My deliveries",
               color: "bg-agro-green/10 text-agro-green border-agro-green/20",
             },
             {
-              href: "/profile",
-              label: "Account settings",
-              color: "bg-deep-navy/5 text-deep-navy border-deep-navy/15",
+              href: "/transporter/profile",
+              label: "Transport profile",
+              color: "bg-harvest-gold/10 text-amber-700 border-harvest-gold/20",
             },
             {
-              href: "/",
-              label: "Back to homepage",
-              color: "bg-harvest-gold/10 text-amber-700 border-harvest-gold/20",
+              href: "/settings/notifications",
+              label: "Notification settings",
+              color: "bg-deep-navy/5 text-deep-navy border-deep-navy/15",
             },
           ].map(({ href, label, color }) => (
             <Link
@@ -291,9 +279,12 @@ export default function TransporterDashboardPage() {
               {recentDeliveries.map((d) => (
                 <li key={d.id} className="flex items-start justify-between gap-4 px-5 py-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-deep-navy">
+                    <Link
+                      href={`/deliveries/${d.id}`}
+                      className="block truncate text-sm font-medium text-deep-navy transition-colors hover:text-agro-green hover:underline"
+                    >
                       {d.delivery_reference}
-                    </p>
+                    </Link>
                     <p className="mt-0.5 truncate text-xs text-deep-navy/60">
                       {d.delivery_location ?? "Location not set"}
                     </p>
@@ -318,24 +309,34 @@ export default function TransporterDashboardPage() {
         </section>
       )}
 
-      {/* Coming soon */}
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-deep-navy/50">
-          Coming soon
+          Delivery tools
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <ComingSoonCard
-            title="Delivery requests"
-            description="Browse and accept delivery requests in your coverage area."
-          />
-          <ComingSoonCard
-            title="Live delivery tracking"
-            description="Update delivery status in real time for buyers and farmers."
-          />
-          <ComingSoonCard
-            title="Delivery history"
-            description="View your complete delivery history and earnings."
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link
+            href="/transporter/deliveries"
+            className="rounded-2xl border border-agro-green/20 bg-agro-green/5 p-5 transition-colors hover:bg-agro-green/10"
+          >
+            <h3 className="font-heading text-sm font-bold text-agro-green">
+              Assigned deliveries
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-deep-navy/55">
+              Accept assignments, update pickup and transit status, and review
+              delivery history.
+            </p>
+          </Link>
+          <Link
+            href="/notifications"
+            className="rounded-2xl border border-harvest-gold/20 bg-harvest-gold/5 p-5 transition-colors hover:bg-harvest-gold/10"
+          >
+            <h3 className="font-heading text-sm font-bold text-amber-700">
+              Notification centre
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-deep-navy/55">
+              Review new assignments and delivery updates in one place.
+            </p>
+          </Link>
         </div>
       </section>
 
