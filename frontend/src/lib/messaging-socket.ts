@@ -1,5 +1,13 @@
 import { io, type Socket } from "socket.io-client";
-import type { CallData, ConversationData, MarkReadResult, MessageData } from "@/lib/api";
+import type {
+  CallData,
+  ConversationData,
+  DeliveryData,
+  DeliveryLocationData,
+  MarkReadResult,
+  MessageData,
+  NotificationData,
+} from "@/lib/api";
 import { getStoredAccessToken } from "@/lib/session";
 import { logSignalingFailure } from "@/lib/call-diagnostics";
 
@@ -128,15 +136,19 @@ export interface MessageDeliveredPayload {
 }
 
 export interface NotificationNewPayload {
-  notification: {
-    id: string;
-    title: string;
-    message: string;
-    is_read: boolean;
-    created_at: string;
-    action_url?: string | null;
-    notification_type?: string;
-  };
+  notification: NotificationData;
+}
+
+export interface DeliveryUpdatedPayload {
+  delivery: DeliveryData;
+  action: string;
+  actor_user_id: string | null;
+}
+
+export interface DeliveryLocationUpdatedPayload {
+  delivery: DeliveryData;
+  location: DeliveryLocationData;
+  actor_user_id: string | null;
 }
 
 export function markDeliveredViaSocket(
