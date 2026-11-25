@@ -39,6 +39,14 @@ export class Delivery extends Model<
   declare currency: CreationOptional<string>;
   declare additional_instructions: CreationOptional<string | null>;
   declare status: CreationOptional<DeliveryStatus>;
+  declare pickup_latitude: CreationOptional<number | null>;
+  declare pickup_longitude: CreationOptional<number | null>;
+  declare delivery_latitude: CreationOptional<number | null>;
+  declare delivery_longitude: CreationOptional<number | null>;
+  declare current_latitude: CreationOptional<number | null>;
+  declare current_longitude: CreationOptional<number | null>;
+  declare current_location_accuracy_meters: CreationOptional<number | null>;
+  declare current_location_recorded_at: CreationOptional<Date | null>;
   declare created_by_user_id: CreationOptional<string | null>;
   declare assigned_at: CreationOptional<Date | null>;
   declare accepted_at: CreationOptional<Date | null>;
@@ -137,6 +145,38 @@ Delivery.init(
       ),
       allowNull: false,
       defaultValue: "pending",
+    },
+    pickup_latitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    pickup_longitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    delivery_latitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    delivery_longitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    current_latitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    current_longitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    current_location_accuracy_meters: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    current_location_recorded_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     created_by_user_id: {
       type: DataTypes.UUID,

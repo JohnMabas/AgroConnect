@@ -16,6 +16,7 @@ import { ComplaintEvidence } from "./complaint-evidence.model.js";
 import { ComplaintInvestigation } from "./complaint-investigation.model.js";
 import { Delivery } from "./delivery.model.js";
 import { DeliveryHistory } from "./delivery-history.model.js";
+import { DeliveryLocationPing } from "./delivery-location-ping.model.js";
 import { EmailVerificationToken } from "./email-verification-token.model.js";
 import { FarmerActionApproval } from "./farmer-action-approval.model.js";
 import { FarmerAgentPermission } from "./farmer-agent-permission.model.js";
@@ -775,6 +776,28 @@ DeliveryHistory.belongsTo(Delivery, {
 DeliveryHistory.belongsTo(User, {
   foreignKey: "actor_user_id",
   as: "actor",
+});
+
+Delivery.hasMany(DeliveryLocationPing, {
+  foreignKey: "delivery_id",
+  as: "location_pings",
+  onDelete: "CASCADE",
+});
+
+DeliveryLocationPing.belongsTo(Delivery, {
+  foreignKey: "delivery_id",
+  as: "delivery",
+});
+
+User.hasMany(DeliveryLocationPing, {
+  foreignKey: "reporter_user_id",
+  as: "reported_delivery_locations",
+  onDelete: "CASCADE",
+});
+
+DeliveryLocationPing.belongsTo(User, {
+  foreignKey: "reporter_user_id",
+  as: "reporter",
 });
 
 // Phase 11 associations
@@ -1583,6 +1606,7 @@ export {
   ComplaintInvestigation,
   Delivery,
   DeliveryHistory,
+  DeliveryLocationPing,
   EmailVerificationToken,
   FarmerActionApproval,
   FarmerAgentPermission,
