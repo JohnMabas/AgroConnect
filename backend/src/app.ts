@@ -63,6 +63,7 @@ import {
   createApiRouter,
   type ApiRouterDependencies,
 } from "./routes/index.js";
+import { createAdminRouter } from "./modules/admin/admin.routes.js";
 
 export interface AppDependencies {
   checkDatabaseHealth: ApiRouterDependencies["checkDatabaseHealth"];
@@ -210,6 +211,10 @@ export function createApp(
   // Phase 18: controlled pilot readiness, participants, feedback and metrics.
   app.use("/api/pilot", createPilotRouter());
   app.use("/api/admin/pilot", createAdminPilotRouter());
+
+  // Phase 8A: platform administration console (overview, users, transporters,
+  // listings, orders, payments and administrative audit trail).
+  app.use("/api/admin", createAdminRouter());
 
   // Health and other API routes
   app.use(
