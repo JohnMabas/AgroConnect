@@ -9,6 +9,7 @@ import {
   ApiError,
   ordersApi,
   paymentsApi,
+  toArray,
   type OrderData,
   type OrderEventData,
   type OrderFeeDisclosureData,
@@ -209,7 +210,7 @@ export default function OrderDetailClient({ orderId }: { orderId: string }) {
           .filter((payment) => payment.status === "success" && payment.reference)
           .map(async (payment) => {
             const response = await paymentsApi.getRefunds(accessToken, payment.reference);
-            return response.data.refunds.map((refund) => ({
+            return toArray<RefundData>(response.data.refunds).map((refund) => ({
               ...refund,
               payment_reference: payment.reference,
             }));
