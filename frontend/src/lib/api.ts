@@ -491,6 +491,22 @@ export const transporterApi = {
       { headers: { Authorization: `Bearer ${token}` } },
     );
   },
+  adminApprove: (token: string, id: string) =>
+    request(`/transporters/${encodeURIComponent(id)}/approve`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  adminSuspend: (token: string, id: string, reason?: string) =>
+    request(`/transporters/${encodeURIComponent(id)}/suspend`, {
+      method: "PATCH",
+      body: JSON.stringify(reason ? { reason } : {}),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  adminReactivate: (token: string, id: string) =>
+    request(`/transporters/${encodeURIComponent(id)}/reactivate`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 };
 
 export const cooperativeApi = {
@@ -2892,4 +2908,664 @@ export const callsApi = {
       body: JSON.stringify(reason ? { reason } : {}),
     });
   },
+};
+
+// ─── Phase 8A: Admin platform management API ─────────────────────────────────
+
+export interface AdminOverviewData {
+  total_users: number;
+  total_farmers: number;
+  total_buyers: number;
+  registered_cooperatives: number;
+  approved_transporters: number;
+  pending_transporters: number;
+  pending_cooperatives: number;
+  active_listings: number;
+  active_buyer_requests: number;
+  total_orders: number;
+  successful_payments: number;
+  pending_payments: number;
+  recorded_platform_commission_minor: number;
+  platform_commission_currency: string;
+  active_deliveries: number;
+  pending_complaints: number;
+  open_integrity_alerts: number;
+}
+
+export type AdminUserRole =
+  | "farmer"
+  | "buyer"
+  | "cooperative"
+  | "cooperative_agent"
+  | "transporter"
+  | "admin";
+
+export interface AdminUserSummary {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+  phone_number: string | null;
+  status: "pending" | "active" | "suspended";
+  roles: string[];
+  created_at: string;
+}
+
+export interface AdminUserDetail extends AdminUserSummary {
+  email_verified: boolean;
+  phone_verified: boolean;
+  profile: {
+    first_name: string | null;
+    last_name: string | null;
+    state_or_region: string | null;
+    local_government_area: string | null;
+    city_or_community: string | null;
+  } | null;
+  farmer_verification_status: string | null;
+  last_updated: string | null;
+}
+
+export interface PaginatedAdminUsers {
+  users: AdminUserSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface AdminTransporterSummary {
+  id: string;
+  user_id: string;
+  business_name: string;
+  contact_phone: string;
+  operating_location: string;
+  coverage_areas: string[];
+  vehicle_type: string | null;
+  vehicle_registration_number: string | null;
+  vehicle_capacity: string | null;
+  produce_types: string[];
+  availability_status: string;
+  approval_status: "pending" | "approved" | "rejected" | "suspended";
+  approved_at: string | null;
+  suspended_reason: string | null;
+  user_display_name: string | null;
+  user_email: string | null;
+  user_phone_number: string | null;
+  created_at: string;
+}
+
+export interface PaginatedAdminTransporters {
+  transporters: AdminTransporterSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface AdminListingSummary {
+  id: string;
+  title: string;
+  status: "draft" | "published" | "paused" | "sold_out" | "closed" | "expired";
+  farmer_user_id: string;
+  farmer_display_name: string | null;
+  produce_type_name: string | null;
+  quantity: number;
+  available_quantity: number;
+  reserved_quantity: number;
+  sold_quantity: number;
+  unit: string;
+  price_per_unit: number;
+  currency: string;
+  state_or_region: string | null;
+  community: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedAdminListings {
+  listings: AdminListingSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface AdminPaymentSummary {
+  id: string;
+  order_id: string;
+  order_number: string | null;
+  buyer_display_name: string | null;
+  farmer_display_name: string | null;
+  reference: string;
+  provider: string;
+  amount_minor: number;
+  amount: number;
+  currency: string;
+  status: "pending" | "success" | "failed" | "abandoned" | "refunded" | "partially_refunded";
+  channel: string | null;
+  gateway_response: string | null;
+  paid_at: string | null;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminPaymentsData {
+  payments: AdminPaymentSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  summary: {
+    successful: number;
+    pending: number;
+    failed: number;
+    refunded: number;
+    successful_amount_minor: number;
+    currency: string;
+  };
+}
+
+export interface AdminAuditLogData {
+  id: string;
+  admin_user_id: string | null;
+  admin_display_name: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  reason: string | null;
+  result: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface PaginatedAdminAuditLogs {
+  logs: AdminAuditLogData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+function adminQuery(params: Record<string, string | number | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === "" || value === null) continue;
+    search.set(key, String(value));
+  }
+  const suffix = search.toString();
+  return suffix ? `?${suffix}` : "";
+}
+
+export const adminApi = {
+  overview: (token: string) =>
+    request<{ success: boolean; data: { overview: AdminOverviewData } }>(
+      "/admin/overview",
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  listUsers: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      role?: AdminUserRole;
+      status?: "pending" | "active" | "suspended";
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedAdminUsers }>(
+      `/admin/users${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  getUser: (token: string, userId: string) =>
+    request<{ success: boolean; data: { user: AdminUserDetail } }>(
+      `/admin/users/${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  updateUserStatus: (
+    token: string,
+    userId: string,
+    status: "active" | "suspended",
+    reason?: string,
+  ) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { user: AdminUserDetail };
+    }>(`/admin/users/${encodeURIComponent(userId)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(reason ? { status, reason } : { status }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  listTransporters: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: "pending" | "approved" | "rejected" | "suspended";
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedAdminTransporters }>(
+      `/admin/transporters${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  rejectTransporter: (token: string, id: string, reason: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { transporter: AdminTransporterSummary };
+    }>(`/admin/transporters/${encodeURIComponent(id)}/reject`, {
+      method: "PATCH",
+      body: JSON.stringify({ reason }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  listListings: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: AdminListingSummary["status"];
+      farmer_user_id?: string;
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedAdminListings }>(
+      `/admin/listings${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  moderateListing: (
+    token: string,
+    id: string,
+    action: "hide" | "restore",
+    reason: string,
+  ) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { listing: AdminListingSummary };
+    }>(`/admin/listings/${encodeURIComponent(id)}/moderate`, {
+      method: "PATCH",
+      body: JSON.stringify({ action, reason }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  listOrders: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: OrderStatus;
+      payment_status?: OrderPaymentStatus;
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedOrdersData }>(
+      `/admin/orders${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  getOrder: (token: string, orderId: string) =>
+    request<{ success: boolean; data: { order: OrderData } }>(
+      `/admin/orders/${encodeURIComponent(orderId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  listPayments: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: AdminPaymentSummary["status"];
+    } = {},
+  ) =>
+    request<{ success: boolean; data: AdminPaymentsData }>(
+      `/admin/payments${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  listAuditLogs: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      action?: string;
+      entity_type?: string;
+      admin_user_id?: string;
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedAdminAuditLogs }>(
+      `/admin/audit-logs${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+};
+
+// ─── Phase 8A: Farmer-protection admin API ───────────────────────────────────
+
+export type AgentProfileStatus =
+  | "pending"
+  | "active"
+  | "suspended"
+  | "removed";
+
+export type AgentVerificationStatus =
+  | "pending"
+  | "approved"
+  | "rejected";
+
+export interface AdminAgentProfileData {
+  id: string;
+  user_id: string;
+  cooperative_id: string;
+  full_name: string;
+  phone_number: string;
+  email: string | null;
+  identity_verification_reference: string | null;
+  operating_area: string | null;
+  appointment_date: string | null;
+  status: AgentProfileStatus;
+  verification_status: AgentVerificationStatus;
+  code_of_conduct_version: string | null;
+  code_of_conduct_accepted_at: string | null;
+  invited_by_user_id: string;
+  verified_by_user_id: string | null;
+  verified_at: string | null;
+  suspended_at: string | null;
+  removed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedAdminAgents {
+  items: AdminAgentProfileData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export type FarmerComplaintCategory =
+  | "poor_quality"
+  | "late_delivery"
+  | "non_delivery"
+  | "price_dispute"
+  | "payment_issue"
+  | "agent_conduct"
+  | "other";
+
+export type FarmerComplaintStatus =
+  | "submitted"
+  | "acknowledged"
+  | "under_review"
+  | "awaiting_information"
+  | "resolved"
+  | "dismissed"
+  | "escalated";
+
+export type FarmerComplaintPriority = "low" | "normal" | "high" | "urgent";
+
+export interface AdminComplaintData {
+  id: string;
+  complaint_number: string;
+  farmer_user_id: string;
+  agent_user_id: string | null;
+  cooperative_id: string | null;
+  related_order_id: string | null;
+  related_listing_id: string | null;
+  category: FarmerComplaintCategory;
+  description: string;
+  status: FarmerComplaintStatus;
+  priority: FarmerComplaintPriority;
+  assigned_admin_user_id: string | null;
+  resolution: string | null;
+  resolved_at: string | null;
+  evidence_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminComplaintInvestigation {
+  id: string;
+  complaint_id: string;
+  admin_user_id: string;
+  admin_display_name?: string | null;
+  action: string;
+  notes: string | null;
+  decision: string | null;
+  created_at: string;
+}
+
+export interface AdminComplaintEvidence {
+  id: string;
+  complaint_id: string;
+  file_name: string;
+  file_type: string;
+  file_size?: number | null;
+  storage_reference?: string | null;
+  created_at: string;
+}
+
+export interface AdminComplaintDetail extends AdminComplaintData {
+  evidence?: AdminComplaintEvidence[];
+  investigations?: AdminComplaintInvestigation[];
+}
+
+export interface PaginatedAdminComplaints {
+  items: AdminComplaintData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export const farmerProtectionAdminApi = {
+  listAgents: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      status?: AgentProfileStatus;
+      verification_status?: AgentVerificationStatus;
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedAdminAgents }>(
+      `/admin/farmer-protection/agents${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  verifyAgent: (
+    token: string,
+    agentProfileId: string,
+    status: "approved" | "rejected",
+    notes?: string,
+  ) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { agent: AdminAgentProfileData };
+    }>(
+      `/admin/farmer-protection/agents/${encodeURIComponent(agentProfileId)}/verify`,
+      {
+        method: "POST",
+        body: JSON.stringify(notes ? { status, notes } : { status }),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+
+  suspendAgent: (token: string, agentProfileId: string, reason: string) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { agent: AdminAgentProfileData };
+    }>(
+      `/admin/farmer-protection/agents/${encodeURIComponent(agentProfileId)}/suspend`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+
+  listComplaints: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      status?: FarmerComplaintStatus;
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedAdminComplaints }>(
+      `/admin/farmer-protection/complaints${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  getComplaint: (token: string, complaintId: string) =>
+    request<{
+      success: boolean;
+      data: { complaint: AdminComplaintDetail };
+    }>(
+      `/admin/farmer-protection/complaints/${encodeURIComponent(complaintId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  updateComplaint: (
+    token: string,
+    complaintId: string,
+    payload: {
+      status?: FarmerComplaintStatus;
+      priority?: FarmerComplaintPriority;
+      resolution?: string;
+      notes?: string;
+    },
+  ) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: { complaint: AdminComplaintData };
+    }>(
+      `/admin/farmer-protection/complaints/${encodeURIComponent(complaintId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+};
+
+// ─── Phase 8A: AI integrity admin API ─────────────────────────────────────────
+
+export type IntegrityRiskCategory =
+  | "price_anomaly"
+  | "duplicate_listing"
+  | "review_manipulation"
+  | "payment_abuse"
+  | "spam_activity"
+  | "verification_anomaly"
+  | "other";
+
+export type IntegrityRiskLevel = "low" | "medium" | "high" | "critical";
+
+export type IntegrityReviewStatus =
+  | "pending"
+  | "under_review"
+  | "resolved"
+  | "false_positive"
+  | "escalated";
+
+export interface IntegrityAssessmentData {
+  id: string;
+  subject_user_id: string;
+  subject_display_name?: string | null;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  risk_category: IntegrityRiskCategory;
+  risk_score: number;
+  risk_level: IntegrityRiskLevel;
+  detection_method: string;
+  reasons: Array<{ category: string; message: string }>;
+  review_status: IntegrityReviewStatus;
+  assigned_admin_user_id: string | null;
+  reviewed_by_user_id: string | null;
+  reviewed_at: string | null;
+  resolution_note: string | null;
+  false_positive: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrityReviewHistoryData {
+  id: string;
+  assessment_id: string;
+  admin_user_id: string;
+  admin_display_name: string | null;
+  action: string;
+  from_status: string | null;
+  to_status: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface IntegrityAssessmentDetail extends IntegrityAssessmentData {
+  review_history: IntegrityReviewHistoryData[];
+}
+
+export interface PaginatedIntegrityAssessments {
+  assessments: IntegrityAssessmentData[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export type IntegrityReviewAction =
+  | "start_review"
+  | "resolve"
+  | "mark_false_positive"
+  | "escalate"
+  | "add_note";
+
+export const integrityAdminApi = {
+  list: (
+    token: string,
+    params: {
+      page?: number;
+      limit?: number;
+      risk_level?: IntegrityRiskLevel;
+      risk_category?: IntegrityRiskCategory;
+      review_status?: IntegrityReviewStatus;
+      sort?: "newest" | "risk_desc";
+    } = {},
+  ) =>
+    request<{ success: boolean; data: PaginatedIntegrityAssessments }>(
+      `/admin/ai/integrity${adminQuery(params)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  get: (token: string, id: string) =>
+    request<{ success: boolean; data: IntegrityAssessmentDetail }>(
+      `/admin/ai/integrity/${encodeURIComponent(id)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  review: (
+    token: string,
+    id: string,
+    payload: { action: IntegrityReviewAction; notes?: string; false_positive?: boolean },
+  ) =>
+    request<{ success: boolean; data: IntegrityAssessmentDetail }>(
+      `/admin/ai/integrity/${encodeURIComponent(id)}/review`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
 };
