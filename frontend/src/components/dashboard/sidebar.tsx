@@ -13,6 +13,8 @@ interface NavLink {
   label: string;
   icon?: React.ReactNode;
   unreadIndicator?: boolean;
+  /** Only match this link on an exact pathname (used for /admin). */
+  exact?: boolean;
 }
 
 interface SidebarProps {
@@ -115,8 +117,10 @@ export function Sidebar({ user, navLinks, onClose }: SidebarProps) {
 
       {/* Nav links */}
       <nav aria-label="Dashboard navigation" className="flex-1 overflow-y-auto py-3 px-2">
-        {navLinks.map(({ href, label, icon, unreadIndicator }) => {
-          const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+        {navLinks.map(({ href, label, icon, unreadIndicator, exact }) => {
+          const active = exact
+            ? pathname === href
+            : pathname === href || (href !== "/" && pathname.startsWith(href));
           const unread = unreadIndicator ? unreadTotal : 0;
           return (
             <Link

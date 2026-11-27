@@ -60,7 +60,25 @@ function getNavLinks(user: SafeUser) {
   if (roles.includes("admin")) {
     return [
       notificationsLink,
-      { ...deliveriesLink, href: "/admin/deliveries" },
+      {
+        href: "/admin",
+        label: "Overview",
+        exact: true,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M3 3a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm8 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V3zM3 12a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4zm8 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/users",
+        label: "Users",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
       {
         href: "/admin/cooperatives",
         label: "Cooperatives",
@@ -71,12 +89,86 @@ function getNavLinks(user: SafeUser) {
         ),
       },
       {
+        href: "/admin/transporters",
+        label: "Transporters",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path d="M3 4a1 1 0 00-1 1v8a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+            <path d="M4.5 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15.5 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/listings",
+        label: "Listings",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm2 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H7a1 1 0 01-1-1z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/orders",
+        label: "Orders",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+            <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/payments",
+        label: "Payments",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2H2V5zm0 4h16v6a2 2 0 01-2 2H4a2 2 0 01-2-2V9zm3 3a1 1 0 100 2h4a1 1 0 100-2H5z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/agents",
+        label: "Agents",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v1H3a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H6zm7 3H7V4h6v1z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/complaints",
+        label: "Complaints",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.657.672 3.156 1.757 4.243L5 15h10l-.757-2.757A5.972 5.972 0 0016 8a6 6 0 00-6-6zm-2 14a2 2 0 004 0H8z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/integrity",
+        label: "Integrity",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M10 2l7 3v5c0 4.418-2.966 8.436-7 9.999C5.966 18.436 3 14.418 3 10V5l7-3zm0 4a1 1 0 011 1v4a1 1 0 11-2 0V7a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: "/admin/audit-logs",
+        label: "Audit logs",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm2 3a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h2a1 1 0 110 2H8a1 1 0 01-1-1z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      { ...deliveriesLink, href: "/admin/deliveries" },
+      {
         href: "/admin/pilot",
         label: "Pilot",
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-            <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+            <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 3.243V10l3.4 2-.8 1.46L10 11.5V5.243z" />
           </svg>
         ),
       },

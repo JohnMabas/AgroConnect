@@ -12,7 +12,7 @@ const ROLE_PRIORITY = [
 ] as const;
 
 const ROLE_HOME: Record<string, string> = {
-  admin: "/admin/cooperatives",
+  admin: "/admin",
   cooperative_agent: "/agent/dashboard",
   cooperative: "/cooperatives/dashboard",
   farmer: "/farmer/dashboard",

@@ -20,6 +20,7 @@ const joinLinks = [
 const supportLinks = [
   { label: "Get Started", href: "/register" },
   { label: "How It Works", href: "/how-it-works" },
+  { label: "Admin Login", href: "/admin/login" },
 ];
 
 export function SiteFooter() {
