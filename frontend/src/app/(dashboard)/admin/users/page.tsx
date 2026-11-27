@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   adminApi,
+  toArray,
   type AdminUserDetail,
   type AdminUserRole,
   type AdminUserSummary,
@@ -268,7 +269,7 @@ export default function AdminUsersPage() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading users…
           </div>
-        ) : !data || data.users.length === 0 ? (
+        ) : !data || toArray(data.users).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No users found
@@ -300,7 +301,7 @@ export default function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-deep-navy/5">
-                  {data.users.map((user) => (
+                  {toArray(data.users).map((user) => (
                     <tr key={user.id} className="align-top">
                       <td className="px-5 py-3.5">
                         <p className="font-semibold text-deep-navy">

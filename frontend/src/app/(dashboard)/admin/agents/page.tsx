@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   farmerProtectionAdminApi,
+  toArray,
   type AdminAgentProfileData,
   type AgentProfileStatus,
   type AgentVerificationStatus,
@@ -236,7 +237,7 @@ export default function AdminAgentsPage() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading agents…
           </div>
-        ) : !data || data.items.length === 0 ? (
+        ) : !data || toArray(data.items).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No agents found
@@ -248,7 +249,7 @@ export default function AdminAgentsPage() {
         ) : (
           <>
             <ul className="divide-y divide-deep-navy/5">
-              {data.items.map((agent) => (
+              {toArray(data.items).map((agent) => (
                 <li key={agent.id} className="p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">

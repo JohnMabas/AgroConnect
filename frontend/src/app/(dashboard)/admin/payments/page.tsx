@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   adminApi,
+  toArray,
   type AdminPaymentSummary,
   type AdminPaymentsData,
 } from "@/lib/api";
@@ -224,7 +225,7 @@ function PaymentsContent() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading payments…
           </div>
-        ) : !data || data.payments.length === 0 ? (
+        ) : !data || toArray(data.payments).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No payments found
@@ -248,7 +249,7 @@ function PaymentsContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-deep-navy/5">
-                  {data.payments.map((payment) => (
+                  {toArray(data.payments).map((payment) => (
                     <tr key={payment.id} className="align-top">
                       <td className="px-5 py-3.5">
                         <p className="font-semibold text-deep-navy">

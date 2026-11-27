@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   farmerProtectionAdminApi,
+  toArray,
   type AdminComplaintData,
   type AdminComplaintDetail,
   type ApiError,
@@ -195,7 +196,7 @@ export default function AdminComplaintsPage() {
     ? {
         ...data,
         items: searchInput.trim()
-          ? data.items.filter((c) => {
+          ? toArray(data.items).filter((c) => {
               const term = searchInput.trim().toLowerCase();
               return (
                 c.complaint_number.toLowerCase().includes(term) ||
@@ -203,7 +204,7 @@ export default function AdminComplaintsPage() {
                 c.category.toLowerCase().includes(term)
               );
             })
-          : data.items,
+          : toArray(data.items),
       }
     : null;
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
-import { adminApi, type PaginatedAdminAuditLogs } from "@/lib/api";
+import { adminApi, toArray, type PaginatedAdminAuditLogs } from "@/lib/api";
 import { Badge, Button, Input, Pagination, Select, Spinner } from "@/components/ui";
 
 const PAGE_SIZE = 20;
@@ -169,7 +169,7 @@ export default function AdminAuditLogsPage() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading audit logs…
           </div>
-        ) : !data || data.logs.length === 0 ? (
+        ) : !data || toArray(data.logs).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No audit entries found
@@ -181,7 +181,7 @@ export default function AdminAuditLogsPage() {
         ) : (
           <>
             <ul className="divide-y divide-deep-navy/5">
-              {data.logs.map((log) => (
+              {toArray(data.logs).map((log) => (
                 <li key={log.id} className="p-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">

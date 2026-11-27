@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   adminApi,
+  toArray,
   type AdminListingSummary,
   type ApiError,
   type PaginatedAdminListings,
@@ -243,7 +244,7 @@ export default function AdminListingsPage() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading listings…
           </div>
-        ) : !data || data.listings.length === 0 ? (
+        ) : !data || toArray(data.listings).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No listings found
@@ -255,7 +256,7 @@ export default function AdminListingsPage() {
         ) : (
           <>
             <ul className="divide-y divide-deep-navy/5">
-              {data.listings.map((listing) => (
+              {toArray(data.listings).map((listing) => (
                 <li key={listing.id} className="p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">

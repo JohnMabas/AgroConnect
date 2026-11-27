@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   integrityAdminApi,
+  toArray,
   type ApiError,
   type IntegrityAssessmentData,
   type IntegrityReviewAction,
@@ -275,7 +276,7 @@ function IntegrityContent() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading assessments…
           </div>
-        ) : !data || data.assessments.length === 0 ? (
+        ) : !data || toArray(data.assessments).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No integrity alerts found
@@ -287,7 +288,7 @@ function IntegrityContent() {
         ) : (
           <>
             <ul className="divide-y divide-deep-navy/5">
-              {data.assessments.map((assessment) => {
+              {toArray(data.assessments).map((assessment) => {
                 const actions = availableActions(assessment.review_status);
                 return (
                   <li key={assessment.id} className="p-5">

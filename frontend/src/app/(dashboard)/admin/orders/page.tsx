@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   adminApi,
+  toArray,
   type ApiError,
   type OrderData,
   type OrderPaymentStatus,
@@ -264,7 +265,7 @@ export default function AdminOrdersPage() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading orders…
           </div>
-        ) : !data || data.orders.length === 0 ? (
+        ) : !data || toArray(data.orders).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No orders found
@@ -290,7 +291,7 @@ export default function AdminOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-deep-navy/5">
-                  {data.orders.map((order) => (
+                  {toArray(data.orders).map((order) => (
                     <tr key={order.id} className="align-top">
                       <td className="px-5 py-3.5">
                         <p className="font-semibold text-deep-navy">
