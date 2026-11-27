@@ -191,6 +191,16 @@ export function mediaUrl(path: string | null | undefined): string | undefined {
   return `${origin}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
+/**
+ * Coerce a list field from an API payload into an array.
+ * List pages use this so a wrapped or malformed response can never make `.map` throw.
+ */
+export function toArray<T>(value: readonly T[] | null | undefined): T[];
+export function toArray(value: unknown): unknown[];
+export function toArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
 export interface SafeUser {
