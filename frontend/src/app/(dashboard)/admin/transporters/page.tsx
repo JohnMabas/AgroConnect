@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 import { useDashboardAuth } from "@/hooks/useDashboardAuth";
 import {
   adminApi,
+  toArray,
   transporterApi,
   type AdminTransporterSummary,
   type ApiError,
@@ -76,7 +77,10 @@ function TransportersContent() {
         | "suspended"
         | undefined,
     });
-    return res.data;
+    return {
+      ...res.data,
+      transporters: toArray<AdminTransporterSummary>(res.data.transporters),
+    };
   }, [token, page, search, status]);
 
   useEffect(() => {
@@ -282,7 +286,7 @@ function TransportersContent() {
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-deep-navy/55">
             <Spinner /> Loading transporters…
           </div>
-        ) : !data || data.transporters.length === 0 ? (
+        ) : !data || toArray<AdminTransporterSummary>(data.transporters).length === 0 ? (
           <div className="py-16 text-center">
             <p className="font-heading text-base font-bold text-deep-navy">
               No transporters found
@@ -294,7 +298,7 @@ function TransportersContent() {
         ) : (
           <>
             <ul className="divide-y divide-deep-navy/5">
-              {data.transporters.map((t) => (
+              {toArray<AdminTransporterSummary>(data.transporters).map((t) => (
                 <li key={t.id} className="p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
