@@ -100,7 +100,8 @@ export async function listUsersHandler(
       return;
     }
     const users = await listAdminUsers(parsed.data);
-    res.json({ success: true, data: { users } });
+    // `users` is already the paginated payload ({ users, total, page, ... }).
+    res.json({ success: true, data: users });
   } catch (error) {
     handleError(error, res, next);
   }
@@ -163,7 +164,8 @@ export async function listTransportersHandler(
       return;
     }
     const transporters = await listAdminTransporters(parsed.data);
-    res.json({ success: true, data: { transporters } });
+    // `transporters` is already the paginated payload ({ transporters, ... }).
+    res.json({ success: true, data: transporters });
   } catch (error) {
     handleError(error, res, next);
   }
@@ -210,7 +212,8 @@ export async function listListingsHandler(
       return;
     }
     const listings = await listAdminListings(parsed.data);
-    res.json({ success: true, data: { listings } });
+    // `listings` is already the paginated payload ({ listings, ... }).
+    res.json({ success: true, data: listings });
   } catch (error) {
     handleError(error, res, next);
   }
@@ -260,7 +263,8 @@ export async function listOrdersHandler(
       return;
     }
     const orders = await listAdminOrders(parsed.data);
-    res.json({ success: true, data: { orders } });
+    // `orders` is already the paginated payload ({ orders, ... }).
+    res.json({ success: true, data: orders });
   } catch (error) {
     handleError(error, res, next);
   }
@@ -293,7 +297,8 @@ export async function listPaymentsHandler(
       return;
     }
     const payments = await listAdminPayments(parsed.data);
-    res.json({ success: true, data: { payments } });
+    // `payments` is already the paginated payload ({ payments, ... }).
+    res.json({ success: true, data: payments });
   } catch (error) {
     handleError(error, res, next);
   }
