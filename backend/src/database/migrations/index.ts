@@ -49,6 +49,7 @@ import * as addPublicImageFields from "./20261121000001-add-public-image-fields.
 import * as addPublicImageSecureUrls from "./20261121000002-add-public-image-secure-urls.js";
 import * as addDeliveryLocationTracking from "./20261122000001-add-delivery-location-tracking.js";
 import * as addDeliveryLocationColumns from "./20261125000001-add-delivery-location-columns.js";
+import * as createAdminAuditLogs from "./20261126000001-create-admin-audit-logs.js";
 
 export const migrations = [
   { name: "20261102000001-create-roles", ...createRoles },
@@ -230,5 +231,9 @@ export const migrations = [
   {
     name: "20261125000001-add-delivery-location-columns",
     ...addDeliveryLocationColumns,
+  },
+  {
+    name: "20261126000001-create-admin-audit-logs",
+    ...createAdminAuditLogs,
   },
 ];

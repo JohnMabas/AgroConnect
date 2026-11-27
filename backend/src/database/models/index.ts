@@ -1,3 +1,4 @@
+import { AdminAuditLog } from "./admin-audit-log.model.js";
 import { AgentActivityLog } from "./agent-activity-log.model.js";
 import { AgentProfile } from "./agent-profile.model.js";
 import { AgentVerificationRecord } from "./agent-verification-record.model.js";
@@ -1170,6 +1171,18 @@ User.hasMany(AIUsageLog, {
   onDelete: "CASCADE",
 });
 
+// Phase 8A associations — append-only administrative audit trail.
+AdminAuditLog.belongsTo(User, {
+  foreignKey: "admin_user_id",
+  as: "admin",
+});
+
+User.hasMany(AdminAuditLog, {
+  foreignKey: "admin_user_id",
+  as: "admin_audit_logs",
+  onDelete: "SET NULL",
+});
+
 // Phase 16 associations — cooperative-only agents, farmer consent and safety.
 AgentProfile.belongsTo(User, {
   foreignKey: "user_id",
@@ -1588,6 +1601,7 @@ User.hasMany(TelecomSupportRequest, {
 });
 
 export {
+  AdminAuditLog,
   AgentActivityLog,
   AgentProfile,
   AgentVerificationRecord,

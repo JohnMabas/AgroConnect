@@ -106,6 +106,7 @@ const PHASE_18_TABLES = [
   "pilot_feedback",
   "pilot_participants",
 ];
+const PHASE_8A_TABLES = ["admin_audit_logs"];
 const MESSAGE_MEDIA_TABLES = ["call_sessions", "message_attachments"];
 const ALL_TABLES = [
   ...PHASE_2_TABLES,
@@ -124,6 +125,7 @@ const ALL_TABLES = [
   ...PHASE_16_TABLES,
   ...PHASE_17_TABLES,
   ...PHASE_18_TABLES,
+  ...PHASE_8A_TABLES,
   ...MESSAGE_MEDIA_TABLES,
 ].sort();
 
@@ -179,6 +181,7 @@ const ALL_MIGRATION_NAMES = [
   "20261121000002-add-public-image-secure-urls",
   "20261122000001-add-delivery-location-tracking",
   "20261125000001-add-delivery-location-columns",
+  "20261126000001-create-admin-audit-logs",
 ];
 
 async function getPublicTables(): Promise<string[]> {
